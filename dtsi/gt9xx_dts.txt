@@ -37,17 +37,16 @@ Optional properties:
 
 Example:
 
-gt9xx-i2c@5d {
-	compatible = "goodix,gt9xx";
+gt928-i2c@5d {
+	compatible = "goodix,gt928";
 	reg = <0x5d>; 
 	status = "okay";
 	interrupt-parent = <&msm_gpio>;
 	interrupts = <13 0x2800>;
-	pinctrl-names = "default", "int-output-low","int-output-high", "int-input";
+	pinctrl-names = "default", "int-output-low","int-output-high";
 	pinctrl-0 = <&ts_int_default>;
 	pinctrl-1 = <&ts_int_output_low>;
 	pinctrl-2 = <&ts_int_output_high>;
-	pinctrl-3 = <&ts_int_input>;
 
 	reset-gpios = <&msm_gpio 12 0x0>;
 	irq-gpios = <&msm_gpio 13 0x2800>;
@@ -66,8 +65,8 @@ gt9xx-i2c@5d {
 	goodix,wakeup-with-reset = <0>;
 	goodix,resume-in-workqueue = <0>;
 	goodix,int-sync = <1>;
-	goodix,swap-x2y = <0>;
-	goodix,esd-protect = <1>;
+	goodix,swap-x2y = <1>;
+	goodix,esd-protect = <0>;
 	goodix,auto-update-cfg = <0>;
 	goodix,power-off-sleep = <0>;
 	goodix,pen-suppress-finger = <0>;
