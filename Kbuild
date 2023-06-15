@@ -6,25 +6,40 @@ ifeq ($(CONFIG_ARCH_WAIPIO), y)
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_waipiotouchconf.h
 endif
 
-#ifeq ($(CONFIG_ARCH_KALAMA), y)
+ifeq ($(CONFIG_ARCH_KALAMA), y)
 	include $(TOUCH_ROOT)/config/gki_kalamatouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_kalamatouchconf.h
-#endif
+endif
 
-#ifeq ($(CONFIG_ARCH_KHAJE), y)
+ifeq ($(CONFIG_ARCH_KHAJE), y)
 	include $(TOUCH_ROOT)/config/gki_khajetouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_khajetouchconf.h
-#endif
+endif
 
-#ifeq ($(CONFIG_ARCH_PINEAPPLE), y)
+ifeq ($(CONFIG_ARCH_PINEAPPLE), y)
 	include $(TOUCH_ROOT)/config/gki_pineappletouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_pineappletouchconf.h
-#endif
+endif
 
-#ifeq ($(CONFIG_ARCH_MONACO), y)
+ifeq ($(CONFIG_ARCH_MONACO), y)
 	include $(TOUCH_ROOT)/config/gki_monacotouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_monacotouchconf.h
-#endif
+endif
+
+ifeq ($(CONFIG_ARCH_KONA), y)
+        include $(TOUCH_ROOT)/config/gki_konatouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_konatouchconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_BLAIR), y)
+        include $(TOUCH_ROOT)/config/gki_blairtouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_blairtouchconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_CROW), y)
+        include $(TOUCH_ROOT)/config/gki_crowtouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_crowtouchconf.h
+endif
 
 LINUX_INC +=	-Iinclude/linux \
 		-Iinclude/linux/drm \
@@ -136,33 +151,6 @@ ifeq ($(CONFIG_TOUCHSCREEN_DUMMY), y)
 	obj-$(CONFIG_MSM_TOUCH) += dummy_ts.o
 endif
 
-ifeq ($(CONFIG_TOUCHSCREEN_RM_TS), y)
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/Config.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/drv_interface.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/rad_fw_image_30.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/raydium_driver.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/raydium_selftest.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/tpselftest_30.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/f303_ic_control.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/f303_ic_reg.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/f303_ic_test.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/ic_drv_global.h
-        LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/ic_drv_interface.h
-
-         raydium_ts-y := \
-                 ./raydium/drv_interface.o \
-                 ./raydium/raydium_driver.o \
-                 ./raydium/raydium_fw_update.o \
-                 ./raydium/raydium_selftest.o \
-                 ./raydium/raydium_sysfs.o \
-                 ./raydium/chip_raydium/f303_ic_control.o \
-                 ./raydium/chip_raydium/f303_ic_test.o \
-                 ./raydium/chip_raydium/ic_drv_global.o \
-                 ./raydium/chip_raydium/ic_drv_interface.o
-
-        obj-$(CONFIG_MSM_TOUCH) += raydium_ts.o
-endif
-
 ifeq ($(CONFIG_TOUCHSCREEN_SYNAPTICS_TCM), y)
 	synaptics_tcm_ts-y := \
 		 ./synaptics_tcm/synaptics_tcm_core.o \
@@ -207,6 +195,33 @@ ifneq ($(CONFIG_ARCH_PINEAPPLE), y)
 			./pt/pt_device_access.o
 
 		obj-$(CONFIG_MSM_TOUCH) += pt_device_access.o
+	endif
+
+	ifeq ($(CONFIG_TOUCHSCREEN_RM_TS), y)
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/Config.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/drv_interface.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/rad_fw_image_30.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/raydium_driver.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/raydium_selftest.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/tpselftest_30.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/f303_ic_control.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/f303_ic_reg.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/f303_ic_test.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/ic_drv_global.h
+		LINUX_INC += -include $(TOUCH_ROOT)/raydium/chip_raydium/ic_drv_interface.h
+
+		raydium_ts-y := \
+			./raydium/drv_interface.o \
+			./raydium/raydium_driver.o \
+			./raydium/raydium_fw_update.o \
+			./raydium/raydium_selftest.o \
+			./raydium/raydium_sysfs.o \
+			./raydium/chip_raydium/f303_ic_control.o \
+			./raydium/chip_raydium/f303_ic_test.o \
+			./raydium/chip_raydium/ic_drv_global.o \
+			./raydium/chip_raydium/ic_drv_interface.o
+
+			obj-$(CONFIG_MSM_TOUCH) += raydium_ts.o
 	endif
 endif # pineapple
 
