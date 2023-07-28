@@ -2533,8 +2533,6 @@ if (active_panel)
 	drm_panel_notifier_unregister(active_panel, &g_raydium_ts->fb_notif);
 #endif/*end of CONFIG_FB*/
 	input_unregister_device(g_raydium_ts->input_dev);
-	if (g_raydium_ts->input_dev)
-		input_free_device(g_raydium_ts->input_dev);
 	g_raydium_ts->input_dev = NULL;
 	gpio_free(g_raydium_ts->rst_gpio);
 
@@ -2555,7 +2553,8 @@ if (active_panel)
 	raydium_enable_regulator(g_raydium_ts, false);
 	raydium_get_regulator(g_raydium_ts, false);
 
-	kfree(g_raydium_ts);
+	devm_kfree(&client->dev, g_raydium_ts);
+	g_raydium_ts = NULL;
 
 	i2c_set_clientdata(client, NULL);
 	LOGD(LOG_INFO, "[touch] %s: done\n", __func__);
@@ -2583,7 +2582,7 @@ if (active_panel)
 	drm_panel_notifier_unregister(active_panel, &g_raydium_ts->fb_notif);
 #endif/*end of CONFIG_FB*/
 	input_unregister_device(g_raydium_ts->input_dev);
-	input_free_device(g_raydium_ts->input_dev);
+	g_raydium_ts->input_dev = NULL;
 	gpio_free(g_raydium_ts->rst_gpio);
 
 #ifdef CONFIG_RM_SYSFS_DEBUG
@@ -2603,7 +2602,8 @@ if (active_panel)
 	raydium_enable_regulator(g_raydium_ts, false);
 	raydium_get_regulator(g_raydium_ts, false);
 
-	kfree(g_raydium_ts);
+	devm_kfree(&client->dev, g_raydium_ts);
+	g_raydium_ts = NULL;
 
 	i2c_set_clientdata(client, NULL);
 	LOGD(LOG_INFO, "[touch] %s: done\n", __func__);
