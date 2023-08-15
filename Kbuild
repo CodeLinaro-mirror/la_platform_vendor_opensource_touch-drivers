@@ -31,6 +31,21 @@ ifeq ($(CONFIG_ARCH_KONA), y)
         LINUX_INC += -include $(TOUCH_ROOT)/config/gki_konatouchconf.h
 endif
 
+ifeq ($(CONFIG_ARCH_BLAIR), y)
+        include $(TOUCH_ROOT)/config/gki_blairtouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_blairtouchconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_CROW), y)
+        include $(TOUCH_ROOT)/config/gki_crowtouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_crowtouchconf.h
+endif
+
+ifeq ($(CONFIG_ARCH_TRINKET), y)
+        include $(TOUCH_ROOT)/config/gki_trinkettouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_trinkettouchconf.h
+endif
+
 LINUX_INC +=	-Iinclude/linux \
 		-Iinclude/linux/drm \
 		-Iinclude/linux/gunyah \
