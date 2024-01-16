@@ -70,6 +70,7 @@ def define_monaco(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+	    "glink_interface_ts",
             "pt_ts",
             "pt_i2c",
             "pt_device_access",
@@ -80,6 +81,7 @@ def define_monaco(t,v):
             "TOUCH_DLKM_ENABLE",
             "CONFIG_ARCH_MONACO",
             "CONFIG_MSM_TOUCH",
+	    "CONFIG_TOUCHSCREEN_MSM_GLINK",
             "CONFIG_TOUCHSCREEN_PARADE",
             "CONFIG_TOUCHSCREEN_PARADE_DEVICETREE_SUPPORT",
             "CONFIG_TOUCHSCREEN_PARADE_I2C",
@@ -91,6 +93,22 @@ def define_monaco(t,v):
         ],
 )
 
+def define_volcano(t,v):
+     define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "goodix_ts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_VOLCANO",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GOODIX_BRL"
+        ],
+)
+
 def define_touch_target():
     for (t, v) in get_all_la_variants() + get_all_le_variants() + get_all_lxc_variants():
         if t == "blair":
@@ -99,5 +117,7 @@ def define_touch_target():
             define_pitti(t, v)
         elif t == "monaco":
             define_monaco(t, v)
+        elif t == "volcano":
+            define_volcano(t, v)
         else:
             define_pineapple(t, v)
