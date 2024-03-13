@@ -46,6 +46,11 @@ ifeq ($(CONFIG_ARCH_TRINKET), y)
         LINUX_INC += -include $(TOUCH_ROOT)/config/gki_trinkettouchconf.h
 endif
 
+ifeq ($(CONFIG_ARCH_BENGAL), y)
+        include $(TOUCH_ROOT)/config/gki_bengaltouch.conf
+        LINUX_INC += -include $(TOUCH_ROOT)/config/gki_bengaltouchconf.h
+endif
+
 LINUX_INC +=	-Iinclude/linux \
 		-Iinclude/linux/drm \
 		-Iinclude/linux/gunyah \
@@ -154,6 +159,15 @@ ifeq ($(CONFIG_TOUCHSCREEN_DUMMY), y)
 	dummy_ts-y := ./dummy_touch/dummy_touch.o
 
 	obj-$(CONFIG_MSM_TOUCH) += dummy_ts.o
+endif
+
+ifeq ($(CONFIG_TOUCHSCREEN_MSM_GLINK), y)
+
+	LINUXINCLUDE    += -I$(TOUCH_ROOT)/glink_interface_ts
+
+	glink_comm-y := ./glink_interface_ts/glink_interface.o
+
+	obj-$(CONFIG_MSM_TOUCH) += glink_comm.o
 endif
 
 ifeq ($(CONFIG_TOUCHSCREEN_SYNAPTICS_TCM), y)
