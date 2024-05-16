@@ -11,7 +11,8 @@ def define_pineapple(t,v):
             "nt36xxx-i2c",
             "atmel_mxt_ts",
             "dummy_ts",
-            "goodix_ts"
+            "goodix_ts",
+            "focaltech_fts"
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
@@ -20,7 +21,8 @@ def define_pineapple(t,v):
             "CONFIG_TOUCHSCREEN_GOODIX_BRL",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
             "CONFIG_TOUCHSCREEN_ATMEL_MXT",
-            "CONFIG_TOUCHSCREEN_DUMMY"
+            "CONFIG_TOUCHSCREEN_DUMMY",
+            "CONFIG_TOUCH_FOCALTECH"
         ],
 )
 
@@ -70,6 +72,7 @@ def define_monaco(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+	    "glink_comm",
             "pt_ts",
             "pt_i2c",
             "pt_device_access",
@@ -80,6 +83,7 @@ def define_monaco(t,v):
             "TOUCH_DLKM_ENABLE",
             "CONFIG_ARCH_MONACO",
             "CONFIG_MSM_TOUCH",
+	    "CONFIG_TOUCHSCREEN_MSM_GLINK",
             "CONFIG_TOUCHSCREEN_PARADE",
             "CONFIG_TOUCHSCREEN_PARADE_DEVICETREE_SUPPORT",
             "CONFIG_TOUCHSCREEN_PARADE_I2C",
