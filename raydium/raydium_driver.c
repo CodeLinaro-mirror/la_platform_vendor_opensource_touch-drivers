@@ -2468,7 +2468,7 @@ static int raydium_ts_probe(struct i2c_client *client,
 
 	g_raydium_ts->irq = gpio_to_irq(pdata->irq_gpio);
 	ret = request_threaded_irq(g_raydium_ts->irq, NULL, raydium_ts_interrupt,
-				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT | IRQF_NO_SUSPEND,
+				   IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 				   client->dev.driver->name, g_raydium_ts);
 	if (ret < 0) {
 		LOGD(LOG_ERR, "[touch]raydium_probe: request irq failed\n");
@@ -2477,6 +2477,7 @@ static int raydium_ts_probe(struct i2c_client *client,
 
 	g_raydium_ts->irq_desc = irq_to_desc(g_raydium_ts->irq);
 	g_raydium_ts->irq_enabled = true;
+	g_raydium_ts->touch_offload = false;
 
 	/*disable_irq then enable_irq for avoid Unbalanced enable for IRQ */
 
