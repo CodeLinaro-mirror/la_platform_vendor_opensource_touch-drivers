@@ -23,10 +23,12 @@ include $(CLEAR_VARS)
 ifneq ($(findstring vendor,$(LOCAL_PATH)),)
 
 ifneq ($(findstring opensource,$(LOCAL_PATH)),)
-       TOUCH_BLD_DIR := $(shell pwd)/vendor/qcom/opensource/touch-drivers
+      BOARD_OPENSOURCE_DIR ?= vendor/qcom/opensource/monaco
+      TOUCH_BLD_DIR := $(shell pwd)/$(BOARD_OPENSOURCE_DIR)/touch-drivers
 endif # opensource
 
-DLKM_DIR := $(TOP)/device/qcom/common/dlkm
+BOARD_COMMON_DIR ?= device/qcom/common/monaco
+DLKM_DIR := $(TOP)/$(BOARD_COMMON_DIR)/dlkm
 
 LOCAL_ADDITIONAL_DEPENDENCIES := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
 
