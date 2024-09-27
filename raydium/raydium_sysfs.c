@@ -324,6 +324,17 @@ static void raydium_ts_touch_entry(void)
 		if (gpio_is_valid(g_raydium_ts->irq_gpio))
 			gpio_free(g_raydium_ts->irq_gpio);
 
+#ifdef GESTURE_EN
+		if (device_may_wakeup(&g_raydium_ts->client->dev)) {
+			LOGD(LOG_INFO, "[touch]%s Device may wakeup\n", __func__);
+			if (g_raydium_ts->irq_wake) {
+				disable_irq_wake(g_raydium_ts->irq);
+				g_raydium_ts->irq_wake = false;
+			}
+		} else
+			LOGD(LOG_INFO, "[touch]%s Device not wakeup\n", __func__);
+#endif
+
 		raydium_irq_control(DISABLE);
 
 		if (!cancel_work_sync(&g_raydium_ts->work))
@@ -409,18 +420,29 @@ static ssize_t raydium_touch_offload_store(struct device *dev,
 
 		LOGD(LOG_INFO, "[touch]RAD %s disable touch offload!!\n", __func__);
 		raydium_ts_touch_entry();
+		g_raydium_ts->touch_offload = true;
 		break;
 
 	case 1: /* Enable Touch offload */
 
 		LOGD(LOG_INFO, "[touch]RAD %s enable touch offload!!\n", __func__);
 		raydium_ts_touch_exit();
+		g_raydium_ts->touch_offload = false;
 		break;
 	}
 
 	return count;
 }
 
+static ssize_t raydium_touch_offload_show(struct device *dev,
+					struct device_attribute *attr,
+					char *p_i8_buf)
+{
+	return snprintf(p_i8_buf, PAGE_SIZE,
+			"Touch offload   : %s\n",
+			(g_raydium_ts->touch_offload)? "Enabled" : "Disabled");
+
+}
 static ssize_t raydium_touch_lock_store(struct device *dev,
 					struct device_attribute *attr,
 					const char *p_i8_buf, size_t count)
@@ -1568,7 +1590,7 @@ static DEVICE_ATTR(raydium_i2c_touch_lock, 0644,
  *            echo 0 > raydium_touch_offload ==> disable touch offload
  */
 static DEVICE_ATTR(raydium_touch_offload, 0644,
-		   NULL,
+		   raydium_touch_offload_show,
 		   raydium_touch_offload_store);
 
 /* Log level (W)
