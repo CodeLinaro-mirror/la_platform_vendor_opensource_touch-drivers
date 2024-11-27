@@ -2727,8 +2727,10 @@ static int fts_ts_probe_delayed(struct fts_ts_data *fts_data)
 		goto err_irq_req;
 	}
 
+#ifdef CONFIG_FTS_TRUSTED_TOUCH
 #ifdef CONFIG_ARCH_QTI_VM
 tvm_setup:
+#endif
 #endif
 	ret = fts_irq_registration(fts_data);
 	if (ret) {
@@ -3028,6 +3030,11 @@ static int fts_ts_suspend(struct device *dev)
 				FTS_ERROR("power enter suspend fail");
 			}
 #endif
+		} else {
+#if FTS_PINCTRL_EN
+			fts_pinctrl_select_suspend(ts_data);
+#endif
+			gpio_direction_output(ts_data->pdata->reset_gpio, 0);
 		}
 	}
 
@@ -3075,8 +3082,13 @@ static int fts_ts_resume(struct device *dev)
 #if FTS_POWER_SOURCE_CUST_EN
 		fts_power_source_resume(ts_data);
 #endif
-		fts_reset_proc(200);
+	} else {
+#if FTS_PINCTRL_EN
+		fts_pinctrl_select_normal(ts_data);
+#endif
 	}
+
+	fts_reset_proc(200);
 
 	fts_wait_tp_to_valid();
 	fts_ex_mode_recovery(ts_data);
