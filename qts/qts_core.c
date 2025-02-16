@@ -1855,6 +1855,7 @@ EXPORT_SYMBOL(qts_client_register);
 void qts_client_unregister(void)
 {
 	struct qts_data *qts_data;
+	int i;
 
 	pr_debug("QTS client unregister\n");
 	if (!qts_data_entries)
@@ -1865,7 +1866,7 @@ void qts_client_unregister(void)
 		qts_data_entries->qts_kset = NULL;
 	}
 
-	for (int i = QTS_CLIENT_PRIMARY_TOUCH; i < QTS_CLIENT_MAX; i++) {
+	for (i = QTS_CLIENT_PRIMARY_TOUCH; i < QTS_CLIENT_MAX; i++) {
 		qts_data = &qts_data_entries->info[i];
 		if (!IS_ERR_OR_NULL(qts_data->notifier_cookie))
 			panel_event_notifier_unregister(qts_data->notifier_cookie);
@@ -1880,3 +1881,4 @@ EXPORT_SYMBOL_GPL(qts_client_unregister);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Touchscreen driver");
 MODULE_LICENSE("GPL");
+
