@@ -9,15 +9,6 @@ module_entry = touch_driver_modules.register
 
 #--------------- TOUCH-DRIVERS MODULES ------------------
 
-#define ddk_module() for qts
-module_entry(
-    name = "qts",
-    config_option = "CONFIG_QTS_ENABLE",
-    srcs = [
-            "qts/qts_core.c"
-    ]
-)
-
 #define ddk_module() for goodix_ts
 module_entry(
     name = "goodix_ts",
@@ -32,7 +23,8 @@ module_entry(
             "goodix_berlin_driver/goodix_ts_gesture.c",
             "goodix_berlin_driver/goodix_ts_inspect.c",
             "goodix_berlin_driver/goodix_ts_tools.c",
-            "goodix_berlin_driver/goodix_ts_utils.c"
+            "goodix_berlin_driver/goodix_ts_utils.c",
+            "qts/qts_core.c"
     ]
 )
 

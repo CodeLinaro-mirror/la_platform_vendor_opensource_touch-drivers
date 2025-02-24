@@ -129,7 +129,6 @@ struct qts_data {
 	u32 reset_gpio;
 	u32 reset_gpio_flags;
 	int irq;
-	u32 irq_accept_flags;
 	bool irq_disabled;
 	bool power_disabled;
 
