@@ -10624,6 +10624,8 @@ static int pt_enable_regulator(struct pt_core_data *cd, bool en)
 				"Regulator vdd enable failed rc=%d\n", rc);
 			goto exit;
 		}
+
+		cd->vdd_is_enabled = true;
 		dev_info(cd->dev, "%s: VDD regulator enabled:\n", __func__);
 	}
 
@@ -10644,29 +10646,32 @@ static int pt_enable_regulator(struct pt_core_data *cd, bool en)
 				"Regulator vcc_i2c enable failed rc=%d\n", rc);
 			goto disable_vdd_reg;
 		}
+
+		cd->vcc_i2c_is_enabled = true;
 		dev_info(cd->dev, "%s: VCC I2C regulator enabled:\n", __func__);
 	}
 
 	return 0;
 
 disable_vcc_i2c_reg:
-	if (cd->vcc_i2c) {
+	if (cd->vcc_i2c && cd->vcc_i2c_is_enabled) {
 		if (regulator_count_voltages(cd->vcc_i2c) > 0)
 			regulator_set_voltage(cd->vcc_i2c, FT_I2C_VTG_MIN_UV,
 						FT_I2C_VTG_MAX_UV);
 
 		regulator_disable(cd->vcc_i2c);
+		cd->vcc_i2c_is_enabled = false;
 		dev_info(cd->dev, "%s: VCC I2C regulator disabled:\n", __func__);
-
 	}
 
 disable_vdd_reg:
-	if (cd->vdd) {
+	if (cd->vdd && cd->vdd_is_enabled) {
 		if (regulator_count_voltages(cd->vdd) > 0)
 			regulator_set_voltage(cd->vdd, FT_VTG_MIN_UV,
 						FT_VTG_MAX_UV);
 
 		regulator_disable(cd->vdd);
+		cd->vdd_is_enabled = false;
 		dev_info(cd->dev, "%s: VDD regulator disabled:\n", __func__);
 	}
 
@@ -10910,6 +10915,31 @@ static int pt_core_restore(struct device *dev)
 }
 
 /*******************************************************************************
+ * FUNCTION: pt_core_freeze
+ *
+ * SUMMARY: Wrapper function with device suspend/resume stratergy to call
+ *  pt_core_suspend_. This function may disable IRQ during sleep state.
+ *
+ * RETURN:
+ *	 0 = success
+ *	!0 = failure
+ *
+ * PARAMETERS:
+ *      *dev  - pointer to core device
+ ******************************************************************************/
+static int pt_core_freeze(struct device *dev)
+{
+	int rc = 0;
+	struct pt_core_data *cd = dev_get_drvdata(dev);
+
+	dev_info(dev, "%s: Entering into suspend mode:\n",
+		__func__);
+
+	queue_work(cd->pt_workqueue, &cd->suspend_offload_work);
+	return rc;
+}
+
+/*******************************************************************************
  * FUNCTION: suspend_offload_work
  *
  * SUMMARY: Wrapper function of pt_core_suspend() to avoid TP to be waken/slept
@@ -11072,7 +11102,7 @@ static int pt_pm_notifier(struct notifier_block *nb,
 
 const struct dev_pm_ops pt_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(pt_core_suspend, pt_core_resume)
-	.freeze  = pt_core_suspend,
+	.freeze  = pt_core_freeze,
 	.restore = pt_core_restore,
 	SET_RUNTIME_PM_OPS(pt_core_rt_suspend, pt_core_rt_resume,
 			NULL)
@@ -17864,6 +17894,8 @@ int pt_probe(const struct pt_bus_ops *ops, struct device *dev,
 	cd->quick_boot			= false;
 	cd->drv_debug_suspend          = false;
 	cd->touch_offload = false;
+	cd->vdd_is_enabled = false;
+	cd->vcc_i2c_is_enabled = false;
 
 	if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP2_CAPABLE) {
 		cd->set_dut_generation = true;
