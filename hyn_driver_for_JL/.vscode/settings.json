@@ -1,0 +1,6 @@
+{
+    "files.associations": {
+        "cst66xx_fw2.h": "c",
+        "cst92xx_fw.h": "c"
+    }
+}
