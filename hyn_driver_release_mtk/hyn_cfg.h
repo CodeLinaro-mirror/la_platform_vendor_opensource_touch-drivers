@@ -36,7 +36,7 @@
 //selftest cfg
 #define HYN_TP0_TEST_LOG_SAVE  (0)
 
-#define HYN_DRIVER_VERSION      "== Hynitron V2.11 20250114 =="
+#define HYN_DRIVER_VERSION      "== Hynitron V2.11 20250611 =="
 #endif
 
 

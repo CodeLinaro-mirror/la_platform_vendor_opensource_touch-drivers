@@ -255,7 +255,7 @@ static int cst66xx_set_workmode(enum work_mode mode,u8 enable)
         case GLOVE_EXIT:
         case GLOVE_ENTER:
             hyn_66xxdata->glove_is_enable = mode&0x01;
-            ret = hyn_wr_reg(hyn_66xxdata,(mode&0x01)? 0xD0000AAB:0xD0000A00,4,0,0); //glove mode
+            ret = hyn_wr_reg(hyn_66xxdata,(mode&0x01)? 0xD0000A01:0xD0000A00,4,0,0); //glove mode
             mode = hyn_66xxdata->work_mode; //not switch work mode
             HYN_INFO("set_glove:%d",hyn_66xxdata->glove_is_enable);
             break;
