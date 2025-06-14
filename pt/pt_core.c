@@ -10910,7 +10910,8 @@ static int pt_core_restore(struct device *dev)
 	dev_info(dev, "%s: Entering into resume mode:\n",
 		__func__);
 
-	queue_work(cd->pt_workqueue, &cd->resume_offload_work);
+	if (!cd->touch_offload)
+		queue_work(cd->pt_workqueue, &cd->resume_offload_work);
 	return rc;
 }
 
@@ -10935,6 +10936,11 @@ static int pt_core_freeze(struct device *dev)
 	dev_info(dev, "%s: Entering into suspend mode:\n",
 		__func__);
 
+	if (pt_core_state == STATE_SUSPEND && cd->touch_offload)
+	{
+		pt_debug(cd->dev, DL_INFO, "%s Already in Suspend state\n", __func__);
+		return 0;
+	}
 	queue_work(cd->pt_workqueue, &cd->suspend_offload_work);
 	return rc;
 }
@@ -18532,7 +18538,11 @@ int pt_release(struct pt_core_data *cd)
 	cancel_work_sync(&cd->suspend_offload_work);
 	cancel_work_sync(&cd->resume_work);
 	cancel_work_sync(&cd->suspend_work);
-	destroy_workqueue(cd->pt_workqueue);
+
+	if (cd->pt_workqueue) {
+		destroy_workqueue(cd->pt_workqueue);
+		cd->pt_workqueue = NULL;
+	}
 
 	pt_stop_wd_timer(cd);
 
