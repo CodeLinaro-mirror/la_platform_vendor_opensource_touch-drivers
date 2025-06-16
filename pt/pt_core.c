@@ -10624,6 +10624,8 @@ static int pt_enable_regulator(struct pt_core_data *cd, bool en)
 				"Regulator vdd enable failed rc=%d\n", rc);
 			goto exit;
 		}
+
+		cd->vdd_is_enabled = true;
 		dev_info(cd->dev, "%s: VDD regulator enabled:\n", __func__);
 	}
 
@@ -10644,29 +10646,32 @@ static int pt_enable_regulator(struct pt_core_data *cd, bool en)
 				"Regulator vcc_i2c enable failed rc=%d\n", rc);
 			goto disable_vdd_reg;
 		}
+
+		cd->vcc_i2c_is_enabled = true;
 		dev_info(cd->dev, "%s: VCC I2C regulator enabled:\n", __func__);
 	}
 
 	return 0;
 
 disable_vcc_i2c_reg:
-	if (cd->vcc_i2c) {
+	if (cd->vcc_i2c && cd->vcc_i2c_is_enabled) {
 		if (regulator_count_voltages(cd->vcc_i2c) > 0)
 			regulator_set_voltage(cd->vcc_i2c, FT_I2C_VTG_MIN_UV,
 						FT_I2C_VTG_MAX_UV);
 
 		regulator_disable(cd->vcc_i2c);
+		cd->vcc_i2c_is_enabled = false;
 		dev_info(cd->dev, "%s: VCC I2C regulator disabled:\n", __func__);
-
 	}
 
 disable_vdd_reg:
-	if (cd->vdd) {
+	if (cd->vdd && cd->vdd_is_enabled) {
 		if (regulator_count_voltages(cd->vdd) > 0)
 			regulator_set_voltage(cd->vdd, FT_VTG_MIN_UV,
 						FT_VTG_MAX_UV);
 
 		regulator_disable(cd->vdd);
+		cd->vdd_is_enabled = false;
 		dev_info(cd->dev, "%s: VDD regulator disabled:\n", __func__);
 	}
 
@@ -10905,7 +10910,8 @@ static int pt_core_restore(struct device *dev)
 	dev_info(dev, "%s: Entering into resume mode:\n",
 		__func__);
 
-	queue_work(cd->pt_workqueue, &cd->resume_offload_work);
+	if (!cd->touch_offload)
+		queue_work(cd->pt_workqueue, &cd->resume_offload_work);
 	return rc;
 }
 
@@ -10930,6 +10936,11 @@ static int pt_core_freeze(struct device *dev)
 	dev_info(dev, "%s: Entering into suspend mode:\n",
 		__func__);
 
+	if (pt_core_state == STATE_SUSPEND && cd->touch_offload)
+	{
+		pt_debug(cd->dev, DL_INFO, "%s Already in Suspend state\n", __func__);
+		return 0;
+	}
 	queue_work(cd->pt_workqueue, &cd->suspend_offload_work);
 	return rc;
 }
@@ -17889,6 +17900,8 @@ int pt_probe(const struct pt_bus_ops *ops, struct device *dev,
 	cd->quick_boot			= false;
 	cd->drv_debug_suspend          = false;
 	cd->touch_offload = false;
+	cd->vdd_is_enabled = false;
+	cd->vcc_i2c_is_enabled = false;
 
 	if (cd->cpdata->config_dut_generation == CONFIG_DUT_PIP2_CAPABLE) {
 		cd->set_dut_generation = true;
@@ -18525,7 +18538,11 @@ int pt_release(struct pt_core_data *cd)
 	cancel_work_sync(&cd->suspend_offload_work);
 	cancel_work_sync(&cd->resume_work);
 	cancel_work_sync(&cd->suspend_work);
-	destroy_workqueue(cd->pt_workqueue);
+
+	if (cd->pt_workqueue) {
+		destroy_workqueue(cd->pt_workqueue);
+		cd->pt_workqueue = NULL;
+	}
 
 	pt_stop_wd_timer(cd);
 
