@@ -3,7 +3,7 @@
 #define _HYNITRON_CFG_H
 
 
-// #define I2C_PORT
+#define I2C_PORT
 #ifdef I2C_PORT
     #define I2C_USE_DMA      (0)  //0:soft 1:DMA 2:MTK_DMA
 #else
