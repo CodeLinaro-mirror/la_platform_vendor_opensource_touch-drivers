@@ -30,7 +30,7 @@
 #define RAD_MAIN_VERSION	0x01
 #ifdef CONFIG_ARCH_VIENNA
 #define RAD_MINOR_VERSION	0x06
-#elif
+#else
 #define RAD_MINOR_VERSION	0x01
 #endif
 #define RAD_CUSTOMER_VERSION	0x0100
@@ -107,7 +107,7 @@
 #define RAYDIUM_PDA2_HOST_CMD_ADDR          0x02    /* only in Page 0 */
 #ifdef CONFIG_ARCH_VIENNA
 #define RAYDIUM_PDA2_TCH_FINGER2_ADDR       0x03    /* only in Page 0 */
-#elif
+#else
 #define RAYDIUM_PDA2_PALM_AREA_ADDR         0x03    /* only in Page 0 */
 #endif
 #define RAYDIUM_PDA2_GESTURE_RPT_ADDR       0x04    /* only in Page 0 */
@@ -209,7 +209,7 @@ enum raydium_touch_status {
 	TOUCH_COVER_RELEASE,
 	TOUCH_SHORTCLICK
 };
-#elif
+#else
 #define TOUCH_PRESS					0
 #define TOUCH_RELEASE				1
 #define TOUCH_MOVE					2
@@ -239,7 +239,7 @@ enum raydium_touch_status {
 /* FT APK data type */
 #ifdef CONFIG_ARCH_VIENNA
 #define RAYDIUM_FT_UPDATE    0x01
-#elif
+#else
 #define RAYDIUM_FT_UPDATE    0x00
 #endif
 
@@ -269,7 +269,11 @@ enum raydium_touch_status {
 #define RAD_SELFTEST
 #define PARA_FW_VERSION_OFFSET	4
 
+#ifdef CONFIG_ARCH_VIENNA
+#define ENABLE_FW_LOADER	0
+#else
 #define ENABLE_FW_LOADER	1
+#endif
 #define FW_NAME      "RM6D030.bin"
 
 #define PINCTRL_STATE_ACTIVE     "pmx_ts_active"
@@ -409,7 +413,7 @@ enum raydium_pt_report_idx {
 	POS_RESERVED,
 	LEN_PT = 11
 };
-#elif
+#else
 enum raydium_pt_report_idx {
 	POS_PT_ID = 0,
 	POS_X_L,
