@@ -7,7 +7,7 @@
 #define MAIN_I2C_ADDR   (0x58) //use 2 slave addr
 
 #define PART_NO_EN      (1)
-#define cst36xxes_BIN_SIZE    (10*1024)
+// #define cst36xxes_BIN_SIZE    (10*1024)
 #define MODULE_ID_ADDR      (0x6400)
 #define PARTNUM_ADDR        (0x7F10)
 
@@ -42,6 +42,7 @@ static u32 cst36xxes_read_checksum(void);
 static int cst36xxes_enter_boot(void);
 static u32 cst36xxes_fread_word(u32 addr);
 static void cst36xxes_rst(void);
+static int cst36xxes_get_fwsize(u8 *bin,int* len);
 
 static int cst36xxes_init(struct hyn_ts_data* ts_data)
 {
@@ -56,7 +57,6 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
         return -1;
     }
     hyn_36xxesdata->fw_updata_addr = hyn_36xxes_fw[0].fw_bin;
-    hyn_36xxesdata->fw_updata_len = cst36xxes_BIN_SIZE;
     read_part_no = cst36xxes_fread_word(PARTNUM_ADDR);
     module_id =  cst36xxes_fread_word(MODULE_ID_ADDR);
     HYN_INFO("read_part_no:0x%08x module_id:0x%08x",read_part_no,module_id);
@@ -78,13 +78,13 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
             break;
         }
     }
-
+    cst36xxes_get_fwsize(hyn_36xxesdata->fw_updata_addr,&hyn_36xxesdata->fw_updata_len);
     hyn_36xxesdata->hw_info.ic_fw_checksum = cst36xxes_read_checksum();
     hyn_set_i2c_addr(hyn_36xxesdata,MAIN_I2C_ADDR);
     cst36xxes_rst(); //exit boot
     mdelay(50);
     
-    hyn_36xxesdata->need_updata_fw = cst36xxes_updata_judge(hyn_36xxesdata->fw_updata_addr,cst36xxes_BIN_SIZE);
+    hyn_36xxesdata->need_updata_fw = cst36xxes_updata_judge(hyn_36xxesdata->fw_updata_addr,hyn_36xxesdata->fw_updata_len);
     if(hyn_36xxesdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
@@ -93,6 +93,18 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
     return 0;
 }
 
+static int cst36xxes_get_fwsize(u8 *bin,int* len)
+{
+    u32 tmp = 0;
+    int ret = -1;
+    tmp = U8TO32(bin[0xc7],bin[0xc6],bin[0xc5],bin[0xc4]);
+    if(0xCACAA5 == (tmp>>8)){
+        *len = (tmp&0xFF)*1024;
+        ret = 0;
+    }
+    HYN_INFO("%s %s:%d",__func__,ret ? "failed":"success",*len);
+    return ret;
+}
 
 static int cst36xxes_report(void)
 {
@@ -197,41 +209,30 @@ static int cst36xxes_prox_handle(u8 cmd)
 static int cst36xxes_set_workmode(enum work_mode mode,u8 enable)
 {
     int ret = 0;
-    uint8_t i = 0;
-    for(i=0;i<5;i++)
-    {
-        ret = hyn_wr_reg(hyn_36xxesdata,0xD0000400,4,0,0); //disable lp i2c plu
-        mdelay(1);
-        ret = hyn_wr_reg(hyn_36xxesdata,0xD0000400,4,0,0);
-        if(ret == 0)
-            break;
-    }
+     hyn_wr_reg(hyn_36xxesdata,0xD00002AB,2,0,0); //wakeup from plug
+     udelay(200);
+     hyn_esdcheck_switch(hyn_36xxesdata,enable);
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_36xxesdata,ENABLE);
             hyn_esdcheck_switch(hyn_36xxesdata,enable);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD0000000,4,0,0);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD0000C00,4,0,0);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD0000100,4,0,0);
             break;
         case GESTURE_MODE:
-            hyn_esdcheck_switch(hyn_36xxesdata,ENABLE);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD0000C01,4,0,0);
             break;
         case LP_MODE:
-            hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD00004AB,4,0,0);
             break;
         case DIFF_MODE:
         case RAWDATA_MODE:
         case BASELINE_MODE:
         case CALIBRATE_MODE:
-            hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD00002AB,4,0,0); 
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD00001AB,4,0,0); //enter debug mode
             break;
         case FAC_TEST_MODE:
-            hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);
             cst36xxes_rst();
             msleep(50);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD00002AB,4,0,0); 
@@ -239,12 +240,10 @@ static int cst36xxes_set_workmode(enum work_mode mode,u8 enable)
 			msleep(50); //wait  switch to fac mode
             break;
         case DEEPSLEEP:
-            hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);
             hyn_irq_set(hyn_36xxesdata,DISABLE);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD00022AB,4,0,0);
             break;
         case ENTER_BOOT_MODE:
-            hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);
             ret |= cst36xxes_enter_boot();
             break;
         case GLOVE_EXIT:
@@ -286,7 +285,7 @@ static int cst36xxes_resum(void)
     HYN_ENTER();
     cst36xxes_rst();
     msleep(50);
-    cst36xxes_set_workmode(NOMAL_MODE,0);
+    cst36xxes_set_workmode(NOMAL_MODE,ENABLE);
     return 0;
 }
 
@@ -500,17 +499,12 @@ static int cst36xxes_updata_judge(u8 *p_fw, u16 len)
     f_ictype        = U8TO32(p_data[3],p_data[2],p_data[1],p_data[0]);
     f_fw_ver        = U8TO32(p_data[35],p_data[34],p_data[33],p_data[32]);
     
-    p_data = p_fw + cst36xxes_BIN_SIZE - 4;
+    p_data = p_fw + len - 4;
     f_checksum = U8TO32(p_data[3],p_data[2],p_data[1],p_data[0]);
     HYN_INFO("Bin_info fw_project_id:%04x ictype:%04x fw_ver:%04x checksum:%04x",f_fw_project_id,f_ictype,f_fw_ver,f_checksum);
     
     ret = cst36xxes_updata_tpinfo(); //boot checksum pass, communicate failed not updata
     if(ret) HYN_ERROR("get tpinfo failed");
-
-    if(f_ictype != ic->fw_chip_type || f_fw_project_id != ic->fw_project_id){
-        HYN_ERROR("not update,please confirm:f_ictype 0x%04x,f_fw_project_id 0x%04x",f_ictype,f_fw_project_id);
-        return 0; //not updata
-    }
 
     if(hyn_36xxesdata->boot_is_pass ==0    //boot failed
     || ( ret == 0 && f_ictype == ic->fw_chip_type && f_checksum != ic->ic_fw_checksum && f_fw_ver > ic->fw_ver ) // match new ver .h file
@@ -529,24 +523,26 @@ static int cst36xxes_updata_fw(u8 *bin_addr, u16 len)
     HYN_ENTER();
     HYN_INFO("len = %d",len);
     hyn_36xxesdata->fw_updata_process = 0;
-    if(len < cst36xxes_BIN_SIZE){
+
+    ret = cst36xxes_get_fwsize(bin_addr,&hyn_36xxesdata->fw_updata_len);
+    if(ret || len < hyn_36xxesdata->fw_updata_len){
         HYN_ERROR("bin len erro");
         goto UPDATA_END;
     }
-    len = cst36xxes_BIN_SIZE-4;
+    len = hyn_36xxesdata->fw_updata_len-4;
     if(0 == hyn_36xxesdata->fw_file_name[0]){
         p_bin_addr = bin_addr + len;
         fw_checksum = U8TO32(p_bin_addr[3],p_bin_addr[2],p_bin_addr[1],p_bin_addr[0]);
     }
     else{
-        ret = copy_for_updata(hyn_36xxesdata,i2c_buf,cst36xxes_BIN_SIZE,4);
+        ret = copy_for_updata(hyn_36xxesdata,i2c_buf,hyn_36xxesdata->fw_updata_len,4);
         if(ret)  goto UPDATA_END;
         fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
     }
     HYN_INFO("fw_checksum_all:%04x",fw_checksum);
     hyn_irq_set(hyn_36xxesdata,DISABLE);
     hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);
-    len = cst36xxes_BIN_SIZE;
+    len = hyn_36xxesdata->fw_updata_len;
     pak_num = len/PKG_SIZE;
     while(--retry_fw){
         ret = cst36xxes_enter_boot();
@@ -554,19 +550,16 @@ static int cst36xxes_updata_fw(u8 *bin_addr, u16 len)
             HYN_INFO("cst36xxes_enter_boot faill");
             continue;
         }
-
         ret = erase_all_mem();
         if(ret){
             HYN_INFO("erase_all_mem faill");
             continue;
         }
-
         ret = write_code(bin_addr,pak_num);
         if (ret){
             HYN_INFO("write_code faill");
             continue;
         }
-
         hyn_36xxesdata->hw_info.ic_fw_checksum = cst36xxes_read_checksum();
         HYN_INFO("ic_fw_checksum:%04x",hyn_36xxesdata->hw_info.ic_fw_checksum);
         if(fw_checksum == hyn_36xxesdata->hw_info.ic_fw_checksum && 0 != hyn_36xxesdata->boot_is_pass){
@@ -592,57 +585,33 @@ UPDATA_END:
 
 static u32 cst36xxes_check_esd(void)
 {
-    int16_t ok = FALSE;
+    int ret = FALSE;
     uint8_t i2c_buf[6], retry;
-    uint8_t flag = 0;
     uint32_t esd_value = 0;
-
-    retry = 4;
-    flag = 0;
+    retry = 3;
     while (retry--)
     {
         hyn_wr_reg(hyn_36xxesdata,0xD0190000,4,i2c_buf,0);
         udelay(200);
-        ok = hyn_wr_reg(hyn_36xxesdata,0xD0190000,4,i2c_buf,1);
-        if (ok == FALSE){
-            msleep(1);
-            continue;
-        } else {
-            if ((i2c_buf[0] == 0x20) || (i2c_buf[0]==0xA0)){
-                flag = 1;
-                esd_value = i2c_buf[0];
-                break;
-            } else {
-                HYN_INFO("ESD data NA: 0x%x ",i2c_buf[0]);
-                msleep(2);
-                continue;
-            }
+        ret = hyn_wr_reg(hyn_36xxesdata,0xD0190000,4,i2c_buf,1);
+        if(ret==0 && (i2c_buf[0] == 0x20 || i2c_buf[0]==0xA0)){
+            break;
+        }
+        else{
+            HYN_ERROR("esd:%#x\r\n",i2c_buf[0]);
         }
     }
-    HYN_INFO("ESD data:%d,0x%04x,0x%04x", flag, esd_value, hyn_36xxesdata->esd_last_value);
-    if (flag == 0)
-    {
-        hyn_power_source_ctrl(hyn_36xxesdata, 0);
-        mdelay(2);
-        hyn_power_source_ctrl(hyn_36xxesdata, 1);
-        mdelay(2);
-        cst36xxes_rst();
-        msleep(40);
-        esd_value = 0;
-        hyn_36xxesdata->esd_last_value = 0;
-        HYN_INFO("esd_check power reset ic");
+    if(ret){
+        hyn_36xxesdata->esd_fail_cnt = 3;
+        esd_value = hyn_36xxesdata->esd_last_value;
     }
-    if ((hyn_36xxesdata->work_mode == GESTURE_MODE)&&(esd_value != 0xA0))
-    {
-        ok = hyn_wr_reg(hyn_36xxesdata,0xD0000C01,4,0,0);
-        if (ok == FALSE){
-            HYN_ERROR("enter_sleep failed");
-        }  
+    else{
+        esd_value = hyn_36xxesdata->esd_last_value+1;
     }
-    
-    hyn_36xxesdata->esd_last_value = esd_value;
     return esd_value;
 }
+
+
 
 static int red_dbg_data(u8 *buf, u16 len ,u32 *cmd_list,u8 type)
 {
@@ -730,9 +699,6 @@ static int get_fac_test_data(u32 cmd ,u8 *buf, u16 len ,u8 rev)
     return ret;
 }
 
-#define FACTEST_PATH    "/sdcard/hyn_fac_test_cfg.ini"
-#define FACTEST_LOG_PATH "/sdcard/hyn_fac_test.log"
-#define FACTEST_ITEM      (MULTI_OPEN_TEST|MULTI_SHORT_TEST|MULTI_SCAP_TEST)
 
 static int cst36xxes_get_test_result(u8 *buf, u16 len)
 {
@@ -803,13 +769,7 @@ static int cst36xxes_get_test_result(u8 *buf, u16 len)
         HYN_ERROR("read scap failed");
         goto TEST_ERRO;
     }
-    ////read data finlish start test
-    ret = factory_multitest(hyn_36xxesdata ,FACTEST_PATH, buf,(s16*)(rbuf+st_len),FACTEST_ITEM);
-
 TEST_ERRO:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_36xxesdata,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    }
     cst36xxes_resum();
     return ret;
 }

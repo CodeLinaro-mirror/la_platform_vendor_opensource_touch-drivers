@@ -5,18 +5,13 @@
 #define MAIN_I2C_ADDR   (0x5A)
 #define RW_REG_LEN   (2)
 
+#define MAX_FINGER (2)
+
 #define CST92XX_BIN_SIZE    (0x7F80)
 
 #define HYNITRON_PROGRAM_PAGE_SIZE (128)
 
 static struct hyn_ts_data *hyn_92xxdata = NULL;
-
-
-static const struct hyn_chip_series hyn_92xx_fw[] = {
-    {0xCACA9217,0xffffffff,"cst9217",(u8*)fw_bin},//if PART_NO_EN==0 use default chip
-    {0xCACA9220,0xffffffff,"cst9220",(u8*)fw_bin},
-    {0,0,"",NULL}
-};
 
 static int cst92xx_updata_judge(u8 *p_fw, u16 len);
 static u32 cst92xx_read_checksum(void);
@@ -24,33 +19,29 @@ static int cst92xx_updata_tpinfo(void);
 static int cst92xx_enter_boot(void);
 static void cst92xx_rst(void);
 static int cst92xx_set_workmode(enum work_mode mode,u8 enable);
-static int cst92xx_read_chip_id(void);
 
 static int cst92xx_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0;
     HYN_ENTER();
     hyn_92xxdata = ts_data;
-    hyn_set_i2c_addr(hyn_92xxdata,BOOT_I2C_ADDR);
-    ret = cst92xx_read_chip_id();
-    if(ret == FALSE){
-        HYN_INFO("cst92xx_read_chip_id failed");
-        return FALSE;
-    }
+    hyn_set_i2c_addr(hyn_92xxdata,MAIN_I2C_ADDR);
+    cst92xx_rst();
+    msleep(40);
     ret = cst92xx_updata_tpinfo();
     if(ret == FALSE){
         HYN_INFO("cst92xx_updata_tpinfo failed");
+        hyn_92xxdata->work_mode=ENTER_BOOT_MODE;
+        ret = cst92xx_enter_boot();
+        if(ret){
+            HYN_ERROR("cst92xx_ic check failed\r\n");
+            return FALSE;
+        }
+        cst92xx_rst();
     }
-
     hyn_92xxdata->fw_updata_addr = (u8*)fw_bin;
     hyn_92xxdata->fw_updata_len = CST92XX_BIN_SIZE;
     hyn_92xxdata->need_updata_fw = cst92xx_updata_judge((u8*)fw_bin,CST92XX_BIN_SIZE);
-    if(hyn_92xxdata->need_updata_fw){
-        HYN_INFO("need updata FW !!!");
-    }
-    cst92xx_rst();
-    msleep(40);
- 
     HYN_INFO("cst92xx_init done !!!");
     return TRUE;
 }
@@ -58,12 +49,12 @@ static int cst92xx_init(struct hyn_ts_data* ts_data)
 
 static int  cst92xx_enter_boot(void)
 {
-    int ok = FALSE,t;
+    int ok = FALSE,t,retry = 3;
     uint8_t i2c_buf[4] = {0};
-
+    hyn_set_i2c_addr(hyn_92xxdata,BOOT_I2C_ADDR);
     for (t = 10;; t += 2)
     {
-        if (t >= 30){
+        if(t >= 30 || retry==0){
             return FALSE;
         }
 
@@ -71,27 +62,26 @@ static int  cst92xx_enter_boot(void)
         mdelay(t);
 
         ok = hyn_wr_reg(hyn_92xxdata, 0xA001AA, 3, i2c_buf, 0);
-        if(ok == FALSE){
+        if(ok == FALSE || (i2c_buf[0]==0x5A && i2c_buf[1]==0x5A)){
+            if(ok==TRUE && retry){
+                retry--;
+                t = 10;
+            }
             continue;
         }
-
         mdelay(1);
-
         ok = hyn_wr_reg(hyn_92xxdata, 0xA002,  2, i2c_buf, 2);
         if(ok == FALSE){
             continue;
         }
-
         if ((i2c_buf[0] == 0x55) && (i2c_buf[1] == 0xB0)) {
             break;
         }
     }
-
     ok = hyn_wr_reg(hyn_92xxdata, 0xA00100, 3, i2c_buf, 0);
     if(ok == FALSE){
         return FALSE;
     }
-
     return TRUE;
 }
 
@@ -134,8 +124,6 @@ static int erase_all_mem(void)
 
     return TRUE;
 }
-
-
 
 
 static int write_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
@@ -240,7 +228,6 @@ static uint32_t cst92xx_read_checksum(void)
     uint32_t chip_checksum = 0;
     uint8_t retry = 5;
     
-    hyn_92xxdata->boot_is_pass = 0;
     ok =  hyn_wr_reg(hyn_92xxdata,0xA00300,3,i2c_buf,0);
     if (ok == FALSE) {
         return FALSE;
@@ -257,17 +244,12 @@ static uint32_t cst92xx_read_checksum(void)
 
     mdelay(1);
      if(i2c_buf[0] == 0x01){
-        hyn_92xxdata->boot_is_pass = 1;
         memset(i2c_buf,0,sizeof(i2c_buf));
         ok =  hyn_wr_reg(hyn_92xxdata,0xA008,2,i2c_buf,4);
         if (ok == FALSE) {
             return FALSE;
         }      
-
-        chip_checksum = ((uint32_t)(i2c_buf[0])) |
-            (((uint32_t)(i2c_buf[1])) << 8) |
-            (((uint32_t)(i2c_buf[2])) << 16) |
-            (((uint32_t)(i2c_buf[3])) << 24);
+        chip_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
     }
     else{
         hyn_92xxdata->need_updata_fw = 1;
@@ -364,129 +346,133 @@ UPDATA_END:
 
     return ok_copy;
 }
-static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
-{
-    int16_t ret = 0;
-    uint8_t i2c_buf[4] = {0},t;
 
-    i2c_buf[0] = 0xA0;
-    i2c_buf[1] = 0x10;
-    i2c_buf[2] = type;
-    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
-    if (ret)
-    {
-        return -1;
-    }
+// static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
+// {
+//     int16_t ret = 0;
+//     uint8_t i2c_buf[4] = {0},t;
 
-    i2c_buf[0] = 0xA0;
-    i2c_buf[1] = 0x0C;
-    i2c_buf[2] = addr;
-    i2c_buf[3] = addr >> 8;
-    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,4); 
-    if (ret)
-    {
-        return -1;
-    }
+//     i2c_buf[0] = 0xA0;
+//     i2c_buf[1] = 0x10;
+//     i2c_buf[2] = type;
+//     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
+//     if (ret)
+//     {
+//         return -1;
+//     }
 
-    i2c_buf[0] = 0xA0;
-    i2c_buf[1] = 0x04;
-    i2c_buf[2] = 0xE4;
-    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
-    if (ret)
-    {
-        return -1;
-    }
+//     i2c_buf[0] = 0xA0;
+//     i2c_buf[1] = 0x0C;
+//     i2c_buf[2] = addr;
+//     i2c_buf[3] = addr >> 8;
+//     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,4); 
+//     if (ret)
+//     {
+//         return -1;
+//     }
 
-    for (t = 0;; t++)
-    {
-        if (t >= 100)
-        {
-            return -1;
-        }
-        ret =hyn_wr_reg(hyn_92xxdata,0xA004,2,i2c_buf,1);
-        if (ret)
-        {
-            continue;
-        }
-        if (i2c_buf[0] == 0x00)
-        {
-            break;
-        }
-    }
-    ret =hyn_wr_reg(hyn_92xxdata,0xA018,2,i2c_buf,4);
-    if (ret)
-    {
-        return -1;
-    }
-    *value = ((uint32_t)(i2c_buf[0])) |
-             (((uint32_t)(i2c_buf[1])) << 8) |
-             (((uint32_t)(i2c_buf[2])) << 16) |
-             (((uint32_t)(i2c_buf[3])) << 24);
+//     i2c_buf[0] = 0xA0;
+//     i2c_buf[1] = 0x04;
+//     i2c_buf[2] = 0xE4;
+//     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
+//     if (ret)
+//     {
+//         return -1;
+//     }
 
-    return 0;
-}
-static int cst92xx_read_chip_id(void)
-{
-    int16_t ret = 0;
-    uint8_t retry = 3;
-    uint32_t partno_chip_type,module_id;
+//     for (t = 0;; t++)
+//     {
+//         if (t >= 100)
+//         {
+//             return -1;
+//         }
+//         ret =hyn_wr_reg(hyn_92xxdata,0xA004,2,i2c_buf,1);
+//         if (ret)
+//         {
+//             continue;
+//         }
+//         if (i2c_buf[0] == 0x00)
+//         {
+//             break;
+//         }
+//     }
+//     ret =hyn_wr_reg(hyn_92xxdata,0xA018,2,i2c_buf,4);
+//     if (ret)
+//     {
+//         return -1;
+//     }
+//     *value = ((uint32_t)(i2c_buf[0])) |
+//              (((uint32_t)(i2c_buf[1])) << 8) |
+//              (((uint32_t)(i2c_buf[2])) << 16) |
+//              (((uint32_t)(i2c_buf[3])) << 24);
 
-    ret = cst92xx_enter_boot();
-    if (ret == FALSE)
-    {
-        HYN_ERROR("enter_bootloader error");
-        return -1;
-    }
-    for (; retry > 0; retry--)
-    {
-        // partno
-        ret = read_word_from_mem(1, 0x077C, &partno_chip_type);
-        if (ret)
-        {
-            continue;
-        }
-        // module id
-        ret = read_word_from_mem(0, 0x7FC0, &module_id);
-        if (ret)
-        {
-            continue;
-        }
-        if ((partno_chip_type >> 16) == 0xCACA)
-        {
-            partno_chip_type &= 0xffff;
-            break;
-        }
-    }
-    cst92xx_rst();
-    msleep(30);
-    HYN_INFO("partno_chip_type: 0x%04x", partno_chip_type);
-    HYN_INFO("module_id: 0x%04x", module_id);
-    if ((partno_chip_type != 0x9217) && (partno_chip_type != 0x9220))
-    {
-        HYN_ERROR("partno_chip_type error 0x%04x", partno_chip_type);
-        //return -1;
-    }
-    return 0;
-}
+//     return 0;
+// }
+
+// static int cst92xx_read_chip_id(void)
+// {
+//     int16_t ret = 0;
+//     uint8_t retry = 3;
+//     uint32_t partno_chip_type,module_id;
+
+//     ret = cst92xx_enter_boot();
+//     if (ret == FALSE)
+//     {
+//         HYN_ERROR("enter_bootloader error");
+//         return -1;
+//     }
+//     for (; retry > 0; retry--)
+//     {
+//         // partno
+//         ret = read_word_from_mem(1, 0x077C, &partno_chip_type);
+//         if (ret)
+//         {
+//             continue;
+//         }
+//         // module id
+//         ret = read_word_from_mem(0, 0x7FC0, &module_id);
+//         if (ret)
+//         {
+//             continue;
+//         }
+//         if ((partno_chip_type >> 16) == 0xCACA)
+//         {
+//             partno_chip_type &= 0xffff;
+//             break;
+//         }
+//     }
+//     cst92xx_rst();
+//     msleep(30);
+//     HYN_INFO("partno_chip_type: 0x%04x", partno_chip_type);
+//     HYN_INFO("module_id: 0x%04x", module_id);
+//     if ((partno_chip_type != 0x9217) && (partno_chip_type != 0x9220))
+//     {
+//         HYN_ERROR("partno_chip_type error 0x%04x", partno_chip_type);
+//         //return -1;
+//     }
+//     return 0;
+// }
 
 static int cst92xx_updata_tpinfo(void)
 {
-    u8 buf[30];
+    u8 buf[30],retry=8;
     struct tp_info *ic = &hyn_92xxdata->hw_info;
     int ret = 0;
-
-    cst92xx_set_workmode(0xff,DISABLE);
-    ret = hyn_wr_reg(hyn_92xxdata,0xD101,2,buf,0);
-    if(ret == FALSE){
-        return FALSE;
+    hyn_92xxdata->boot_is_pass = 0;
+    while(retry--){
+        cst92xx_set_workmode(0xff,DISABLE);
+        ret = hyn_wr_reg(hyn_92xxdata,0xD101,2,buf,0);
+        if(ret) continue;
+        ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,28);
+        if(ret==0 && (buf[19]==0x92||buf[19]==0x91)){
+            break;
+        }
+        ret = -1;
     }
-    mdelay(5);
-
-    //firmware_project_id   firmware_ic_type
-    ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,28);
-    if(ret == FALSE){
-        return FALSE;
+    if(ret){
+         return FALSE;
     }
+    hyn_92xxdata->boot_is_pass = 1;
     ic->fw_project_id = ((uint16_t)buf[17] <<8) + buf[16];
     ic->fw_chip_type = ((uint16_t)buf[19] <<8) + buf[18];
 
@@ -516,19 +502,7 @@ static int cst92xx_updata_judge(u8 *p_fw, u16 len)
     u32 f_checksum,f_fw_ver,f_ictype,f_fw_project_id;
     u8 *p_data = p_fw + len - 28;   //7F64
     struct tp_info *ic = &hyn_92xxdata->hw_info;
-    int ret;
 
-    ret = cst92xx_enter_boot();
-    if (ret == FALSE){
-        HYN_INFO("cst92xx_enter_boot fail,need update");
-        return 1; 
-    }
-    hyn_92xxdata->hw_info.ic_fw_checksum = cst92xx_read_checksum();
-    if(hyn_92xxdata->boot_is_pass == 0){
-        HYN_INFO("boot_is_pass %d,need force update",hyn_92xxdata->boot_is_pass);
-        return 1; //need updata
-    }
-    
     f_fw_project_id = U8TO16(p_data[1],p_data[0]);
     f_ictype = U8TO16(p_data[3],p_data[2]);
 
@@ -540,11 +514,10 @@ static int cst92xx_updata_judge(u8 *p_fw, u16 len)
 
 
     HYN_INFO("Bin_info project_id:0x%04x ictype:0x%04x fw_ver:0x%x checksum:0x%x",f_fw_project_id,f_ictype,f_fw_ver,f_checksum);
-    if(f_ictype != ic->fw_chip_type || f_fw_project_id != ic->fw_project_id){
-        HYN_ERROR("not update,please confirm: ic_type 0x%04x,ic_project_id 0x%04x",ic->fw_chip_type,ic->fw_project_id);
-        return 0; //not updata
-    }
-    if(f_checksum != ic->ic_fw_checksum && f_fw_ver > ic->fw_ver){
+    if(
+        (f_checksum != ic->ic_fw_checksum && f_fw_ver >= ic->fw_ver && f_ictype == ic->fw_chip_type)
+        || (hyn_92xxdata->boot_is_pass==0) //empty chip
+    ){
         HYN_INFO("need update!");
         return 1; //need updata
     }
@@ -561,58 +534,51 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
     uint8_t i = 0;
     hyn_92xxdata->work_mode = mode;
 
-    for(i=0;i<3;i++)
-    {
-        ok = hyn_wr_reg(hyn_92xxdata,0xD11E,2,i2c_buf,0);
-        if (ok == FALSE) {
-            msleep(1);
-            continue;
-        }
-        msleep(1);
-        ok = hyn_wr_reg(hyn_92xxdata,0x0002,2,i2c_buf,2);
-        if (ok == FALSE) {
-            msleep(1);
-            continue;
-        }
-        if(i2c_buf[1] == 0x1E){
+    for(i=0;i<3;i++){
+        ok = hyn_wr_reg(hyn_92xxdata,0xD11E,2,NULL,0);
+        udelay(200);
+        ok |= hyn_wr_reg(hyn_92xxdata,0x0002,2,i2c_buf,2);
+        if(ok==TRUE && i2c_buf[1] == 0x1E){
             break;
         }     
     }    
-
+    hyn_esdcheck_switch(hyn_92xxdata,enable);
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_92xxdata,ENABLE);
-            hyn_esdcheck_switch(hyn_92xxdata,ENABLE);
-            ok = hyn_wr_reg(hyn_92xxdata,0xD109,2,i2c_buf,0);
+            ok = hyn_wr_reg(hyn_92xxdata,0xD109,2,NULL,0);
             break;
         case GESTURE_MODE:
-            hyn_esdcheck_switch(hyn_92xxdata,ENABLE);
-            ok = hyn_wr_reg(hyn_92xxdata,0xD104,2,i2c_buf,0);
+            ok = hyn_wr_reg(hyn_92xxdata,0xD104,2,NULL,0);
             break;
         case LP_MODE:
-            hyn_esdcheck_switch(hyn_92xxdata,DISABLE);
-            ok = hyn_wr_reg(hyn_92xxdata,0xD107,2,i2c_buf,0);
+            ok = hyn_wr_reg(hyn_92xxdata,0xD107,2,NULL,0);
             break;
         case DIFF_MODE:
-            hyn_esdcheck_switch(hyn_92xxdata,DISABLE);
-            ok = hyn_wr_reg(hyn_92xxdata,0xD10D,2,i2c_buf,0);
+            ok = hyn_wr_reg(hyn_92xxdata,0xD10D,2,NULL,0);
             break;
         case RAWDATA_MODE:
-            hyn_esdcheck_switch(hyn_92xxdata,DISABLE);
-            ok = hyn_wr_reg(hyn_92xxdata,0xD10A,2,i2c_buf,0);
+            ok = hyn_wr_reg(hyn_92xxdata,0xD10A,2,NULL,0);
             break;
         case FAC_TEST_MODE:
-            hyn_esdcheck_switch(hyn_92xxdata,DISABLE);
-            hyn_wr_reg(hyn_92xxdata,0xD114,2,i2c_buf,0);
+            hyn_wr_reg(hyn_92xxdata,0xD114,2,NULL,0);
             msleep(50);
             break;
+        case CHARGE_EXIT:
+        case CHARGE_ENTER:
+            hyn_92xxdata->charge_is_enable = mode&0x01;
+            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD01F:0xD020,2,0,0); //charg mode
+            mode = hyn_92xxdata->work_mode; //not switch work mode
+            HYN_INFO("set_charge:%d",hyn_92xxdata->charge_is_enable);
+            break;
+        case ENTER_BOOT_MODE:
+            ok = cst92xx_enter_boot();
+            break;
         case DEEPSLEEP:
-            hyn_esdcheck_switch(hyn_92xxdata,DISABLE);
-            hyn_wr_reg(hyn_92xxdata,0xD105,2,i2c_buf,0);
+            hyn_wr_reg(hyn_92xxdata,0xD105,2,NULL,0);
             break;
         default :
             hyn_92xxdata->work_mode = NOMAL_MODE;
-            hyn_esdcheck_switch(hyn_92xxdata,enable);
             ok = -2;
             break;
     }
@@ -625,12 +591,13 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
 
 static void cst92xx_rst(void)
 {
+    if(hyn_92xxdata->work_mode==ENTER_BOOT_MODE){
+        hyn_set_i2c_addr(hyn_92xxdata,MAIN_I2C_ADDR);
+    }
     gpio_set_value(hyn_92xxdata->plat_data.reset_gpio,0);
     msleep(8);
     gpio_set_value(hyn_92xxdata->plat_data.reset_gpio,1);
 }
-
-
 
 static int cst92xx_supend(void)
 {
@@ -650,193 +617,122 @@ static int cst92xx_resum(void)
 
 static int cst92xx_report(void)
 {
-    int ok = FALSE;
-    uint8_t i2c_buf[MAX_POINTS_REPORT*5+5] = {0};
-    uint8_t finger_num = 0;
-    uint8_t key_state=0,key_id = 0;
+    int ret = FALSE;
+    uint8_t i2c_buf[MAX_FINGER*5+5] = {0};
+    uint8_t finger_num = 0,key_state=0,retry=3,re_len=0,ges_state;
 
-    hyn_92xxdata->rp_buf.report_need = REPORT_NONE;
-
-    ok = hyn_wr_reg(hyn_92xxdata,0xD000,2,i2c_buf,sizeof(i2c_buf));
-    if (ok == FALSE){
-        return FALSE;
-    }   
-        
-    ok = hyn_wr_reg(hyn_92xxdata,0xD000AB,3,i2c_buf,0);
-    if (ok == FALSE){
-        return FALSE;
-    }   
-
-
-    if (i2c_buf[6] != 0xAB) {
-        HYN_INFO("fail buf[6]=0x%02x",i2c_buf[6]);
-        return FALSE;
+    while(--retry){
+        hyn_wr_reg(hyn_92xxdata,0xD000,2,NULL,0); //wakeup
+        udelay(200);
+        ret = hyn_wr_reg(hyn_92xxdata,0xD000,2,i2c_buf,7);
+        if(ret || i2c_buf[6]!=0xAB || i2c_buf[0]==0xAB){
+            ret = -1;
+            continue;
+        }
+        finger_num = i2c_buf[5] & 0x7F;
+        if(finger_num > MAX_FINGER){
+            ret = -2;
+            continue;
+        }
+        key_state = i2c_buf[5]>>7;
+        re_len = ((finger_num>1 ? finger_num-1:0)+key_state)*5;
+        if(re_len){
+            ret = hyn_wr_reg(hyn_92xxdata,0xD007,2,i2c_buf+7,re_len);
+            if(ret){
+                ret = -2;
+                continue;
+            }
+        }
+        ret = hyn_wr_reg(hyn_92xxdata,0xD000AB,3,NULL,0); //write end flag
+        if(ret){
+            ret = -3;
+            continue;
+        }
+        else{
+            break;
+        }
     }
-
-    finger_num = i2c_buf[5] & 0x7F;
     
-    if (finger_num > MAX_POINTS_REPORT) {
-        HYN_INFO("fail finger_num=%d",finger_num);
-        return TRUE;
+    if(ret){
+        HYN_ERROR("read point erro:%d\r\n",ret);
+        hyn_wr_reg(hyn_92xxdata,0xD000AB,3,NULL,0); //write end flag
+        return ret;
     }
-    hyn_92xxdata->rp_buf.rep_num = finger_num;
 
-   
-    if ((i2c_buf[5] & 0x80) == 0x80) { // button
-        uint8_t *data = i2c_buf + finger_num * 5;
-        if (finger_num > 0) {
-            data += 2;
+    ges_state = i2c_buf[4]>>4;
+    if(ges_state){ //gesture
+        if((ges_state&0x80) == 0x80){ //palm
+            hyn_92xxdata->gesture_id = IDX_Z;// palm 
         }
-        key_state = data[0];//0x83:按键有触�?  0x80:按键�?�?
-        key_id = data[1]; // data[1]; :0x17  0x27  0x37
+        else{ //other gesture
+            hyn_92xxdata->gesture_id = IDX_POWER;//GESTURE wakeup
+        }
+        HYN_INFO("gesture buf4:%#x\r\n",i2c_buf[4]);
+        hyn_92xxdata->rp_buf.report_need |= REPORT_GES;
+    }
 
-        if(key_state&0x80){            
+    if(key_state){
+        uint8_t *data_ptr = i2c_buf;
+        if(finger_num){
+            data_ptr += (finger_num*5+2);
+        }
+        if( hyn_92xxdata->rp_buf.report_need==REPORT_NONE){
             hyn_92xxdata->rp_buf.report_need |= REPORT_KEY;
-            if((key_id == hyn_92xxdata->rp_buf.key_id || 0 == hyn_92xxdata->rp_buf.key_state)&& key_state == 0x83){
-                hyn_92xxdata->rp_buf.key_id = key_id;
-                hyn_92xxdata->rp_buf.key_state = 1;
-            }
-            else{
-                hyn_92xxdata->rp_buf.key_state = 0;
-            }
         }
+        hyn_92xxdata->rp_buf.key_id = (data_ptr[1]>>4)-1; //0x17  0x27  0x37
+        hyn_92xxdata->rp_buf.key_state = data_ptr[0]==0x83 ? 1:0; //0x83  0x80
     }
-    else//pos
-    {
-        uint8_t index = 0,i;
-        if((i2c_buf[4]&0xF0) > 0){
-            if((i2c_buf[4]&0x80) == 0x80)
-                hyn_92xxdata->gesture_id = 14;//KEY_POWER;// palm
-            else  if(i2c_buf[4]&0x70)
-                hyn_92xxdata->gesture_id = 14;//GESTURE wakeup
-            HYN_INFO("i2c_buf[4]=0x%x,gesture_id=0x%x",i2c_buf[4],hyn_92xxdata->gesture_id);
-            hyn_92xxdata->rp_buf.report_need |= REPORT_GES;
-            return TRUE;
+
+    if(finger_num){
+        u8 i = 0,index = 0,id = 0;
+        u8 *data_ptr = i2c_buf;
+        if( hyn_92xxdata->rp_buf.report_need==REPORT_NONE){
+            hyn_92xxdata->rp_buf.report_need |= REPORT_POS;
         }
-        
-        hyn_92xxdata->rp_buf.report_need |= REPORT_POS;
-        if (finger_num > 0) {
-            uint8_t *data = i2c_buf;
-           //uint8_t *data_ges = i2c_buf + finger_num * 5 + 2;
-            uint8_t id = data[0] >> 4;
-            uint8_t switch_ = data[0] & 0x0F;
-            uint16_t x = ((uint16_t)(data[1]) << 4) | (data[3] >> 4);
-            uint16_t y = ((uint16_t)(data[2]) << 4) | (data[3] & 0x0F);
-            uint16_t z = (data[3] & 0x1F) + 0x03;
-
-            HYN_INFO("finger=%d id=%d x=%d y=%d z=%d",finger_num,id,x,y,z);
-
-            if (id < MAX_POINTS_REPORT) {
-                hyn_92xxdata->rp_buf.pos_info[index].pos_id = id;
-                hyn_92xxdata->rp_buf.pos_info[index].event = (switch_ == 0x06 || switch_ == 0x07) ? 1 : 0;  
-                hyn_92xxdata->rp_buf.pos_info[index].pos_x = x;
-                hyn_92xxdata->rp_buf.pos_info[index].pos_y = y;
-                hyn_92xxdata->rp_buf.pos_info[index].pres_z = z;
-                index++;
-            }
-            
-
+        for (i = 0; i < finger_num; i++) {
+            id = data_ptr[0] >> 4;
+            hyn_92xxdata->rp_buf.pos_info[index].pos_id = id;
+            hyn_92xxdata->rp_buf.pos_info[index].event = (data_ptr[0]&0x0F) ? 1 : 0;  
+            hyn_92xxdata->rp_buf.pos_info[index].pos_x = (data_ptr[1] << 4) | (data_ptr[3] >> 4);
+            hyn_92xxdata->rp_buf.pos_info[index].pos_y = (data_ptr[2] << 4) | (data_ptr[3] & 0x0F);
+            hyn_92xxdata->rp_buf.pos_info[index].pres_z = (data_ptr[4] & 0x7F);
+            index++;
+            data_ptr += (i==0 ? 7:5);
         }
-
-        for (i = 1; i < finger_num; i++) {
-            uint8_t *data = i2c_buf+5*i+2;
-            uint8_t id = data[0] >> 4;
-            uint8_t switch_ = data[0] & 0x0F;
-            uint16_t x = ((uint16_t)(data[1]) << 4) | (data[3] >> 4);
-            uint16_t y = ((uint16_t)(data[2]) << 4) | (data[3] & 0x0F);
-            uint16_t z = (data[4] & 0x7F);
-
-            if (id < MAX_POINTS_REPORT) {
-                hyn_92xxdata->rp_buf.pos_info[index].pos_id = id;
-                hyn_92xxdata->rp_buf.pos_info[index].event = (switch_ == 0x06) ? 1 : 0;  
-                hyn_92xxdata->rp_buf.pos_info[index].pos_x = x;
-                hyn_92xxdata->rp_buf.pos_info[index].pos_y = y;
-                hyn_92xxdata->rp_buf.pos_info[index].pres_z = z;
-                index++;
-            }
-        }
+        hyn_92xxdata->rp_buf.rep_num = index;
     }
 
     return TRUE;
 }
-#if 0
-static u32 cst92xx_check_esd(void)
-{
-    int ret = 0;
-    uint8_t retry=3;
-    u8 buf[6];
-    HYN_ENTER();
-    while (retry--)
-    {
-        ret = hyn_wr_reg(hyn_92xxdata,0xD040,2,buf,0);
-        ret = hyn_wr_reg(hyn_92xxdata,0xD040,2,buf,6);
-        if(ret ==0 && hyn_sum16(0xA5,buf,4)==U8TO16(buf[4],buf[5])){
-            ret = U8TO32(buf[0],buf[1],buf[2],buf[3]);
-            break;
-        }
-    }
-    
 
-    return ret;
-}
-#endif
 
 static u32 cst92xx_check_esd(void)
 {
-
-    int16_t ok = FALSE;
+    int ok = FALSE;
     uint8_t i2c_buf[6], retry;
-    uint8_t flag = 0;
     uint32_t esd_value = 0;
-
     retry = 4;
-    flag = 0;
     while (retry--){
         hyn_wr_reg(hyn_92xxdata,0xD048,2,i2c_buf,0);
         udelay(200);
-        ok = hyn_wr_reg(hyn_92xxdata,0xD048,2,i2c_buf,2);
-        if (ok == FALSE){
-            msleep(1);
-            continue;
-        } else
-    {
-        // if (( (i2c_buf[0] & 0xF0) == 0x20 || (i2c_buf[0] & 0xF0) == 0xA0 ) &&  (i2c_buf[0] & 0x0F) < 10)
-        if ((i2c_buf[0] == 0x20) || (i2c_buf[0] == 0xA0))
-        {
-            flag = 1;
-            esd_value = i2c_buf[0];
+        ok = hyn_wr_reg(hyn_92xxdata,0xD048,2,i2c_buf,1);
+        if (ok == 0 &&((i2c_buf[0]&0xF0) == 0x20 || (i2c_buf[0]&0xF0) == 0xA0)&&(i2c_buf[0]&0x0F)<10){
             break;
-        } else {
-            HYN_INFO("ESD data NA,need retry: 0x%x ", i2c_buf[0]);
-            msleep(2);
-            continue;
+        }
+        else{
+            ok = -2;
         }
     }
+    if(-2==ok){   //esdcheck failed rest system
+        hyn_92xxdata->esd_fail_cnt = 3;
+        esd_value = hyn_92xxdata->esd_last_value;
     }
-    HYN_INFO("ESD data:%d,0x%04x,0x%04x", flag, esd_value, hyn_92xxdata->esd_last_value);
-
-    if (flag == 0){
-        hyn_power_source_ctrl(hyn_92xxdata, 0);
-        mdelay(2);
-        hyn_power_source_ctrl(hyn_92xxdata, 1);
-        mdelay(2);
-        cst92xx_rst();
-        msleep(40);
-        esd_value = 0;
-        hyn_92xxdata->esd_last_value = 0;
-        HYN_INFO("esd_check power reset ic");
+    else{
+        esd_value = hyn_92xxdata->esd_last_value+1;
     }
-    if ((hyn_92xxdata->work_mode == GESTURE_MODE) && (esd_value != 0xA0))
-    {
-        ok = hyn_wr_reg(hyn_92xxdata,0xD104,2,0,0);
-        if (ok == FALSE){
-            HYN_ERROR("enter_sleep failed");
-        }  
-    }
-    
-    hyn_92xxdata->esd_last_value = esd_value;
     return esd_value;
 }
+
 
 static int cst92xx_prox_handle(u8 cmd)
 {
@@ -877,13 +773,9 @@ static int cst92xx_get_dbg_data(u8 *buf, u16 len)
 }
 
 
-#define FACTEST_PATH    "/sdcard/hyn_fac_test_cfg.ini"
-#define FACTEST_LOG_PATH "/sdcard/hyn_fac_test.log"
-#define FACTEST_ITEM      (MULTI_OPEN_TEST|MULTI_SHORT_TEST)
-
 static int cst92xx_get_test_result(u8 *buf, u16 len)
 {
-    int ret = 0,timeout;
+    int ret = 0;
     struct tp_info *ic = &hyn_92xxdata->hw_info;
     u16 scap_len = (ic->fw_sensor_txnum + ic->fw_sensor_rxnum)*2;
     u16 mt_len = ic->fw_sensor_rxnum*ic->fw_sensor_txnum*2,i = 0;
@@ -895,12 +787,8 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
         return FAC_GET_DATA_FAIL;
     }
     HYN_INFO("---open_higdrv---");
-    timeout = 500;
     hyn_wr_reg(hyn_92xxdata,0xD110,2,buf,0); ////test open high
-    while(--timeout){ //wait rise edge
-        if(hyn_wait_irq_timeout(hyn_92xxdata,100) == 0) break;
-        msleep(10);
-    }
+    hyn_wait_irq_timeout(hyn_92xxdata,7000);
     if(hyn_wr_reg(hyn_92xxdata,0x3000,2,buf,mt_len)){ //open high
         ret = FAC_GET_DATA_FAIL;
         HYN_ERROR("read open high failed");
@@ -909,12 +797,8 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
     hyn_wr_reg(hyn_92xxdata,0x000005,3,buf,0); 
 
     HYN_INFO("---open_low---");
-    timeout = 500;
     hyn_wr_reg(hyn_92xxdata,0xD111,2,buf,0); ////test open low
-    while(--timeout){ //wait rise edge
-        if(hyn_wait_irq_timeout(hyn_92xxdata,100) == 0) break;
-        msleep(10);
-    }
+    hyn_wait_irq_timeout(hyn_92xxdata,7000);
     if(hyn_wr_reg(hyn_92xxdata,0x1000,2,buf + mt_len,mt_len)){ //open low
         ret = FAC_GET_DATA_FAIL;
         HYN_ERROR("read open low failed");
@@ -924,12 +808,8 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
 
     //short test
     HYN_INFO("---short---");
-    timeout = 500;
     hyn_wr_reg(hyn_92xxdata,0xD112,2,buf,0); //// short test
-    while(--timeout){ //wait rise edge
-        if(hyn_wait_irq_timeout(hyn_92xxdata,100) == 0) break;
-        msleep(10);
-    }
+    hyn_wait_irq_timeout(hyn_92xxdata,7000);
     if(hyn_wr_reg(hyn_92xxdata,0x5000,2,buf+(mt_len*2),scap_len)){
         ret = FAC_GET_DATA_FAIL;
         HYN_ERROR("read fac short failed");
@@ -946,16 +826,8 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
             raw_s++;
         }
     }
-
-    //read data finlish start test
-    ret = factory_multitest(hyn_92xxdata ,FACTEST_PATH, buf,(s16*)(buf+scap_len+mt_len*2),FACTEST_ITEM);
-
 selftest_end:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_92xxdata,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    } 
-    cst92xx_rst();
-    msleep(40);
+    cst92xx_resum();
     return ret;
 }
 

@@ -6,7 +6,11 @@
 #define BOOT_I2C_ADDR   (0x6A)
 #define MAIN_I2C_ADDR   (0x15)
 #define RW_REG_LEN   (2)
+
+#define MODULE_ID
+
 #define CST7XX_BIN_SIZE    (15*1024)
+
 static struct hyn_ts_data *hyn_7xxdata = NULL;
 
 static int cst7xx_updata_judge(u8 *p_fw, u16 len);
@@ -15,11 +19,22 @@ static int cst7xx_updata_tpinfo(void);
 static int cst7xx_enter_boot(void);
 static int cst7xx_set_workmode(enum work_mode mode,u8 enable);
 static void cst7xx_rst(void);
+static int write_flash_page(u16 addr,u8 *bin, u8 delay);
+static int cst7xx_get_id(u32 *result);
+
+static const struct hyn_chip_series cst7xx_fw_list[] = {
+//--null--id---name--------bin
+    {0,0xff,"module1",(u8*)fw_bin_1},  //default bin
+    {0,0x01,"module1",(u8*)fw_bin_1},
+    {0,0x02,"module2",(u8*)fw_bin_2},
+    {0,0x03,"module3",(u8*)fw_bin_3},
+    {0xFF,0,"null",NULL}
+};
 
 static int cst7xx_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0;
-    u8 buf[4];
+    u8 buf[4],i = 0;
     HYN_ENTER();
     hyn_7xxdata = ts_data;
     ret = cst7xx_enter_boot();
@@ -27,25 +42,79 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
         HYN_ERROR("cst7xx_enter_boot failed");
         return FALSE;
     }
-    hyn_7xxdata->fw_updata_addr = (u8*)fw_bin;
+    hyn_7xxdata->fw_updata_addr = cst7xx_fw_list[0].fw_bin; //default bin
     hyn_7xxdata->fw_updata_len = CST7XX_BIN_SIZE;
 
     hyn_7xxdata->hw_info.ic_fw_checksum = cst7xx_read_checksum();
-
     hyn_wr_reg(hyn_7xxdata,0xA006EE,3,buf,0); //exit boot
     cst7xx_rst();
     mdelay(50);
     hyn_set_i2c_addr(hyn_7xxdata,MAIN_I2C_ADDR);
     ret = cst7xx_updata_tpinfo();
-    cst7xx_set_workmode(NOMAL_MODE,0);
-    hyn_7xxdata->need_updata_fw = cst7xx_updata_judge((u8*)fw_bin,CST7XX_BIN_SIZE);
-
+    cst7xx_set_workmode(NOMAL_MODE,1);
+    if(hyn_7xxdata->boot_is_pass==0 && ret != 0){ //boot fail 
+       ret = cst7xx_get_id(&hyn_7xxdata->hw_info.fw_module_id);
+    }
+    //match fw use module_id
+    ret=-1;
+    for(i = 0; ;i++){
+        if(cst7xx_fw_list[i].moudle_id==hyn_7xxdata->hw_info.fw_module_id){
+            hyn_7xxdata->fw_updata_addr = cst7xx_fw_list[i].fw_bin;
+            ret = 0;
+            break;
+        }
+    }
+    HYN_INFO("module id:0x%02x match fw %s\n",hyn_7xxdata->hw_info.fw_module_id,ret ? "faild":"success");
+    hyn_7xxdata->need_updata_fw = 0;
+    if(ret==0){
+        hyn_7xxdata->need_updata_fw = cst7xx_updata_judge((u8*)hyn_7xxdata->fw_updata_addr,CST7XX_BIN_SIZE);
+    }
     if(hyn_7xxdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
     return TRUE;
 }
 
+
+static int cst7xx_get_id(u32 *result)
+{
+#if HYN_POWER_ON_UPDATA 
+    u8 i,retry = 0,buf[4];
+    u8 i2c_buf[514];
+    int ret=-1;
+    HYN_ENTER();
+    while(++retry < 4){ 
+        ret = cst7xx_enter_boot();
+        if(ret){
+            ret = -1;
+            continue;
+        } 
+        memcpy(&i2c_buf[2],(u8*)fw_read_id,512);
+        ret = write_flash_page(0,i2c_buf,retry);
+        if(ret ==0){
+            hyn_set_i2c_addr(hyn_7xxdata,MAIN_I2C_ADDR);
+            i = 0;
+            while(++i < 3){
+                cst7xx_rst();
+                msleep(20*i+50);
+                ret = hyn_wr_reg(hyn_7xxdata,0xA8,1,buf,2);
+                if(ret==0 && buf[1]==0xCA){ 
+                    *result = buf[0];
+                    return 0;
+                }
+            }
+        }
+        else{
+            ret = -2;
+        }
+    }
+    hyn_set_i2c_addr(hyn_7xxdata,MAIN_I2C_ADDR);
+    HYN_INFO("read id use little bin ret = %d\r\n",ret);
+    return ret;
+#else
+    return 0;
+#endif
+}
 
 static int  cst7xx_enter_boot(void)
 {
@@ -55,7 +124,6 @@ static int  cst7xx_enter_boot(void)
     {
         int ok = FALSE;
         uint8_t i2c_buf[4] = {0};
-
         if (t >= 15){
             return FALSE;
         }
@@ -66,10 +134,7 @@ static int  cst7xx_enter_boot(void)
             continue;
         }
         ok = hyn_wr_reg(hyn_7xxdata, 0xA003,  2, i2c_buf, 1);
-        if(ok == FALSE){
-            continue;
-        }
-        if (i2c_buf[0] != 0x55){
+        if(ok || i2c_buf[0] != 0x55){
             continue;
         }
         break;
@@ -77,66 +142,34 @@ static int  cst7xx_enter_boot(void)
     return TRUE;
 }
 
-
-static int write_code(u8 *bin_addr,uint8_t retry)
+static int write_flash_page(u16 addr,u8 *bin, u8 delay)
 {
-    uint16_t i,t;//,j;
-    int ok = FALSE;
-    u8 i2c_buf[512+2];
-	
-	bin_addr+=6;
-	hyn_7xxdata->fw_updata_process = 0;
-    for ( i = 0;i < CST7XX_BIN_SIZE; i += 512)
-    {
-        i2c_buf[0] = 0xA0;
-        i2c_buf[1] = 0x14;
-
-        i2c_buf[2] = i;
-        i2c_buf[3] = i >> 8;
-        ok = hyn_write_data(hyn_7xxdata, i2c_buf,RW_REG_LEN, 4);
-        if (ok == FALSE){
-            break;
+    int ret = 0;
+    u8 i2c_buf[8],i;
+    ret = hyn_wr_reg(hyn_7xxdata, U8TO32(0xA0,0x14,addr,addr>>8),4,NULL,0);
+    if(ret){
+        return -1;
+    } 
+    bin[0] = 0xA0;
+    bin[1] = 0x18;
+    ret = hyn_write_data(hyn_7xxdata,bin,RW_REG_LEN, 514);
+    if(ret){
+        return -2;
+    } 
+    ret = hyn_wr_reg(hyn_7xxdata, 0xA004EE,3,NULL,0);
+    if(ret){
+        return -3;
+    } 
+    mdelay(100*delay);
+    for(i=50; i>0; i--){
+        mdelay(5);
+        ret = hyn_wr_reg(hyn_7xxdata,0xA005,2,i2c_buf,1);
+        if(ret==0 && i2c_buf[0]== 0x55){
+            return 0;
         }
-
-        i2c_buf[0] = 0xA0;
-        i2c_buf[1] = 0x18;
-		if(0 == hyn_7xxdata->fw_file_name[0]){
-			memcpy(i2c_buf + 2, bin_addr + i, 512); 
-		}
-		else{
-			ok = copy_for_updata(hyn_7xxdata,i2c_buf + 2,i+6,512);
-			if(ok)break;
-		}
-        ok = hyn_write_data(hyn_7xxdata, i2c_buf,RW_REG_LEN, 514);
-        if (ok == FALSE){
-            break;
-        }
-
-        ok = hyn_wr_reg(hyn_7xxdata, 0xA004EE, 3,i2c_buf,0);
-        if (ok == FALSE){
-            break;
-        }
-
-        mdelay(100 * retry);
-        hyn_7xxdata->fw_updata_process = i*100/CST7XX_BIN_SIZE;
-        for (t = 0;; t ++)
-        {
-            if (t >= 50){
-                return FALSE;
-            }
-            mdelay(5);
-
-            ok = hyn_wr_reg(hyn_7xxdata,0xA005,2,i2c_buf,1);
-            if (ok == FALSE){
-                continue;
-            }
-            if (i2c_buf[0] != 0x55){
-                continue;
-            }
-            break;
-        }
+        ret = -4;
     }
-    return ok;
+    return ret;
 }
 
 
@@ -154,8 +187,8 @@ static uint32_t cst7xx_read_checksum(void)
         while(time_out--){
             mdelay(10);
             ret = hyn_wr_reg(hyn_7xxdata, 0xA000,  2, i2c_buf, 1);
-            if(0==ret && i2c_buf[0] == 1){
-                hyn_7xxdata->boot_is_pass = 1;
+            if(0==ret && (i2c_buf[0] == 0x01 || i2c_buf[0] == 0x02)){
+                hyn_7xxdata->boot_is_pass = i2c_buf[0] == 0x01 ? 1:0;
                 break;
             }
             ret = -2;
@@ -172,40 +205,65 @@ static uint32_t cst7xx_read_checksum(void)
 }
 
 
-
 static int cst7xx_updata_fw(u8 *bin_addr, u16 len)
 { 
-    int retry = 0;
-    int ok = FALSE,ret = 0;
-    u8 i2c_buf[4];
+    int retry = 0,cnt = 0,ret = -1,addr=0,offset=0;
+    u8 i2c_buf[514];
     u32 fw_checksum = 0;
     // len = len;
     HYN_ENTER();
+    if(len < hyn_7xxdata->fw_updata_len){
+        HYN_ERROR("erro bin len \n");
+        goto UPDATA_END;
+    }
+    len = hyn_7xxdata->fw_updata_len;
     if(0 == hyn_7xxdata->fw_file_name[0]){
         fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
     }
     else{
-        ok = copy_for_updata(hyn_7xxdata,i2c_buf,4,2);
-        if(ok)  goto UPDATA_END;
+        ret = copy_for_updata(hyn_7xxdata,i2c_buf,4,2);
+        if(ret)  goto UPDATA_END;
         fw_checksum = U8TO16(i2c_buf[1],i2c_buf[0]);
     }
 
     hyn_irq_set(hyn_7xxdata,DISABLE);
     hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
 
-    for(retry = 1; retry<10; retry++){
-        ret = -1;
-        ok = cst7xx_enter_boot();
-        if (ok == FALSE){
+    for(retry = 1; retry<5; retry++){
+        ret = cst7xx_enter_boot();
+        if(ret){
             continue;
         }
-        ok = write_code(bin_addr,retry);
-        if (ok == FALSE){
+        cnt = 0;
+        for(addr = 0; addr<=hyn_7xxdata->fw_updata_len-512;){
+            offset = addr+6;
+            if(0 == hyn_7xxdata->fw_file_name[0]){
+                memcpy(&i2c_buf[2], bin_addr + offset, 512); 
+            }
+            else{
+                ret = copy_for_updata(hyn_7xxdata,&i2c_buf[2],offset,512);
+                if(ret) goto UPDATA_END;
+            }
+            ret = write_flash_page(addr,i2c_buf,retry);
+            if(ret==0){
+                addr += 512;
+                cnt = 0;
+                hyn_7xxdata->fw_updata_process = addr*100/len;
+            }
+            cnt++;
+            if(cnt > 2){
+                break;
+            }
+        }
+        if(ret){
+            HYN_INFO("updata failed retry:%d ret:%d\r\n",retry,ret);
             continue;
         }
         hyn_7xxdata->hw_info.ic_fw_checksum = cst7xx_read_checksum();
-        if(fw_checksum != hyn_7xxdata->hw_info.ic_fw_checksum && hyn_7xxdata->boot_is_pass){
+        if(fw_checksum != hyn_7xxdata->hw_info.ic_fw_checksum || hyn_7xxdata->boot_is_pass==0){
             hyn_7xxdata->fw_updata_process |= 0x80;
+            ret = -1;
+            HYN_ERROR("ic_checksum:0x%04x fw_checksum:0x%04x\r\n",hyn_7xxdata->hw_info.ic_fw_checksum,fw_checksum);
             continue;
         }
         hyn_7xxdata->fw_updata_process = 100;
@@ -231,26 +289,29 @@ UPDATA_END:
 
 static int cst7xx_updata_tpinfo(void)
 {
-    u8 buf[8];
+    u8 buf[12];
     struct tp_info *ic = &hyn_7xxdata->hw_info;
     int ret = 0;
 
-    ret = hyn_wr_reg(hyn_7xxdata,0xA6,1,buf,6);
+    ic->fw_module_id = 0xFF;
+    ret = hyn_wr_reg(hyn_7xxdata,0xA1,1,buf,10);
     if(ret == FALSE){
         HYN_ERROR("cst7xx_updata_tpinfo failed");
         return FALSE;
     }
 
-    ic->fw_sensor_txnum = 2;
-    ic->fw_sensor_rxnum = CUSTOM_SENSOR_NUM;
+    ic->fw_sensor_txnum = CUSTOM_SENSOR_NUM;
+    ic->fw_sensor_rxnum = 2;
     ic->fw_key_num = hyn_7xxdata->plat_data.key_num;
     ic->fw_res_y = hyn_7xxdata->plat_data.y_resolution;
     ic->fw_res_x = hyn_7xxdata->plat_data.x_resolution;
-    ic->fw_project_id = buf[3];
-    ic->fw_chip_type = buf[4];
-    ic->fw_ver = buf[0];
 
-    HYN_INFO("IC_info fw_project_id:%04x ictype:%04x fw_ver:%x checksum:%#x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver,ic->ic_fw_checksum);
+    ic->fw_project_id = U8TO32(buf[0],buf[1],buf[2],buf[3]);
+    ic->fw_chip_type = buf[9];
+    ic->fw_ver = buf[5];
+    ic->fw_module_id = buf[7];
+
+    HYN_INFO("IC_info fw_project_id:%x ictype:%04x fw_ver:%x checksum:%#x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver,ic->ic_fw_checksum);
     return TRUE;
 }
 
@@ -262,13 +323,13 @@ static int cst7xx_updata_judge(u8 *p_fw, u16 len)
     struct tp_info *ic = &hyn_7xxdata->hw_info;
 
     f_checksum = U8TO16(p_data[5],p_data[4]);
-    p_data += (0x3BF8+6);
-    f_project_id = p_data[2];
-    f_ictype = (p_data[1]<<8)|p_data[0];
-    f_fw_ver = (p_data[5]<<8)|p_data[4];
-    f_module_id = p_data[3];
+    p_data += (0x3BF4+6);
+    f_project_id = U8TO32(p_data[0],p_data[1],p_data[2],p_data[3]);
+    f_ictype = p_data[4];
+    f_fw_ver = p_data[8];
+    f_module_id = p_data[7];
     
-    HYN_INFO("Bin_info fw_project_id:%04x ictype:%04x fw_ver:%x checksum:%#x",f_project_id,f_ictype,f_fw_ver,f_checksum);
+    HYN_INFO("Bin_info fw_project_id:%x ictype:%04x fw_ver:%x checksum:%#x",f_project_id,f_ictype,f_fw_ver,f_checksum);
 
     p_data = p_fw+6;
     for(i=0;i<len-2;i++){
@@ -284,7 +345,7 @@ static int cst7xx_updata_judge(u8 *p_fw, u16 len)
     }
 
     if(hyn_7xxdata->boot_is_pass==0  //emty
-      || (ic->fw_ver <= f_fw_ver && ic->fw_project_id ==f_project_id && f_checksum != ic->ic_fw_checksum)
+      || (ic->fw_ver <= f_fw_ver && f_checksum != ic->ic_fw_checksum)
     ){
         return 1; //need updata
     }
@@ -295,36 +356,29 @@ static int cst7xx_updata_judge(u8 *p_fw, u16 len)
 static int cst7xx_set_workmode(enum work_mode mode,u8 enable)
 {
     int ret = -1;
+    hyn_esdcheck_switch(hyn_7xxdata,mode==NOMAL_MODE? enable : DISABLE);
     switch(mode){
         case NOMAL_MODE:
-            hyn_esdcheck_switch(hyn_7xxdata,ENABLE);
             hyn_irq_set(hyn_7xxdata,ENABLE);
             ret = hyn_wr_reg(hyn_7xxdata,0xFE00,2,NULL,0);
             break;
         case GESTURE_MODE:
-            hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
             ret = hyn_wr_reg(hyn_7xxdata,0xD001,2,NULL,0);
-            break;
-        case LP_MODE:
-            hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
             break;
         case DIFF_MODE:
         case RAWDATA_MODE:
-            hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
             ret = hyn_wr_reg(hyn_7xxdata,mode==DIFF_MODE ? 0xBF07:0xBF06,2,NULL,0);
             break;
         case FAC_TEST_MODE:
-            hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
+            hyn_write_data(hyn_7xxdata,(u8[]){0xb6,0x40,0x40,0x20},1,4);
             hyn_wr_reg(hyn_7xxdata,0xF001,2,NULL,0);
             msleep(50);
             break;
         case DEEPSLEEP:
-            hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
             hyn_irq_set(hyn_7xxdata,DISABLE);
             ret = hyn_wr_reg(hyn_7xxdata,0xA503,2,NULL,0);
             break;
         case ENTER_BOOT_MODE:
-            hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
             ret |= cst7xx_enter_boot();
             break;
         case CHARGE_EXIT:
@@ -334,8 +388,6 @@ static int cst7xx_set_workmode(enum work_mode mode,u8 enable)
             mode = hyn_7xxdata->work_mode; //not switch work mode
             break;
         default :
-            hyn_esdcheck_switch(hyn_7xxdata,enable);
-            hyn_7xxdata->work_mode = NOMAL_MODE;
             ret = -2;
             break;
     }
@@ -375,8 +427,6 @@ static void cst7xx_rst(void)
     gpio_set_value(hyn_7xxdata->plat_data.reset_gpio,1);
 }
 
-
-
 static int cst7xx_supend(void)
 {
     HYN_ENTER();
@@ -388,7 +438,7 @@ static int cst7xx_resum(void)
 {
     cst7xx_rst();
     msleep(50);
-    cst7xx_set_workmode(NOMAL_MODE,0);
+    cst7xx_set_workmode(NOMAL_MODE,1);
     return 0;
 }
 
@@ -488,30 +538,48 @@ static u32 cst7xx_check_esd(void)
 }
 
 
-
 static int cst7xx_get_dbg_data(u8 *buf, u16 len)
 {
-    int ret = -1,read_len = len;
+    int ret = -1;
     switch (hyn_7xxdata->work_mode){
         case DIFF_MODE:
-            ret = hyn_wr_reg(hyn_7xxdata, 0x41, 1,buf,read_len);
-            break;
         case RAWDATA_MODE:
-            ret = hyn_wr_reg(hyn_7xxdata, 0x61, 1,buf,read_len); 
+            ret = hyn_wr_reg(hyn_7xxdata, 0x2B, 1,buf,len); 
+            if(ret==0){
+                exchange_byte(buf,len);
+            }
             break;
         default:
             HYN_ERROR("work_mode:%d",hyn_7xxdata->work_mode);
             break;
     }
-    return ret==0 ? read_len:-1;
+    return len;
 }
 
 
 static int cst7xx_get_test_result(u8 *buf, u16 len)
 {
-    return 0;
+    int ret = -1;
+    u8 time_out = 200;
+    if(len > CUSTOM_SENSOR_NUM*2){
+        len = CUSTOM_SENSOR_NUM*2;
+    }
+    while(--time_out){
+        msleep(10);
+        ret = hyn_wr_reg(hyn_7xxdata, 0xF0, 1,buf,1); 
+        if(ret == 0 && buf[0]==0){
+            break;
+        }
+        ret = FAC_GET_DATA_FAIL;
+    }
+    if(ret==0){
+        ret = hyn_wr_reg(hyn_7xxdata, 0x2B, 1,buf,len); 
+        if(ret==0){
+            exchange_byte(buf,len);
+        }
+    }
+    return ret;
 }
-
 
 
 const struct hyn_ts_fuc cst7xx_fuc = {

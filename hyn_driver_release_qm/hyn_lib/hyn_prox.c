@@ -157,8 +157,10 @@ int ps_local_init(void)
 	ps_ctl.ps_threshold_setting = ps_threshold_setting;
     ps_ctl.is_report_input_direct = true;
     ps_ctl.is_support_batch = false;
+
     err = ps_register_control_path(&ps_ctl);
 	HYN_INFO("psregister control_path %s = %d\n",err? "fail":"success", err);
+
     ps_data.get_data = ps_get_data;
     ps_data.vender_div = 100;
     err = ps_register_data_path(&ps_data);
@@ -166,16 +168,16 @@ int ps_local_init(void)
 
     return err;
 }
-int ps_local_uninit(void)
-{
-    return 0;
-}
+// int ps_local_uninit(void)
+// {
+//     return 0;
+// }
 
-struct alsps_init_info ps_init_info = {
-    .name = "hyn_ts",
-    .init = ps_local_init,
-    .uninit = ps_local_uninit,
-};
+// struct alsps_init_info ps_init_info = {
+//     .name = "hyn_ts",
+//     .init = ps_local_init,
+//     .uninit = ps_local_uninit,
+// };
 
 
 int hyn_proximity_int(struct hyn_ts_data *ts_data)
@@ -186,8 +188,8 @@ int hyn_proximity_int(struct hyn_ts_data *ts_data)
     hyn_prox_fun = ts_data->hyn_fuc_used;
 	hyn_prox_data->prox_is_enable = 0;
 	hyn_prox_data->prox_state = PS_FAR_AWAY;
-	alsps_driver_add(&ps_init_info);
-	// ps_local_init();
+	// alsps_driver_add(&ps_init_info);
+	ps_local_init();
 	HYN_INFO("hyn_proximity_int exit");
     return ret;
 }

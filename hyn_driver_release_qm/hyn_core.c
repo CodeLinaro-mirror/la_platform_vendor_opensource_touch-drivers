@@ -255,11 +255,15 @@ static void touch_updata(u8 idx,u8 event)
     struct ts_frame *rep_frame = &hyn_data->rp_buf;
     struct input_dev *dev = hyn_data->input_dev;
     u16 zpress = rep_frame->pos_info[idx].pres_z;
-    if(zpress < 10){
-        zpress = zpress+(rep_frame->pos_info[idx].pos_x&0x03) + (rep_frame->pos_info[idx].pos_y&0x03);
-    }
+
     if(event){
+        if(zpress < 10){
+            zpress += (10+(rep_frame->pos_info[idx].pos_x&0x03));
+        }
         hyn_data->report_id_flg |= (1UL<< rep_frame->pos_info[idx].pos_id);
+    }
+    else{
+        hyn_data->report_id_flg &= ~(1UL<< rep_frame->pos_info[idx].pos_id);
     }
 #if HYN_MT_PROTOCOL_B_EN
     if(event){
@@ -330,7 +334,6 @@ static void hyn_irq_report_work(struct work_struct *work)
         }
         else{
             u8 touch_down = 0;
-            ts_data->report_id_flg = 0;
             for(i = 0; i < rep_frame->rep_num; i++){
                 HYN_INFO2("id,%d,xy,%d,%d",rep_frame->pos_info[i].pos_id,rep_frame->pos_info[i].pos_x,rep_frame->pos_info[i].pos_y);
                 if(dt->swap_xy){
@@ -384,6 +387,25 @@ static void hyn_irq_report_work(struct work_struct *work)
     mutex_unlock(&ts_data->mutex_report);
 }
 
+static int hyn_restore_scene(void)
+{
+    int ret = 0;
+    HYN_ENTER();
+    if(hyn_data->prox_is_enable){
+        ret |= hyn_fun->tp_prox_handle(1);
+    }
+    else if(hyn_data->gesture_is_enable && hyn_data->state_is_sunpend){
+        ret |= hyn_fun->tp_set_workmode(GESTURE_MODE,1);
+    }
+    if(hyn_data->charge_is_enable){
+        ret |= hyn_fun->tp_set_workmode(CHARGE_ENTER,1);
+    }
+    if(hyn_data->glove_is_enable){
+        ret |= hyn_fun->tp_set_workmode(GLOVE_ENTER,1);
+    }
+    return ret;
+}
+
 static void hyn_esdcheck_work(struct work_struct *work)
 {
 #if ESD_CHECK_EN
@@ -404,18 +426,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
                 mdelay(1);
                 hyn_power_source_ctrl(hyn_data,1);
                 hyn_fun->tp_rest();
-                if(hyn_data->prox_is_enable){
-                    hyn_fun->tp_prox_handle(1);
-                }
-                else if(hyn_data->gesture_is_enable){
-                    hyn_fun->tp_set_workmode(GESTURE_MODE,1);
-                }
-                if(hyn_data->charge_is_enable){
-                    hyn_fun->tp_set_workmode(CHARGE_ENTER,1);
-                }
-                if(hyn_data->glove_is_enable){
-                    hyn_fun->tp_set_workmode(GLOVE_ENTER,1);
-                }
+                hyn_restore_scene();
             }
         }
     }
@@ -436,6 +447,7 @@ static void hyn_resum(struct device *dev)
     if(IS_ERR_OR_NULL(hyn_data)){
         return;
     }
+    hyn_data->state_is_sunpend = 0;
     rep_frame = &hyn_data->rp_buf;
     dt = &hyn_data->plat_data;
 #if (HYN_WAKE_LOCK_EN==1)
@@ -446,23 +458,15 @@ static void hyn_resum(struct device *dev)
     }
     hyn_power_source_ctrl(hyn_data, 1);
     hyn_fun->tp_resum();
-    //Condition recovery
-    if(hyn_data->prox_is_enable){
-        hyn_fun->tp_prox_handle(1);
-    }
-    else if(hyn_data->gesture_is_enable){
+    //restore_scene
+    hyn_restore_scene();
+    if(hyn_data->gesture_is_enable && hyn_data->prox_is_enable==0){
         hyn_irq_set(hyn_data,DISABLE);
         ret = disable_irq_wake(hyn_data->client->irq);
         ret |= irq_set_irq_type(hyn_data->client->irq,dt->irq_gpio_flags); 
         if(ret < 0){
             HYN_ERROR("gesture irq_set_irq failed");
         }  
-    }
-    if(hyn_data->charge_is_enable){
-        hyn_fun->tp_set_workmode(CHARGE_ENTER,1);
-    }
-    if(hyn_data->glove_is_enable){
-        hyn_fun->tp_set_workmode(GLOVE_ENTER,1);
     }
     //compensate for lifting
     if(rep_frame->report_need & REPORT_KEY){
@@ -483,6 +487,7 @@ static void hyn_suspend(struct device *dev)
     if(IS_ERR_OR_NULL(hyn_data)){
         return;
     }
+    hyn_data->state_is_sunpend = 1;
 #if (HYN_WAKE_LOCK_EN==1)
     wake_lock(&hyn_data->tp_wakelock);
 #endif
@@ -556,7 +561,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
     {
 #if defined(CONFIG_FB)
         int blank_value = *((int *)(((struct fb_event *)data)->data));
-        const unsigned long event_enum[2] = {FB_EARLY_EVENT_BLANK, FB_EVENT_BLANK};   
+        const unsigned long event_enum[2] = {FB_EARLY_EVENT_BLANK, FB_EVENT_BLANK};
         const int blank_enum[2] = {FB_BLANK_POWERDOWN, FB_BLANK_UNBLANK};
 #elif defined(CONFIG_DRM)
     #if defined(CONFIG_DRM_PANEL)
@@ -587,6 +592,22 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
     return 0;
     }
 }
+#elif defined(CONFIG_PM)
+static int hyn_pm_suspend(struct device *dev)
+{
+    hyn_suspend(dev);
+    return 0
+}
+static int hyn_pm_resume(struct device *dev)
+{
+    hyn_resum(dev);
+    return 0;
+}
+static struct dev_pm_ops hyn_pm_ops = {
+  .suspend = hyn_pm_suspend,
+  .resume  = hyn_pm_resume,
+};
+
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 static void hyn_ts_early_suspend(struct early_suspend *handler)
 {
@@ -597,6 +618,9 @@ static void hyn_ts_late_resume(struct early_suspend *handler)
     hyn_resum(hyn_data->dev);
 }
 #endif
+
+
+
 
 #ifdef I2C_PORT
 static int hyn_ts_remove(struct i2c_client *client);
@@ -747,8 +771,9 @@ static int hyn_ts_probe(struct spi_device *client)
 #endif
 
     ts_data->gpio_irq =  gpio_to_irq(ts_data->plat_data.irq_gpio);
+    hyn_data->plat_data.irq_gpio_flags = (IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
     ret = request_threaded_irq(ts_data->gpio_irq, NULL, hyn_irq_handler,
-                                (IRQF_TRIGGER_FALLING | IRQF_ONESHOT), HYN_DRIVER_NAME, ts_data);
+                                hyn_data->plat_data.irq_gpio_flags, HYN_DRIVER_NAME, ts_data);
     if(ret){
         HYN_ERROR("request_threaded_irq failed");
         goto FREE_RESOURCE;
@@ -909,16 +934,22 @@ static struct i2c_driver hyn_ts_driver = {
         .name = HYN_DRIVER_NAME,
         .owner = THIS_MODULE,
         .of_match_table = hyn_of_match_table,
+#if defined(CONFIG_PM)&& !(defined(CONFIG_FB) || defined(CONFIG_DRM))
+        .pm      = &hyn_pm_ops,
+#endif
     },
     .id_table = hyn_id_table,
 };
 #else
 static struct spi_driver hyn_ts_driver = {
 	.driver = {
-		   .name = HYN_DRIVER_NAME,
-		   .of_match_table = hyn_of_match_table,
-		   .owner = THIS_MODULE,
-		   },
+        .name = HYN_DRIVER_NAME,
+        .of_match_table = hyn_of_match_table,
+        .owner = THIS_MODULE,
+#if defined(CONFIG_PM)&& !(defined(CONFIG_FB) || defined(CONFIG_DRM))
+        .pm      = &hyn_pm_ops,
+#endif
+	},
 	.probe = hyn_ts_probe,
 	.remove = hyn_ts_remove,
 };

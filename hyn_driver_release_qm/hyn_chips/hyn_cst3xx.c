@@ -144,41 +144,42 @@ static int cst3xx_prox_handle(u8 cmd)
 static int cst3xx_set_workmode(enum work_mode mode,u8 enable)
 {
     int ret = 0;
-    hyn_3xxdata->work_mode = mode;
-    if(mode != NOMAL_MODE)
-        hyn_esdcheck_switch(hyn_3xxdata,DISABLE);
+    hyn_esdcheck_switch(hyn_3xxdata,enable);
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_3xxdata,ENABLE);
             hyn_esdcheck_switch(hyn_3xxdata,enable);
             // hyn_wr_reg(hyn_3xxdata,0xD100,2,NULL,0);
-            hyn_wr_reg(hyn_3xxdata,0xD109,2,NULL,0);
+            ret |= hyn_wr_reg(hyn_3xxdata,0xD109,2,NULL,0);
             break;
         case GESTURE_MODE:
-            hyn_wr_reg(hyn_3xxdata,0xD04C80,3,NULL,0);
+            ret |= hyn_wr_reg(hyn_3xxdata,0xD04C80,3,NULL,0);
             break;
         case LP_MODE:
             break;
         case DIFF_MODE:
-            hyn_wr_reg(hyn_3xxdata,0xD10D,2,NULL,0);
+            ret |= hyn_wr_reg(hyn_3xxdata,0xD10D,2,NULL,0);
             break;
         case RAWDATA_MODE:
-            hyn_wr_reg(hyn_3xxdata,0xD10A,2,NULL,0);
+            ret |= hyn_wr_reg(hyn_3xxdata,0xD10A,2,NULL,0);
             break;
         case FAC_TEST_MODE:
-            hyn_wr_reg(hyn_3xxdata,0xD119,2,NULL,0);
+            ret |= hyn_wr_reg(hyn_3xxdata,0xD119,2,NULL,0);
             break;
         case DEEPSLEEP:
             hyn_irq_set(hyn_3xxdata,DISABLE);
-            hyn_wr_reg(hyn_3xxdata,0xD105,2,NULL,0);
+            ret |= hyn_wr_reg(hyn_3xxdata,0xD105,2,NULL,0);
             break;
         case ENTER_BOOT_MODE:
             ret |= cst3xx_enter_boot();
             break;
         default :
-            hyn_esdcheck_switch(hyn_3xxdata,ENABLE);
+            ret = -2;
             hyn_3xxdata->work_mode = NOMAL_MODE;
             break;
+    }
+    if(ret != -2){
+        hyn_3xxdata->work_mode = mode;
     }
     return ret;
 }
@@ -196,7 +197,7 @@ static int cst3xx_resum(void)
     HYN_ENTER();
     cst3xx_rst();
     msleep(50);
-    cst3xx_set_workmode(NOMAL_MODE,0);
+    cst3xx_set_workmode(NOMAL_MODE,1);
     return 0;
 }
 

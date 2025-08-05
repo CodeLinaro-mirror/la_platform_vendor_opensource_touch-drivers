@@ -203,40 +203,31 @@ static int cst66xx_prox_handle(u8 cmd)
 
 static int cst66xx_set_workmode(enum work_mode mode,u8 enable)
 {
-    int ret = 0,i;
-    for(i=0;i<5;i++){
-        ret = hyn_wr_reg(hyn_66xxdata,0xD0000400,4,0,0); //disable lp i2c plu
-        mdelay(1);
-        ret |= hyn_wr_reg(hyn_66xxdata,0xD0000400,4,0,0);
-        if(ret == 0)
-            break;
-    }
+    int ret = 0;
+     hyn_wr_reg(hyn_66xxdata,0xD00002AB,2,0,0); //wakeup from plug
+     udelay(200);
+     hyn_esdcheck_switch(hyn_66xxdata,enable);
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_66xxdata,ENABLE);
-            hyn_esdcheck_switch(hyn_66xxdata,ENABLE);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD0000000,4,0,0);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD0000C00,4,0,0);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD0000100,4,0,0);
             break;
         case GESTURE_MODE:
-            hyn_esdcheck_switch(hyn_66xxdata,ENABLE);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD0000C01,4,0,0);
             break;
         case LP_MODE:
-            hyn_esdcheck_switch(hyn_66xxdata,DISABLE);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD00004AB,4,0,0);
             break;
         case DIFF_MODE:
         case RAWDATA_MODE:
         case BASELINE_MODE:
         case CALIBRATE_MODE:
-            hyn_esdcheck_switch(hyn_66xxdata,DISABLE);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD00002AB,4,0,0); 
             ret |= hyn_wr_reg(hyn_66xxdata,0xD00001AB,4,0,0); //enter debug mode
             break;
         case FAC_TEST_MODE:
-            hyn_esdcheck_switch(hyn_66xxdata,DISABLE);
             cst66xx_rst();
             msleep(50);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD00002AB,4,0,0); 
@@ -245,17 +236,15 @@ static int cst66xx_set_workmode(enum work_mode mode,u8 enable)
             break;
         case DEEPSLEEP:
             hyn_irq_set(hyn_66xxdata,DISABLE);
-            hyn_esdcheck_switch(hyn_66xxdata,DISABLE);
             ret |= hyn_wr_reg(hyn_66xxdata,0xD00022AB,4,0,0);
             break;
         case ENTER_BOOT_MODE:
-            hyn_esdcheck_switch(hyn_66xxdata,DISABLE);
             ret |= cst66xx_enter_boot();
             break;
         case GLOVE_EXIT:
         case GLOVE_ENTER:
             hyn_66xxdata->glove_is_enable = mode&0x01;
-            ret = hyn_wr_reg(hyn_66xxdata,(mode&0x01)? 0xD0000A01:0xD0000A00,4,0,0); //glove mode
+            ret = hyn_wr_reg(hyn_66xxdata,(mode&0x01)? 0xD0000AAB:0xD0000A00,4,0,0); //glove mode
             mode = hyn_66xxdata->work_mode; //not switch work mode
             HYN_INFO("set_glove:%d",hyn_66xxdata->glove_is_enable);
             break;
@@ -267,7 +256,7 @@ static int cst66xx_set_workmode(enum work_mode mode,u8 enable)
             HYN_INFO("set_charge:%d",hyn_66xxdata->charge_is_enable);
             break;
         default :
-            hyn_esdcheck_switch(hyn_66xxdata,enable);
+            hyn_66xxdata->work_mode = NOMAL_MODE;
             ret = -2;
             break;
     }
@@ -478,7 +467,7 @@ static int cst66xx_updata_judge(u8 *p_fw, u16 len)
     }
 
     if(hyn_66xxdata->boot_is_pass ==0    //boot failed
-    //|| (ret && hyn_66xxdata->boot_is_pass)//erro fw needupdata
+    || (ret && hyn_66xxdata->boot_is_pass)//erro fw needupdata
     || ( ret == 0 && f_ictype == ic->fw_chip_type && f_checksum != ic->ic_fw_checksum && f_fw_ver >= ic->fw_ver ) // match new ver .h file
     ){
         return 1; //need updata
@@ -720,10 +709,6 @@ static int get_fac_test_data(u32 cmd ,u8 *buf, u16 len ,u8 rev)
     return ret;
 }
 
-#define FACTEST_PATH    "/sdcard/hyn_fac_test_cfg.ini"
-#define FACTEST_LOG_PATH "/sdcard/hyn_fac_test.log"
-#define FACTEST_ITEM      (MULTI_OPEN_TEST|MULTI_SHORT_TEST|MULTI_SCAP_TEST)
-
 static int cst66xx_get_test_result(u8 *buf, u16 len)
 {
     struct tp_info *ic = &hyn_66xxdata->hw_info;
@@ -756,13 +741,8 @@ static int cst66xx_get_test_result(u8 *buf, u16 len)
         HYN_ERROR("read scap failed");
         goto TEST_ERRO;
     }
-    ////read data finlish start test
-    ret = factory_multitest(hyn_66xxdata ,FACTEST_PATH, buf,(s16*)(rbuf+st_len),FACTEST_ITEM);
 
 TEST_ERRO:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_66xxdata,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    }
     cst66xx_resum();
     return ret;
 }
