@@ -166,7 +166,7 @@ int ps_local_init(void)
 }
 int ps_local_uninit(void)
 {
-    return 0;
+     return 0;
 }
 
 struct alsps_init_info ps_init_info = {
@@ -185,7 +185,7 @@ int hyn_proximity_int(struct hyn_ts_data *ts_data)
 	hyn_prox_data->prox_is_enable = 0;
 	hyn_prox_data->prox_state = PS_FAR_AWAY;
 	alsps_driver_add(&ps_init_info);
-	// ps_local_init();
+	//ps_local_init();
 	HYN_INFO("hyn_proximity_int exit");
     return ret;
 }

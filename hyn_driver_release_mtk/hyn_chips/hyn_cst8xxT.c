@@ -39,7 +39,7 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         mdelay(50);
         hyn_set_i2c_addr(hyn_8xxTdata,MAIN_I2C_ADDR);
         ret = cst8xxT_updata_tpinfo();
-        cst8xxT_set_workmode(NOMAL_MODE,0);
+        cst8xxT_set_workmode(NOMAL_MODE,1);
         hyn_8xxTdata->need_updata_fw = cst8xxT_updata_judge((u8*)fw_bin,CST8xxT_BIN_SIZE);
     }
     if(hyn_8xxTdata->need_updata_fw){
@@ -274,8 +274,8 @@ static int cst8xxT_updata_tpinfo(void)
         return FALSE;
     }
 
-    ic->fw_sensor_txnum = 2;
-    ic->fw_sensor_rxnum = CUSTOM_SENSOR_NUM;
+    ic->fw_sensor_txnum = CUSTOM_SENSOR_NUM;
+    ic->fw_sensor_rxnum = 2;
     ic->fw_key_num = hyn_8xxTdata->plat_data.key_num;
     ic->fw_res_y = hyn_8xxTdata->plat_data.y_resolution;
     ic->fw_res_x = hyn_8xxTdata->plat_data.x_resolution;
@@ -318,28 +318,29 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
         cst8xxT_rst();
         mdelay(80);
     }
+    hyn_esdcheck_switch(hyn_8xxTdata,mode==NOMAL_MODE? enable : DISABLE);
     switch(mode){
         case NOMAL_MODE:
-			hyn_esdcheck_switch(hyn_8xxTdata,ENABLE);
             hyn_irq_set(hyn_8xxTdata,ENABLE);
             break;
         case GESTURE_MODE:
-            hyn_esdcheck_switch(hyn_8xxTdata,DISABLE);
             ret = hyn_wr_reg(hyn_8xxTdata,0xE501,2,NULL,0);
             break;
         case LP_MODE:
             break;
         case DIFF_MODE:
         case RAWDATA_MODE:
-            hyn_esdcheck_switch(hyn_8xxTdata,DISABLE);
             ret = hyn_wr_reg(hyn_8xxTdata,0xFEF8,2,NULL,0);
             break;
         case FAC_TEST_MODE:
-            hyn_esdcheck_switch(hyn_8xxTdata,DISABLE);
-            //hyn_wr_reg(hyn_8xxTdata,0xD119,2,NULL,0);
+            hyn_write_data(hyn_8xxTdata,(u8[]){0xc0,0x80,0x20,0x30,0x00},1,5);
+            hyn_wr_reg(hyn_8xxTdata,0xF001,2,NULL,0);
+            msleep(50);
+            break;
+        case ENTER_BOOT_MODE:
+            ret = cst8xxT_enter_boot();
             break;
         case DEEPSLEEP:
-            hyn_esdcheck_switch(hyn_8xxTdata,DISABLE);
             hyn_irq_set(hyn_8xxTdata,DISABLE);
             ret = hyn_wr_reg(hyn_8xxTdata,0xE503,2,NULL,0);
             break;
@@ -352,8 +353,6 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
             break;
         default :
             ret = -2;
-            hyn_esdcheck_switch(hyn_8xxTdata,enable);
-            hyn_8xxTdata->work_mode = NOMAL_MODE;
             break;
     }
     if(ret != -2){
@@ -364,6 +363,9 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
 
 static void cst8xxT_rst(void)
 {
+    if(hyn_8xxTdata->work_mode==ENTER_BOOT_MODE){
+        hyn_set_i2c_addr(hyn_8xxTdata,MAIN_I2C_ADDR);
+    }
     tpd_gpio_output(hyn_8xxTdata->plat_data.reset_gpio,0);
     msleep(10);
     tpd_gpio_output(hyn_8xxTdata->plat_data.reset_gpio,1);
@@ -380,7 +382,7 @@ static int cst8xxT_resum(void)
 {
     cst8xxT_rst();
     msleep(50);
-    cst8xxT_set_workmode(NOMAL_MODE,0);
+    cst8xxT_set_workmode(NOMAL_MODE,1);
     return 0;
 }
 
@@ -482,7 +484,26 @@ static int cst8xxT_get_dbg_data(u8 *buf, u16 len)
 
 static int cst8xxT_get_test_result(u8 *buf, u16 len)
 {
-    return 0;
+    int ret = -1;
+    u8 time_out = 200;
+    if(len > CUSTOM_SENSOR_NUM*2){
+        len = CUSTOM_SENSOR_NUM*2;
+    }
+    while(--time_out){
+        msleep(10);
+        ret = hyn_wr_reg(hyn_8xxTdata, 0xF0, 1,buf,1); 
+        if(ret == 0 && buf[0]==0){
+            break;
+        }
+        ret = FAC_GET_DATA_FAIL;
+    }
+    if(ret==0){
+        ret = hyn_wr_reg(hyn_8xxTdata, 0x2B, 1,buf,len); 
+        if(ret==0){
+            exchange_byte(buf,len);
+        }
+    }
+    return ret;
 }
 
 const struct hyn_ts_fuc cst8xxT_fuc = {

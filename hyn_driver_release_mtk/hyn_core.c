@@ -184,11 +184,15 @@ static void touch_updata(u8 idx,u8 event)
     struct ts_frame *rep_frame = &hyn_data->rp_buf;
     struct input_dev *dev = hyn_data->input_dev;
     u16 zpress = rep_frame->pos_info[idx].pres_z;
-    if(zpress < 10){
-        zpress = zpress+(rep_frame->pos_info[idx].pos_x&0x03) + (rep_frame->pos_info[idx].pos_y&0x03);
-    }
+
     if(event){
+        if(zpress < 10){
+            zpress += (10+(rep_frame->pos_info[idx].pos_x&0x03));
+        }
         hyn_data->report_id_flg |= (1UL<< rep_frame->pos_info[idx].pos_id);
+    }
+    else{
+        hyn_data->report_id_flg &= ~(1UL<< rep_frame->pos_info[idx].pos_id);
     }
 #if HYN_MT_PROTOCOL_B_EN
     if(event){
@@ -259,7 +263,6 @@ static void hyn_irq_report(void)
         }
         else{
             u8 touch_down = 0;
-            ts_data->report_id_flg = 0;
             for(i = 0; i < rep_frame->rep_num; i++){
                 HYN_INFO2("id,%d,xy,%d,%d",rep_frame->pos_info[i].pos_id,rep_frame->pos_info[i].pos_x,rep_frame->pos_info[i].pos_y);
                 if(dt->swap_xy){
@@ -313,6 +316,25 @@ static void hyn_irq_report(void)
     mutex_unlock(&ts_data->mutex_report);
 }
 
+static int hyn_restore_scene(void)
+{
+    int ret = 0;
+    HYN_ENTER();
+    if(hyn_data->prox_is_enable){
+        ret |= hyn_fun->tp_prox_handle(1);
+    }
+    else if(hyn_data->gesture_is_enable && hyn_data->state_is_sunpend){
+        ret |= hyn_fun->tp_set_workmode(GESTURE_MODE,1);
+    }
+    if(hyn_data->charge_is_enable){
+        ret |= hyn_fun->tp_set_workmode(CHARGE_ENTER,1);
+    }
+    if(hyn_data->glove_is_enable){
+        ret |= hyn_fun->tp_set_workmode(GLOVE_ENTER,1);
+    }
+    return ret;
+}
+
 static void hyn_esdcheck_work(struct work_struct *work)
 {
 #if ESD_CHECK_EN
@@ -333,18 +355,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
                 mdelay(1);
                 hyn_power_source_ctrl(hyn_data,1);
                 hyn_fun->tp_rest();
-                if(hyn_data->prox_is_enable){
-                    hyn_fun->tp_prox_handle(1);
-                }
-                else if(hyn_data->gesture_is_enable){
-                    hyn_fun->tp_set_workmode(GESTURE_MODE,1);
-                }
-                if(hyn_data->charge_is_enable){
-                    hyn_fun->tp_set_workmode(CHARGE_ENTER,1);
-                }
-                if(hyn_data->glove_is_enable){
-                    hyn_fun->tp_set_workmode(GLOVE_ENTER,1);
-                }
+                hyn_restore_scene();
             }
         }
     }
@@ -360,29 +371,29 @@ static void hyn_esdcheck_work(struct work_struct *work)
 static void hyn_resum(struct device *dev)
 {
     int ret = 0;
-    struct ts_frame *rep_frame = &hyn_data->rp_buf;
-    struct hyn_plat_data *dt = &hyn_data->plat_data;
+    struct ts_frame *rep_frame;
+    struct hyn_plat_data *dt;
     HYN_ENTER();
+    if(IS_ERR_OR_NULL(hyn_data)){
+        return;
+    }
+    hyn_data->state_is_sunpend = 0;
+    rep_frame = &hyn_data->rp_buf;
+    dt = &hyn_data->plat_data;
 #if (HYN_WAKE_LOCK_EN==1)
     wake_unlock(&hyn_data->tp_wakelock);
 #endif
+    hyn_power_source_ctrl(hyn_data, 1);
     hyn_fun->tp_resum();
-    if(hyn_data->prox_is_enable){
-        hyn_fun->tp_prox_handle(1);
-    }
-    else if(hyn_data->gesture_is_enable){
+    //restore_scene
+    hyn_restore_scene();
+    if(hyn_data->gesture_is_enable && hyn_data->prox_is_enable==0){
         hyn_irq_set(hyn_data,DISABLE);
         ret = disable_irq_wake(hyn_data->client->irq);
-        ret |= irq_set_irq_type(hyn_data->client->irq,hyn_data->plat_data.irq_gpio_flags); 
+        ret |= irq_set_irq_type(hyn_data->client->irq,dt->irq_gpio_flags); 
         if(ret < 0){
             HYN_ERROR("gesture irq_set_irq failed");
         }  
-    }
-    if(hyn_data->charge_is_enable){
-        hyn_fun->tp_set_workmode(CHARGE_ENTER,1);
-    }
-    if(hyn_data->glove_is_enable){
-        hyn_fun->tp_set_workmode(GLOVE_ENTER,1);
     }
     //compensate for lifting
     if(rep_frame->report_need & REPORT_KEY){
@@ -400,6 +411,10 @@ static void hyn_suspend(struct device *dev)
 {
     int ret = 0;
     HYN_ENTER();
+    if(IS_ERR_OR_NULL(hyn_data)){
+        return;
+    }
+    hyn_data->state_is_sunpend = 1;
 #if (HYN_WAKE_LOCK_EN==1)
     wake_lock(&hyn_data->tp_wakelock);
 #endif
@@ -414,11 +429,12 @@ static void hyn_suspend(struct device *dev)
         }  
         hyn_fun->tp_set_workmode(GESTURE_MODE,1);
         hyn_irq_set(hyn_data,ENABLE);
+        hyn_power_source_ctrl(hyn_data, 1);
     }
     else{
         hyn_irq_set(hyn_data,DISABLE);
         hyn_fun->tp_supend();
-        //hyn_power_source_ctrl(hyn_data, 0);
+        hyn_power_source_ctrl(hyn_data, 0);
     }
 }
 

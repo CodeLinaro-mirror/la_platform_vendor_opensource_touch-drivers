@@ -277,6 +277,8 @@ struct hyn_ts_data {
     u8 prox_is_enable;
     u8 prox_state;
     
+    u8 state_is_sunpend;
+
     u8 gesture_is_enable;
     u8 gesture_id;
     const void *hyn_fuc_used;
@@ -307,6 +309,7 @@ int hyn_wr_reg(struct hyn_ts_data *ts_data, u32 reg_addr, u8 reg_len, u8 *rbuf, 
 void hyn_irq_set(struct hyn_ts_data *ts_data, u8 value);
 void hyn_esdcheck_switch(struct hyn_ts_data *ts_data, u8 enable);
 int copy_for_updata(struct hyn_ts_data *ts_data,u8 *buf,u32 offset,u16 len);
+int hyn_dump_fw(struct hyn_ts_data *ts_data,u8 *buf,size_t count);
 int get_word(u8 **sc_str, u8* ds_str);
 void hyn_set_i2c_addr(struct hyn_ts_data *ts_data,u8 addr);
 
@@ -326,9 +329,8 @@ int hyn_proximity_int(struct hyn_ts_data *ts_data);
 int hyn_proximity_report(u8 proximity_value);
 
 int hyn_wait_irq_timeout(struct hyn_ts_data *ts_data,int msec);
-int factory_multitest(struct hyn_ts_data *ts_data ,char *cfg_path, u8 *data,s16 *test_th,u8 test_item);
-int fac_test_log_save(char *log_name,struct hyn_ts_data *ts_data,s16 *test_data, int test_ret, u8 test_item);
-int str_2_num(char *str,u8 type);
+int str_2_num(char *str,int*result,u8 type);
+int exchange_byte(uint8_t *src, uint16_t len);
 u16 hyn_sum16(int val, u8* buf,u16 len);
 u32 hyn_sum32(int val, u32* buf,u16 len);
 

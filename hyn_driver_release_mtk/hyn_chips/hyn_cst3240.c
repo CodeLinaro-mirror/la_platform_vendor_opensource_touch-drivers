@@ -180,13 +180,10 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
 {
     int ret = 0;
     HYN_ENTER();
-    hyn_3240data->work_mode = mode;
-    if(mode != NOMAL_MODE)
-        hyn_esdcheck_switch(hyn_3240data,DISABLE);
+    hyn_esdcheck_switch(hyn_3240data,enable);
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_3240data,ENABLE);
-            hyn_esdcheck_switch(hyn_3240data,enable);
             ret |= hyn_wr_reg(hyn_3240data,0xD109,2,0,0);
             break;
         case GESTURE_MODE:
@@ -216,8 +213,12 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
             ret |= cst3240_enter_boot();
             break;
         default :
+            hyn_3240data->work_mode = NOMAL_MODE;
             ret = -2;
             break;
+    }
+    if(ret != -2){
+        hyn_3240data->work_mode = mode;
     }
     return ret;
 }
@@ -539,9 +540,6 @@ static int cst3240_get_dbg_data(u8 *buf, u16 len)
     return ret==0 ? total_len:-1;
 }
 
-#define FACTEST_PATH    "/sdcard/hyn_fac_test_cfg.ini"
-#define FACTEST_LOG_PATH "/sdcard/hyn_fac_test.log"
-#define FACTEST_ITEM      (MULTI_OPEN_TEST|MULTI_SHORT_TEST)
 static int cst3240_get_test_result(u8 *buf, u16 len)
 {
     int ret = 0,timeout;
@@ -558,7 +556,7 @@ static int cst3240_get_test_result(u8 *buf, u16 len)
     msleep(1);
     timeout = 500;
     while(--timeout){ //wait rise edge
-        if(gpio_get_value(hyn_3240data->plat_data.tpd_irg_gpio)==1) break;
+        if(gpio_get_value(hyn_3240data->plat_data.irq_gpio)==1) break;
         msleep(10);
     }
     if(hyn_wr_reg(hyn_3240data,0x3000,2,buf,mt_len)){ //open high
@@ -585,13 +583,7 @@ static int cst3240_get_test_result(u8 *buf, u16 len)
         }
     }
 
-    //read data finlish start test
-    ret = factory_multitest(hyn_3240data ,FACTEST_PATH, buf,(s16*)(buf+scap_len+mt_len*2),FACTEST_ITEM);
-
 selftest_end:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_3240data,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    } 
     cst3240_resum();
     return ret;
 }
