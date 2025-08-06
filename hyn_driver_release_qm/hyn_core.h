@@ -78,9 +78,9 @@
 #define HYN_ERROR(fmt, args...)  printk(KERN_ERR "[HYN][Error]%s:"fmt"\n",__func__,##args)
 #define HYN_ENTER()              printk(KERN_ERR "[HYN][enter]%s\n",__func__)
 
-#if HYN_GKI_VER
-    // MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
-#endif
+// #if HYN_GKI_VER
+//     MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+// #endif
 
 // #define IS_ERR_OR_NULL(x)  (x <= 0)
 #define U8TO16(x1,x2) ((((x1)&0xFF)<<8)|((x2)&0xFF))

@@ -7,7 +7,7 @@
 #define MAIN_I2C_ADDR   (0x15)
 #define RW_REG_LEN   (2)
 
-#define MODULE_ID
+#define MODULE_ID_EN  (0)
 
 #define CST7XX_BIN_SIZE    (15*1024)
 
@@ -34,7 +34,7 @@ static const struct hyn_chip_series cst7xx_fw_list[] = {
 static int cst7xx_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0;
-    u8 buf[4],i = 0;
+    u8 buf[4];
     HYN_ENTER();
     hyn_7xxdata = ts_data;
     ret = cst7xx_enter_boot();
@@ -56,6 +56,10 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
        ret = cst7xx_get_id(&hyn_7xxdata->hw_info.fw_module_id);
     }
     //match fw use module_id
+    HYN_INFO("MODULE_ID is %s\r\n", MODULE_ID_EN ? "enable":"disable");
+#if MODULE_ID_EN
+{
+ 	u8 i = 0;
     ret=-1;
     for(i = 0; ;i++){
         if(cst7xx_fw_list[i].moudle_id==hyn_7xxdata->hw_info.fw_module_id){
@@ -65,7 +69,10 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
         }
     }
     HYN_INFO("module id:0x%02x match fw %s\n",hyn_7xxdata->hw_info.fw_module_id,ret ? "faild":"success");
-    hyn_7xxdata->need_updata_fw = 0;
+}
+
+#endif
+
     if(ret==0){
         hyn_7xxdata->need_updata_fw = cst7xx_updata_judge((u8*)hyn_7xxdata->fw_updata_addr,CST7XX_BIN_SIZE);
     }
@@ -78,7 +85,7 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
 
 static int cst7xx_get_id(u32 *result)
 {
-#if HYN_POWER_ON_UPDATA 
+#if (HYN_POWER_ON_UPDATA && MODULE_ID_EN)
     u8 i,retry = 0,buf[4];
     u8 i2c_buf[514];
     int ret=-1;

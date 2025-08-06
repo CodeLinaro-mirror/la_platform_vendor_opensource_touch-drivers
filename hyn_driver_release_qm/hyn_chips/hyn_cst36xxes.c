@@ -7,7 +7,6 @@
 #define MAIN_I2C_ADDR   (0x58) //use 2 slave addr
 
 #define PART_NO_EN      (1)
-// #define cst36xxes_BIN_SIZE    (10*1024)
 #define MODULE_ID_ADDR      (0x6400)
 #define PARTNUM_ADDR        (0x7F10)
 

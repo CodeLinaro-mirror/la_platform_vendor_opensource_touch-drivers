@@ -301,9 +301,6 @@ static int cst3xx_updata_judge(u8 *p_fw, u16 len)
     cst3xx_updata_tpinfo();
     cst3xx_set_workmode(NOMAL_MODE,1);
 
-    if(f_ictype != ic->fw_chip_type || f_fw_project_id != ic->fw_project_id){
-        return 0; //not updata
-    }
     if( hyn_3xxdata->boot_is_pass ==0    //boot failed
         ||(f_checksum != ic->ic_fw_checksum && f_fw_ver >= ic->fw_ver)){
         return 1; //need updata

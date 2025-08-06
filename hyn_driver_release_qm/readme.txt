@@ -162,9 +162,9 @@ hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
     adb push xxx.bin /sdcard/app.bin
     adb shell "cd /sys/devices/platform/xxxx/i2c-7/7-005a echo fd>./hyntpdbg && cat ./hyntpfwver"
     通过dump升级(GKI version)
-	adb root
+    adb root
     adb push xxx.bin /sdcard/app.bin
-	adb shell "cd /sys/devices/platform/soc/xxxx/i2c-7/7-005a && echo fwstart>./hyndumpfw && dd if=/sdcard/app.bin of=./hyndumpfw && echo fwend>./hyndumpfw"
+    adb shell "cd /sys/devices/platform/soc/xxxx/i2c-7/7-005a && echo fwstart>./hyndumpfw && dd if=/sdcard/app.bin of=./hyndumpfw && echo fwend>./hyndumpfw"
     
 2、write 
     eg:写 d1 01 02 03 04
