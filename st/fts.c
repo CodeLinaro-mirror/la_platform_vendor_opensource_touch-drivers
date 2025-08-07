@@ -24,7 +24,7 @@
  *
  * THIS SOFTWARE IS SPECIFICALLY DESIGNED FOR EXCLUSIVE USE WITH ST PARTS.
  *
- * Copyright (c) 2023-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 /*!
@@ -3374,7 +3374,7 @@ static int fts_init_sensing(struct fts_ts_info *info)
 						 * sensing */
 #endif
 
-	/* error |= fts_enableInterrupt(); */	/* enable the interrupt */
+	error |= fts_enableInterrupt(info);	/* enable the interrupt */
 	error |= fts_resetDisableIrqCount(info);
 
 	if (error < OK)
@@ -3634,7 +3634,8 @@ static void fts_resume_work(struct work_struct *work)
 
 	info->sensor_sleep = false;
 
-	fts_enableInterrupt(info);
+	if (!mutex_is_locked(&info->tui_transition_lock))
+		fts_enableInterrupt(info);
 }
 
 /**
@@ -4150,6 +4151,7 @@ static int st_ts_pre_la_tui_enable(void *data)
 	struct fts_ts_info *info = data;
 
 	mutex_lock(&info->tui_transition_lock);
+	fts_disableInterrupt(info);
 	flush_work(&info->resume_work);
 	flush_work(&info->work);
 
