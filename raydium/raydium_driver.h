@@ -280,6 +280,14 @@ enum raydium_touch_status {
 #define PINCTRL_STATE_SUSPEND    "pmx_ts_suspend"
 #define PINCTRL_STATE_RELEASE    "pmx_ts_release"
 
+#ifdef CONFIG_ARCH_VIENNA
+#define PINCTRL_STATE_INT_ACTIVE      "pmx_ts_int_active"
+#define PINCTRL_STATE_RESET_ACTIVE    "pmx_ts_reset_active"
+#define PINCTRL_STATE_INT_SUSPEND     "pmx_ts_int_suspend"
+#define PINCTRL_STATE_RESET_SUSPEND   "pmx_ts_reset_suspend"
+#endif
+
+
 /* Power Management Macros Enablement */
 
 #ifndef CONFIG_PM
@@ -304,6 +312,7 @@ enum raydium_touch_status {
 #include <drm/drm_panel.h>
 #endif
 
+extern uint32_t slate_ack_resp;
 
 enum raydium_fb_state {
 	FB_ON,
@@ -360,7 +369,16 @@ struct raydium_ts_data {
 	struct pinctrl_state *pinctrl_state_active;
 	struct pinctrl_state *pinctrl_state_suspend;
 	struct pinctrl_state *pinctrl_state_release;
+
+#ifdef CONFIG_ARCH_VIENNA
+	struct pinctrl_state *pmx_ts_int_active;
+	struct pinctrl_state *pmx_ts_reset_active;
+	struct pinctrl_state *pmx_ts_int_suspend;
+	struct pinctrl_state *pmx_ts_reset_suspend;
+#endif
+
 #endif /*end of MSM_NEW_VER*/
+	int touch_offload;
 
 
 };

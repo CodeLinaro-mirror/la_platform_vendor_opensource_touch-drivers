@@ -8,6 +8,7 @@ def define_vienna(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+	        "glink_comm",
             "raydium_ts",
         ],
         config_options = [
@@ -15,6 +16,7 @@ def define_vienna(t,v):
             "CONFIG_ARCH_VIENNA",
             "CONFIG_MSM_TOUCH",
             "CONFIG_TOUCHSCREEN_RM_TS",
+            "CONFIG_TOUCHSCREEN_MSM_GLINK"
         ],
 )
 

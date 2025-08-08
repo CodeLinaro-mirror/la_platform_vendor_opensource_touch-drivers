@@ -234,6 +234,15 @@ ifeq ($(TARGET_KERNEL_DLKM_TOUCH_OVERRIDE), true)
 	endif
 endif
 
+ifeq ($(CONFIG_TOUCHSCREEN_MSM_GLINK), y)
+
+	LINUXINCLUDE    += -I$(TOUCH_ROOT)/glink_interface_ts
+
+	glink_comm-y := ./glink_interface_ts/glink_interface.o
+
+	obj-$(CONFIG_MSM_TOUCH) += glink_comm.o
+endif
+
 ifeq ($(CONFIG_TOUCHSCREEN_SYNAPTICS_TCM), y)
 	synaptics_tcm_ts-y := \
 		 ./synaptics_tcm/synaptics_tcm_core.o \
@@ -306,6 +315,7 @@ ifneq ($(CONFIG_ARCH_PINEAPPLE), y)
 
 			obj-$(CONFIG_MSM_TOUCH) += raydium_ts.o
 	endif
+
 endif # pineapple
 
 CDEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"

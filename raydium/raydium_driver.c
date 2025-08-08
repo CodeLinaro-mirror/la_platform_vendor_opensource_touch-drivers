@@ -42,6 +42,8 @@
 #include "raydium_driver.h"
 #include <linux/pinctrl/consumer.h>
 #include <linux/version.h>
+#include <glink_interface.h>
+#include <linux/remoteproc/qcom_rproc.h>
 #if defined(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
@@ -62,7 +64,6 @@ struct raydium_slot_status gst_slot[MAX_TOUCH_NUM * 2];
 struct raydium_slot_status gst_slot_init = {0xFF, 0, 0};
 
 static int raydium_enable_regulator(struct raydium_ts_data *cd, bool en);
-
 
 #if (defined(CONFIG_RM_SYSFS_DEBUG))
 const struct attribute_group raydium_attr_group;
@@ -92,6 +93,7 @@ unsigned char g_u8_checkflag;
 #endif
 unsigned char g_u8_log_level;
 struct raydium_ts_data *g_raydium_ts;
+
 /*******************************************************************************
  *  Name: raydium_variable_init
  *  Brief:
@@ -214,6 +216,44 @@ static int raydium_ts_pinctrl_init(void)
 		LOGD(LOG_ERR, "[touch]target does not use pinctrl %d\n", i32_ret);
 		goto err_pinctrl_get;
 	}
+
+#ifdef CONFIG_ARCH_VIENNA
+	g_raydium_ts->pmx_ts_int_active
+		= pinctrl_lookup_state(g_raydium_ts->ts_pinctrl, "pmx_ts_int_active");
+	if (IS_ERR_OR_NULL(g_raydium_ts->pmx_ts_int_active)) {
+		i32_ret = PTR_ERR(g_raydium_ts->pmx_ts_int_active);
+		LOGD(LOG_ERR, "[touch]Can not lookup %s pinstate %d\n",
+		     PINCTRL_STATE_INT_ACTIVE, i32_ret);
+		goto err_pinctrl_lookup;
+	}
+
+	g_raydium_ts->pmx_ts_reset_active
+		= pinctrl_lookup_state(g_raydium_ts->ts_pinctrl, "pmx_ts_reset_active");
+	if (IS_ERR_OR_NULL(g_raydium_ts->pmx_ts_reset_active)) {
+		i32_ret = PTR_ERR(g_raydium_ts->pmx_ts_reset_active);
+		LOGD(LOG_ERR, "[touch]Can not lookup %s pinstate %d\n",
+		     PINCTRL_STATE_RESET_ACTIVE, i32_ret);
+		goto err_pinctrl_lookup;
+	}
+
+		g_raydium_ts->pmx_ts_int_suspend
+		= pinctrl_lookup_state(g_raydium_ts->ts_pinctrl, "pmx_ts_int_suspend");
+	if (IS_ERR_OR_NULL(g_raydium_ts->pmx_ts_int_suspend)) {
+		i32_ret = PTR_ERR(g_raydium_ts->pmx_ts_int_suspend);
+		LOGD(LOG_ERR, "[touch]Can not lookup %s pinstate %d\n",
+		     PINCTRL_STATE_INT_SUSPEND, i32_ret);
+		goto err_pinctrl_lookup;
+	}
+
+	g_raydium_ts->pmx_ts_reset_suspend
+		= pinctrl_lookup_state(g_raydium_ts->ts_pinctrl, "pmx_ts_reset_suspend");
+	if (IS_ERR_OR_NULL(g_raydium_ts->pmx_ts_reset_suspend)) {
+		i32_ret = PTR_ERR(g_raydium_ts->pmx_ts_reset_suspend);
+		LOGD(LOG_ERR, "[touch]Can not lookup %s pinstate %d\n",
+		     PINCTRL_STATE_RESET_SUSPEND, i32_ret);
+		goto err_pinctrl_lookup;
+	}
+#endif
 
 	g_raydium_ts->pinctrl_state_active
 		= pinctrl_lookup_state(g_raydium_ts->ts_pinctrl, PINCTRL_STATE_ACTIVE);
@@ -802,9 +842,10 @@ unsigned char raydium_disable_i2c_deglitch(void)
 			break;
 	}
 
-	if (u8_retry <= 0)
+	if (u8_retry <= 0) {
 		LOGD(LOG_ERR, "[touch]%s: handle_ic_read I2C NG!\r\n", __func__);
 		return ERROR;
+	}
 
 	u32_buf = 0x03;
 	if (handle_i2c_pda_write(g_raydium_ts->client, RAYDIUM_REG_GPIO_DEGLITCH,
@@ -2275,6 +2316,37 @@ static void raydium_input_set(struct input_dev *input_dev)
 		gst_slot[i] = gst_slot_init;
 
 }
+
+void touch_notify_glink_channel_state(bool state)
+{
+	LOGD(LOG_INFO, "%s:[touch] channel state: %d\n", __func__, state);
+}
+
+void glink_touch_rx_msg(void *data, int len)
+{
+	int rc = 0;
+
+	LOGD(LOG_INFO, "%s:[touch]TOUCH_RX_MSG Start:\n", __func__);
+
+	if (len > TOUCH_GLINK_INTENT_SIZE) {
+		LOGD(LOG_ERR, "Invalid TOUCH glink intent size\n");
+		return;
+	}
+
+	/* check SLATE response */
+	slate_ack_resp = *(uint32_t *)&data[8];
+	LOGD(LOG_INFO, "[touch]slate_ack_resp :%0x\n", slate_ack_resp);
+	if (slate_ack_resp == 0x01) {
+		LOGD(LOG_INFO, "Bad SLATE response\n");
+		rc = -EINVAL;
+		goto err_ret;
+	}
+	LOGD(LOG_INFO, "%s:[touch]TOUCH_RX_MSG End:\n", __func__);
+err_ret:
+return;
+}
+
+
 static int raydium_set_resolution(void)
 {
 	unsigned char u8_buf[4];
@@ -2441,6 +2513,7 @@ static int raydium_ts_probe(struct i2c_client *client)
 	struct input_dev *input_dev;
 	unsigned short u16_i2c_data;
 	int ret = 0;
+	static bool glink_channel_init_done;
 
 	LOGD(LOG_INFO, "[touch] probe\n");
 
@@ -2514,6 +2587,11 @@ static int raydium_ts_probe(struct i2c_client *client)
 	}
 #endif /*end of MSM_NEW_VER*/
 
+	if (!glink_channel_init_done) {
+		glink_touch_channel_init(&touch_notify_glink_channel_state, &glink_touch_rx_msg);
+		glink_channel_init_done = true;
+	}
+
 	ret = raydium_get_regulator(g_raydium_ts, true);
 	if (ret) {
 		dev_err(&client->dev, "Failed to get voltage regulators\n");
@@ -2545,6 +2623,7 @@ static int raydium_ts_probe(struct i2c_client *client)
 		ret = -EPROBE_DEFER;
 		goto exit_check_i2c;
 	}
+
 #if defined(CONFIG_DRM) || defined(CONFIG_PANEL_NOTIFIER)
 	/* Setup active dsi panel */
 	active_panel = pdata->active_panel;
@@ -2615,6 +2694,7 @@ static int raydium_ts_probe(struct i2c_client *client)
 
 	g_raydium_ts->irq_desc = irq_to_desc(g_raydium_ts->irq);
 	g_raydium_ts->irq_enabled = true;
+	g_raydium_ts->touch_offload = 0;
 
 	/*disable_irq then enable_irq for avoid Unbalanced enable for IRQ */
 
