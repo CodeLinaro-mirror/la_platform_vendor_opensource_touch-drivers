@@ -396,13 +396,9 @@ static void hyn_resum(struct device *dev)
         }  
     }
     //compensate for lifting
-    if(rep_frame->report_need & REPORT_KEY){
-        input_report_key(hyn_data->input_dev,dt->key_code[rep_frame->key_id],0); 
-    }
-    if(rep_frame->report_need & REPORT_POS){
-        release_all_finger(hyn_data);
-        input_sync(hyn_data->input_dev);
-    }
+    release_all_finger(hyn_data);
+    input_sync(hyn_data->input_dev);
+    
     rep_frame->report_need = REPORT_NONE;
     hyn_irq_set(hyn_data,ENABLE);
 }

@@ -62,6 +62,9 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
  	u8 i = 0;
     ret=-1;
     for(i = 0; ;i++){
+        if(cst7xx_fw_list[i].fw_bin== NULL){
+            break;
+        }
         if(cst7xx_fw_list[i].moudle_id==hyn_7xxdata->hw_info.fw_module_id){
             hyn_7xxdata->fw_updata_addr = cst7xx_fw_list[i].fw_bin;
             ret = 0;

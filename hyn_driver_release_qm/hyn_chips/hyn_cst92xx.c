@@ -6,10 +6,13 @@
 #define RW_REG_LEN   (2)
 
 #define MAX_FINGER (2)
+#define MODULE_ID_EN  (0)
 
 #define CST92XX_BIN_SIZE    (0x7F80)
 
 #define HYNITRON_PROGRAM_PAGE_SIZE (128)
+#define ADDR_CHIP_ID            (0x077C)
+#define ADDR_MODULE_ID          (0x7FC0)
 
 static struct hyn_ts_data *hyn_92xxdata = NULL;
 
@@ -18,18 +21,30 @@ static u32 cst92xx_read_checksum(void);
 static int cst92xx_updata_tpinfo(void);
 static int cst92xx_enter_boot(void);
 static void cst92xx_rst(void);
+static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value);
 static int cst92xx_set_workmode(enum work_mode mode,u8 enable);
+
+static const struct hyn_chip_series cst92xx_fw_list[] = {
+    {0x92FF,0xFFFF,"cst92xx id0",(u8*)fw_bin_1}, //default bin
+    {0x9217,0x0001,"cst9217 id0",(u8*)fw_bin_1},  
+    {0x9217,0x0002,"cst9217 id1",(u8*)fw_bin_1},
+    {0x9220,0x0002,"cst9220 id0",(u8*)fw_bin_1},
+    {0x916e,0x0003,"cst916e",(u8*)fw_bin_1},
+    {0xFF,0,"null",NULL}
+};
 
 static int cst92xx_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0;
+    struct tp_info *ic = &ts_data->hw_info;
     HYN_ENTER();
     hyn_92xxdata = ts_data;
     hyn_set_i2c_addr(hyn_92xxdata,MAIN_I2C_ADDR);
     cst92xx_rst();
     msleep(40);
     ret = cst92xx_updata_tpinfo();
-    if(ret == FALSE){
+    if(ret){
+        int retry = 3;
         HYN_INFO("cst92xx_updata_tpinfo failed");
         hyn_92xxdata->work_mode=ENTER_BOOT_MODE;
         ret = cst92xx_enter_boot();
@@ -37,11 +52,39 @@ static int cst92xx_init(struct hyn_ts_data* ts_data)
             HYN_ERROR("cst92xx_ic check failed\r\n");
             return FALSE;
         }
+        while(retry--){
+            ret = read_word_from_mem(1, ADDR_CHIP_ID, &ic->fw_chip_type);
+            ret |= read_word_from_mem(0, ADDR_MODULE_ID, &ic->fw_module_id);
+            if(ret==0)
+            break;
+        }
         cst92xx_rst();
     }
-    hyn_92xxdata->fw_updata_addr = (u8*)fw_bin;
+    ret = 0;
+    HYN_INFO("MODULE_ID is %s\r\n", MODULE_ID_EN ? "enable":"disable");
+    hyn_92xxdata->fw_updata_addr = cst92xx_fw_list[0].fw_bin;
     hyn_92xxdata->fw_updata_len = CST92XX_BIN_SIZE;
-    hyn_92xxdata->need_updata_fw = cst92xx_updata_judge((u8*)fw_bin,CST92XX_BIN_SIZE);
+    
+#if MODULE_ID_EN
+{
+ 	u8 i = 0;
+    ret=-1;
+    for(i = 0; ;i++){
+        if(cst92xx_fw_list[i].fw_bin== NULL){
+            break;
+        }
+        if(cst92xx_fw_list[i].moudle_id == ic->fw_module_id){
+            hyn_92xxdata->fw_updata_addr = cst92xx_fw_list[i].fw_bin;
+            ret = 0;
+            break;
+        }
+    }
+    HYN_INFO("module id:0x%04x match fw %s\n",ic->fw_module_id,ret ? "faild":"success");
+}
+#endif
+    if(ret==0){
+        hyn_92xxdata->need_updata_fw = cst92xx_updata_judge(hyn_92xxdata->fw_updata_addr,CST92XX_BIN_SIZE);
+    }
     HYN_INFO("cst92xx_init done !!!");
     return TRUE;
 }
@@ -347,67 +390,62 @@ UPDATA_END:
     return ok_copy;
 }
 
-// static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
-// {
-//     int16_t ret = 0;
-//     uint8_t i2c_buf[4] = {0},t;
+static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
+{
+    int16_t ret = 0;
+    uint8_t i2c_buf[4] = {0},t;
 
-//     i2c_buf[0] = 0xA0;
-//     i2c_buf[1] = 0x10;
-//     i2c_buf[2] = type;
-//     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
-//     if (ret)
-//     {
-//         return -1;
-//     }
+    i2c_buf[0] = 0xA0;
+    i2c_buf[1] = 0x10;
+    i2c_buf[2] = type;
+    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
+    if (ret){
+        return -1;
+    }
 
-//     i2c_buf[0] = 0xA0;
-//     i2c_buf[1] = 0x0C;
-//     i2c_buf[2] = addr;
-//     i2c_buf[3] = addr >> 8;
-//     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,4); 
-//     if (ret)
-//     {
-//         return -1;
-//     }
+    i2c_buf[0] = 0xA0;
+    i2c_buf[1] = 0x0C;
+    i2c_buf[2] = addr;
+    i2c_buf[3] = addr >> 8;
+    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,4); 
+    if (ret){
+        return -1;
+    }
 
-//     i2c_buf[0] = 0xA0;
-//     i2c_buf[1] = 0x04;
-//     i2c_buf[2] = 0xE4;
-//     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
-//     if (ret)
-//     {
-//         return -1;
-//     }
+    i2c_buf[0] = 0xA0;
+    i2c_buf[1] = 0x04;
+    i2c_buf[2] = 0xE4;
+    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
+    if (ret){
+        return -1;
+    }
 
-//     for (t = 0;; t++)
-//     {
-//         if (t >= 100)
-//         {
-//             return -1;
-//         }
-//         ret =hyn_wr_reg(hyn_92xxdata,0xA004,2,i2c_buf,1);
-//         if (ret)
-//         {
-//             continue;
-//         }
-//         if (i2c_buf[0] == 0x00)
-//         {
-//             break;
-//         }
-//     }
-//     ret =hyn_wr_reg(hyn_92xxdata,0xA018,2,i2c_buf,4);
-//     if (ret)
-//     {
-//         return -1;
-//     }
-//     *value = ((uint32_t)(i2c_buf[0])) |
-//              (((uint32_t)(i2c_buf[1])) << 8) |
-//              (((uint32_t)(i2c_buf[2])) << 16) |
-//              (((uint32_t)(i2c_buf[3])) << 24);
+    for (t = 0;; t++)
+    {
+        if (t >= 100)
+        {
+            return -1;
+        }
+        ret =hyn_wr_reg(hyn_92xxdata,0xA004,2,i2c_buf,1);
+        if (ret)
+        {
+            continue;
+        }
+        if (i2c_buf[0] == 0x00)
+        {
+            break;
+        }
+    }
+    ret =hyn_wr_reg(hyn_92xxdata,0xA018,2,i2c_buf,4);
+    if (ret){
+        return -1;
+    }
+    *value = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
+    return 0;
+}
 
-//     return 0;
-// }
+
+
 
 // static int cst92xx_read_chip_id(void)
 // {
@@ -464,12 +502,15 @@ static int cst92xx_updata_tpinfo(void)
         ret = hyn_wr_reg(hyn_92xxdata,0xD101,2,buf,0);
         if(ret) continue;
         ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,28);
-        if(ret==0 && (buf[19]==0x92||buf[19]==0x91)){
-            break;
+        if(ret!=0 
+        || (buf[19]&0xf0) != 0x90
+        ){
+            ret = -1;
+            continue;
         }
-        ret = -1;
     }
     if(ret){
+         HYN_ERROR("updata_tpinfo faild:%d",ret);
          return FALSE;
     }
     hyn_92xxdata->boot_is_pass = 1;
@@ -490,11 +531,27 @@ static int cst92xx_updata_tpinfo(void)
     //fw_checksum
     ic->ic_fw_checksum = (buf[27]<<24)|(buf[26]<<16)|(buf[25]<<8)|buf[24];
 
+    retry = 4;
+    while(retry--){
+        cst92xx_set_workmode(0xff,DISABLE);
+        ret = hyn_wr_reg(hyn_92xxdata,0xD220,2,buf,8);
+        if(ret==0 && buf[6]== 0xCA && buf[7]== 0xCA){
+            break;
+        }
+        ret = 1;
+    }
+    if(ret == 0){
+        ic->fw_module_id = U8TO32(buf[3],buf[2],buf[1],buf[0]);
+    }
+    else{
+        HYN_ERROR("read module_id from fw faild ! %x,%x",buf[6],buf[7]);
+    }
+
     HYN_INFO("IC_info project_id:%04x ictype:%04x fw_ver:%x checksum:%#x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver,ic->ic_fw_checksum);
    
     cst92xx_set_workmode(NOMAL_MODE,ENABLE);
    
-    return TRUE;
+    return ret;
 }
 
 static int cst92xx_updata_judge(u8 *p_fw, u16 len)
@@ -668,7 +725,9 @@ static int cst92xx_report(void)
             hyn_92xxdata->gesture_id = IDX_POWER;//GESTURE wakeup
         }
         HYN_INFO("gesture buf4:%#x\r\n",i2c_buf[4]);
-        hyn_92xxdata->rp_buf.report_need |= REPORT_GES;
+        hyn_92xxdata->rp_buf.rep_num = 0;
+        hyn_92xxdata->rp_buf.report_need |= (REPORT_GES|REPORT_POS);
+        return 0;
     }
 
     if(key_state){
@@ -684,11 +743,12 @@ static int cst92xx_report(void)
     }
 
     if(finger_num){
-        u8 i = 0,index = 0,id = 0;
+        u8 i = 0,touch_cnt = 0, index = 0,id = 0;
         u8 *data_ptr = i2c_buf;
         if( hyn_92xxdata->rp_buf.report_need==REPORT_NONE){
             hyn_92xxdata->rp_buf.report_need |= REPORT_POS;
         }
+        hyn_92xxdata->rp_buf.rep_num = finger_num;
         for (i = 0; i < finger_num; i++) {
             id = data_ptr[0] >> 4;
             hyn_92xxdata->rp_buf.pos_info[index].pos_id = id;
@@ -696,10 +756,15 @@ static int cst92xx_report(void)
             hyn_92xxdata->rp_buf.pos_info[index].pos_x = (data_ptr[1] << 4) | (data_ptr[3] >> 4);
             hyn_92xxdata->rp_buf.pos_info[index].pos_y = (data_ptr[2] << 4) | (data_ptr[3] & 0x0F);
             hyn_92xxdata->rp_buf.pos_info[index].pres_z = (data_ptr[4] & 0x7F);
+            if(hyn_92xxdata->rp_buf.pos_info[index].event){
+                touch_cnt++;
+            }
             index++;
             data_ptr += (i==0 ? 7:5);
         }
-        hyn_92xxdata->rp_buf.rep_num = index;
+        if(touch_cnt==0){
+            hyn_92xxdata->rp_buf.rep_num = 0;
+        }
     }
 
     return TRUE;
