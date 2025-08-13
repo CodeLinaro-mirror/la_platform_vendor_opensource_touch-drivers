@@ -25,6 +25,7 @@ void hyn_irq_set(struct hyn_ts_data *ts_data, u8 value)
 {
 	// HYN_ENTER();
     if(atomic_read(&ts_data->irq_is_disable) != value){
+		atomic_set(&ts_data->irq_is_disable,value);
         if(value ==0){
 			disable_irq(ts_data->gpio_irq);
 			msleep(1); //wait switch
@@ -32,7 +33,6 @@ void hyn_irq_set(struct hyn_ts_data *ts_data, u8 value)
         else{
 			enable_irq(ts_data->gpio_irq);
 		}
-        atomic_set(&ts_data->irq_is_disable,value);
 		// HYN_INFO("IRQ %d",value);
     }
 }
@@ -262,7 +262,7 @@ int exchange_byte(uint8_t *src, uint16_t len)
 {
 	u16 i = 0;
     if (src == NULL || len == 0) {
-        return -1;  // 2?¡§oy?TD?¨¬
+        return -1;  // 2?ï¿½ï¿½oy?TD?ï¿½ï¿½
     }
     for (i = 0; i < len; i+=2) {
         u8 *p = src + i;  
