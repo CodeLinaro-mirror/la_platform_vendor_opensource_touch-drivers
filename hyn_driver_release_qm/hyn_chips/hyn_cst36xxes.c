@@ -87,8 +87,6 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
     if(hyn_36xxesdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
-
-
     return 0;
 }
 

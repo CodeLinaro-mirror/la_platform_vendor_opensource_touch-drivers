@@ -164,6 +164,7 @@ enum ges_idx{
     IDX_C,
     IDX_Z,
     IDX_POWER,
+    IDX_F11,
     IDX_NULL = 0xFF,
 };
 

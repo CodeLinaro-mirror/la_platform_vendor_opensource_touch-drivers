@@ -3,7 +3,9 @@
 
 static const u8 gesture_key[] = {KEY_U,KEY_UP,KEY_DOWN,KEY_LEFT,KEY_RIGHT,
                                   KEY_O,KEY_E, KEY_M,   KEY_L,   KEY_W,
-                                  KEY_S,KEY_V, KEY_C,   KEY_Z,   KEY_POWER};
+                                  KEY_S,KEY_V, KEY_C,   KEY_Z,   KEY_POWER,
+                                  KEY_F11
+                                };
 
 static struct hyn_ts_data *gesture_data = NULL;
 

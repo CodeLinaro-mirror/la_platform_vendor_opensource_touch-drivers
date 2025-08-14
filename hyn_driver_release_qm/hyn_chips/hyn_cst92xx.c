@@ -719,7 +719,7 @@ static int cst92xx_report(void)
     ges_state = i2c_buf[4]>>4;
     if(ges_state){ //gesture
         if((ges_state&0x80) == 0x80){ //palm
-            hyn_92xxdata->gesture_id = IDX_POWER;//IDX_Z;// palm 
+            hyn_92xxdata->gesture_id = IDX_F11;//IDX_Z;// palm 
         }
         else{ //other gesture
             hyn_92xxdata->gesture_id = IDX_POWER;//GESTURE wakeup
