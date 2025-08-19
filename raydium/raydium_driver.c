@@ -63,7 +63,6 @@ struct raydium_slot_status {
 struct raydium_slot_status gst_slot[MAX_TOUCH_NUM * 2];
 struct raydium_slot_status gst_slot_init = {0xFF, 0, 0};
 
-static int raydium_enable_regulator(struct raydium_ts_data *cd, bool en);
 
 #if (defined(CONFIG_RM_SYSFS_DEBUG))
 const struct attribute_group raydium_attr_group;
@@ -1418,9 +1417,15 @@ static void raydium_work_handler(struct work_struct *work)
 #endif
 		LOGD(LOG_DEBUG, "[touch] elseif u8_tp_status:%x\n", u8_tp_status[POS_GES_STATUS]);
 		/*need check small area*/
-		/*if (u8_tp_status[POS_GES_STATUS] == RAD_WAKE_UP */
-		 /*&& g_u8_wakeup_flag == false) { */
-		if (u8_tp_status[POS_GES_STATUS] == 0)	{
+		if ((u8_tp_status[POS_GES_STATUS] == RAD_WAKE_UP
+		 && g_u8_wakeup_flag == false) || (u8_tp_status[POS_GES_STATUS] == 0)) {
+		/*if (u8_tp_status[POS_GES_STATUS] == 0)	{*/
+#ifdef CONFIG_ARCH_VIENNA
+			input_report_key(g_raydium_ts->input_dev, BTN_TOUCH, false);
+			input_report_key(g_raydium_ts->input_dev, BTN_TOOL_FINGER, false);
+			input_report_key(g_raydium_ts->input_dev, BTN_TOOL_PEN, false);
+			input_sync(g_raydium_ts->input_dev);
+#endif
 			input_report_key(g_raydium_ts->input_dev, KEY_WAKEUP, true);
 			usleep_range(9500, 10500);
 			input_sync(g_raydium_ts->input_dev);
@@ -2382,7 +2387,7 @@ exit_error:
 	mutex_unlock(&g_raydium_ts->lock);
 	return i32_ret;
 }
-static int raydium_get_regulator(struct raydium_ts_data *cd, bool get)
+int raydium_get_regulator(struct raydium_ts_data *cd, bool get)
 {
 	int rc;
 
@@ -2428,7 +2433,7 @@ regulator_put:
 	return rc;
 }
 
-static int raydium_enable_regulator(struct raydium_ts_data *cd, bool en)
+int raydium_enable_regulator(struct raydium_ts_data *cd, bool en)
 {
 	int rc;
 

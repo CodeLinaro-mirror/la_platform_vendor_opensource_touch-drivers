@@ -20,6 +20,19 @@ def define_vienna(t,v):
         ],
 )
 
+def define_art(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "dummy_ts",
+        ],
+        config_options = [
+            "CONFIG_TOUCHSCREEN_DUMMY"
+        ],
+)
+
 def define_sun(t,v):
     define_target_variant_modules(
         target = t,
@@ -246,5 +259,7 @@ def define_touch_target():
             define_sun(t, v)
         elif t == "vienna":
             define_vienna(t, v)
+        elif t == "art":
+            define_art(t, v)
         else:
             pass

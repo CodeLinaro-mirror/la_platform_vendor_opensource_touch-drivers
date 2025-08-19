@@ -511,6 +511,8 @@ extern int raydium_i2c_pda_set_address(unsigned int u32_address,
 				       unsigned char u8_mode);
 extern void raydium_mem_table_init(unsigned short u16_id);
 extern int raydium_id_init(unsigned char u8_type);
+extern int raydium_get_regulator(struct raydium_ts_data *cd, bool get);
+extern int raydium_enable_regulator(struct raydium_ts_data *cd, bool en);
 
 #ifdef RAD_SELFTEST
 extern int raydium_do_selftest(struct raydium_ts_data *ts);

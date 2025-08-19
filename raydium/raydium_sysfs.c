@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -489,6 +490,9 @@ static ssize_t raydium_touch_lock_store(struct device *dev,
 	int i32_ret = 0;
 	unsigned char u8_mode;
 	unsigned char u8_wbuffer[1];
+#ifdef CONFIG_ARCH_VIENNA
+	int ret = 0;
+#endif
 
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
 
@@ -511,6 +515,20 @@ static ssize_t raydium_touch_lock_store(struct device *dev,
 		if (g_raydium_ts->is_sleep != 1)
 			break;
 		g_u8_resetflag = true;
+#ifdef CONFIG_ARCH_VIENNA
+		ret = raydium_get_regulator(g_raydium_ts, true);
+		if (ret) {
+			dev_err(&client->dev, "Failed to get voltage regulators\n");
+			goto exit_i2c_error;
+		}
+
+		ret = raydium_enable_regulator(g_raydium_ts, true);
+		if (ret) {
+			dev_err(&client->dev, "Failed to enable regulators: rc=%d\n", ret);
+			raydium_get_regulator(g_raydium_ts, false);
+			goto exit_i2c_error;
+		}
+#endif
 		if (gpio_is_valid(g_raydium_ts->rst_gpio)) {
 			gpio_set_value(g_raydium_ts->rst_gpio, 1);
 			gpio_set_value(g_raydium_ts->rst_gpio, 0);
@@ -540,6 +558,15 @@ static ssize_t raydium_touch_lock_store(struct device *dev,
 						 1);
 		if (i32_ret < 0)
 			goto exit_i2c_error;
+#ifdef CONFIG_ARCH_VIENNA
+		gpio_set_value(g_raydium_ts->rst_gpio, 0);
+		ret = raydium_enable_regulator(g_raydium_ts, false);
+		if (ret)
+			dev_err(&client->dev, "Failed to disable regulators: rc=%d\n", ret);
+		ret = raydium_get_regulator(g_raydium_ts, false);
+		if (ret)
+			dev_err(&client->dev, "Failed to free regulators: rc=%d\n", ret);
+#endif
 
 		LOGD(LOG_INFO, "[touch]RAD %s enable touch lock!!\n", __func__);
 		g_raydium_ts->is_sleep = 1;
