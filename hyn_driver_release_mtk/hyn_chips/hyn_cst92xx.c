@@ -734,8 +734,13 @@ static int cst92xx_report(void)
         }
         HYN_INFO("gesture buf4:%#x\r\n",i2c_buf[4]);
         hyn_92xxdata->rp_buf.rep_num = 0;
-        hyn_92xxdata->rp_buf.report_need |= (REPORT_GES|REPORT_POS);
+        hyn_92xxdata->rp_buf.report_need |= REPORT_GES;
         return 0;
+    }
+
+    if(finger_num+key_state==0){ //release all finger
+        hyn_92xxdata->rp_buf.rep_num = 0;
+        hyn_92xxdata->rp_buf.report_need |= REPORT_POS;
     }
 
     if(key_state){
@@ -750,7 +755,6 @@ static int cst92xx_report(void)
         hyn_92xxdata->rp_buf.key_state = data_ptr[0]==0x83 ? 1:0; //0x83  0x80
     }
 
-    hyn_92xxdata->rp_buf.rep_num = 0;
     if(finger_num){
         u8 i = 0,touch_cnt = 0, index = 0,id = 0;
         u8 *data_ptr = i2c_buf;
