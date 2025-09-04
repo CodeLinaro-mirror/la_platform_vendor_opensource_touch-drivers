@@ -51,7 +51,7 @@
 /* I2C R/W configuration literal */
 #define RAYDIUM_I2C_WRITE       I2C_SMBUS_WRITE
 #define RAYDIUM_I2C_READ        I2C_SMBUS_READ
-#define SYN_I2C_RETRY_TIMES     1
+#define SYN_I2C_RETRY_TIMES     10
 #define MAX_WRITE_PACKET_SIZE   128
 #define MAX_READ_PACKET_SIZE    128
 
