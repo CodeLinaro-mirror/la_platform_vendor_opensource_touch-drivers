@@ -270,6 +270,8 @@ struct hyn_ts_data {
     u8 *fw_updata_addr;
     int fw_updata_len;
     int fw_dump_state;
+    u8 *fw_dump_addr;
+    int fw_dump_len;
     u8 fw_updata_process;
     u8 host_cmd_save[16];
     wait_queue_head_t wait_irq;

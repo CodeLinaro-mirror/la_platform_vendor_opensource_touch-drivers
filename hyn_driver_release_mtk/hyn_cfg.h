@@ -33,8 +33,7 @@
 
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
-//selftest cfg
-#define HYN_TP0_TEST_LOG_SAVE  (0)
+
 
 #define HYN_DRIVER_VERSION      "== Hynitron V2.22 20250812 =="
 #endif

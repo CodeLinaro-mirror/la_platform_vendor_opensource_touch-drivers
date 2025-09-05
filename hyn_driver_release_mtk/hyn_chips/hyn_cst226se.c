@@ -253,7 +253,7 @@ static int cst226se_updata_tpinfo(void)
         ret = hyn_wr_reg(hyn_226data,0xD101,2,buf,0);
         mdelay(1);
         ret |= hyn_wr_reg(hyn_226data,0xD1F4,2,buf,28);
-        cst226se_set_workmode(NOMAL_MODE,0);
+        cst226se_set_workmode(NOMAL_MODE,1);
         if(ret ==0 &&  U8TO16(buf[19],buf[18])==0x00a8){
             break;
         }
@@ -470,9 +470,6 @@ static int cst226se_get_dbg_data(u8 *buf, u16 len)
 }
 
 
-#define FACTEST_PATH    "/sdcard/hyn_fac_test_cfg.ini"
-#define FACTEST_LOG_PATH "/sdcard/hyn_fac_test.log"
-#define FACTEST_ITEM      (MULTI_OPEN_TEST|MULTI_SHORT_TEST)
 static int cst226se_get_test_result(u8 *buf, u16 len)
 {
     int ret = 0,timeout;
@@ -512,13 +509,7 @@ static int cst226se_get_test_result(u8 *buf, u16 len)
         }
     }
 
-    //read data finlish start test
-    ret = factory_multitest(hyn_226data ,FACTEST_PATH, buf,(s16*)(buf+scap_len+mt_len*2),FACTEST_ITEM);
-
 selftest_end:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_226data,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    } 
     cst226se_resum();
     return ret;
 }
