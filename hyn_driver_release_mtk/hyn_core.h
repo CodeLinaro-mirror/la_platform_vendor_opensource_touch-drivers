@@ -348,5 +348,6 @@ extern const struct hyn_ts_fuc cst92xx_fuc;
 extern const struct hyn_ts_fuc cst3240_fuc;
 extern const struct hyn_ts_fuc cst226se_fuc;
 extern const struct hyn_ts_fuc cst36xxes_fuc;
+extern const struct hyn_ts_fuc cst840u_fuc;
 
 #endif
