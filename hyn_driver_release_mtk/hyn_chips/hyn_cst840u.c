@@ -34,7 +34,7 @@ static const u8 gest_map_tbl[] = {
 };
 
 static const struct hyn_chip_series hyn_xx_fw[] = {
-    {0xCACA2207,0xffffffff,"cst840u",(u8*)fw_module},//if PART_NO_EN==0 use default chip
+    {0xCACA2213,0xffffffff,"cst840u",(u8*)fw_module},//if PART_NO_EN==0 use default chip
     {0,0,"",NULL}
 };
 
@@ -646,7 +646,7 @@ static int cst840u_erase_flash(u32 start_addr, u32 len, u16 type)
     return ret;
 }
 
-static int cst840u_updata_fw(u8 *bin_addr, u32 len)
+static int cst840u_updata_fw(u8 *bin_addr, u16 len)
 {
     #define PKG_SIZE    (1024)
     int i,ret = -1, retry_fw= 4,pak_num;
@@ -906,6 +906,7 @@ static int cst840u_get_test_result(u8 *buf, u16 len)
 
     if(get_fac_test_data(0xD0002500,rbuf,st_len,0)){ ///read scap test data
         HYN_ERROR("read scap failed");
+        ret = -1;
         goto TEST_ERRO;
     }
 
@@ -920,7 +921,7 @@ static int cst840u_get_test_result(u8 *buf, u16 len)
     //     goto TEST_ERRO;
     // }
 
-    cst840u_set_workmode(NOMAL_MODE,0);
+    // cst840u_set_workmode(NOMAL_MODE,0);
 
     u16 *cp_buf = (u16*)buf;
     for (int i = 0; i < st_len>>1; i++) {

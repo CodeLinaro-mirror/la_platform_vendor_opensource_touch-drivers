@@ -8,6 +8,7 @@
     {.compatible = "hyn,7xx",  .data = &cst7xx_fuc,},    /*suport 726、826、836u*/
     {.compatible = "hyn,8xxt", .data = &cst8xxT_fuc,},   /*suport 816t、816d、820、08C*/
     {.compatible = "hyn,226se", .data = &cst226se_fuc,}, /*suport 226se 8922*/
+    {.compatible = "hyn,840u", .data = &cst840u_fuc,},   /*suport 840u*/
 
 
 2、参考dts配置 下面都是必配项:
@@ -39,6 +40,7 @@ hynitron_touch-objs += hyn_chips/hyn_cst1xx.o
 hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
 hynitron_touch-objs += hyn_chips/hyn_cst8xxT.o
 hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
+hynitron_touch-objs += hyn_chips/hyn_cst840u.o
 
 
 4、sys节点操作

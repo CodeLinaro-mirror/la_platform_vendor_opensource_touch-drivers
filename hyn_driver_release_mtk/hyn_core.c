@@ -14,7 +14,7 @@ static const struct of_device_id hyn_of_match_table[] = {
     {.compatible = "hyn,7xx",  .data = &cst7xx_fuc,},    /*suport 726 826 836u*/
     {.compatible = "hyn,8xxt", .data = &cst8xxT_fuc,},   /*suport 816t 816d 820 08C*/
     {.compatible = "hyn,226se", .data = &cst226se_fuc,}, /*suport 226se 8922*/
-    {.compatible = "hyn,840u", .data = &cst840u_fuc,}, /*suport 226se 8922*/
+    {.compatible = "hyn,840u", .data = &cst840u_fuc,},   /*suport 840u*/
     {},
 };
 MODULE_DEVICE_TABLE(of, hyn_of_match_table);
