@@ -8,6 +8,7 @@ def define_vienna(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+	        "glink_comm",
             "raydium_ts",
         ],
         config_options = [
@@ -15,6 +16,20 @@ def define_vienna(t,v):
             "CONFIG_ARCH_VIENNA",
             "CONFIG_MSM_TOUCH",
             "CONFIG_TOUCHSCREEN_RM_TS",
+            "CONFIG_TOUCHSCREEN_MSM_GLINK"
+        ],
+)
+
+def define_art(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "dummy_ts",
+        ],
+        config_options = [
+            "CONFIG_TOUCHSCREEN_DUMMY"
         ],
 )
 
@@ -244,5 +259,7 @@ def define_touch_target():
             define_sun(t, v)
         elif t == "vienna":
             define_vienna(t, v)
+        elif t == "art":
+            define_art(t, v)
         else:
             pass
