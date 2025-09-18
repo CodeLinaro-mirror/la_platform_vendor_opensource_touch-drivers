@@ -14,6 +14,7 @@ static const struct of_device_id hyn_of_match_table[] = {
     {.compatible = "hyn,7xx",  .data = &cst7xx_fuc,},    /*suport 726 826 836u*/
     {.compatible = "hyn,8xxt", .data = &cst8xxT_fuc,},   /*suport 816t 816d 820 08C*/
     {.compatible = "hyn,226se", .data = &cst226se_fuc,}, /*suport 226se 8922*/
+	{.compatible = "hyn,76xx", .data = &cst76xx_fuc,},   /*suport 7864BG 7964BG HYT7864JL HYT7760BG HYT7760TR CST6960BG*/
     {.compatible = "hyn,840u", .data = &cst840u_fuc,},   /*suport 840u*/
     {},
 };
@@ -343,21 +344,29 @@ static void hyn_esdcheck_work(struct work_struct *work)
     HYN_ENTER(); 
     if(hyn_data->esd_block_cnt==0){
         ret = hyn_fun->tp_check_esd();
-        HYN_INFO("esd:%04x",ret);
+    #if ESD_READ_TIME_EN
         if(hyn_data->esd_last_value != ret){
             hyn_data->esd_fail_cnt = 0;
             hyn_data->esd_last_value = ret;
         }
-        else{
+        else
             hyn_data->esd_fail_cnt++;
-            if(hyn_data->esd_fail_cnt > 2){
+			
+        if(hyn_data->esd_fail_cnt > 2){
                 hyn_data->esd_fail_cnt = 0;
+    #else
+        if (ret) {
+            if (ret == 2) 
+    #endif
+            {
+                HYN_INFO("esd check fail");
                 hyn_power_source_ctrl(hyn_data,0);
                 mdelay(1);
                 hyn_power_source_ctrl(hyn_data,1);
                 hyn_fun->tp_rest();
-                hyn_restore_scene();
+                mdelay(50);
             }
+            hyn_restore_scene();
         }
     }
     else{
@@ -367,7 +376,6 @@ static void hyn_esdcheck_work(struct work_struct *work)
                            msecs_to_jiffies(1000));
 #endif
 }
-
 
 static void hyn_resum(struct device *dev)
 {

@@ -309,7 +309,7 @@ static uint32_t cst92xx_read_checksum(void)
 }
 
 
-static int cst92xx_updata_fw(u8 *bin_addr, u16 len)
+static int cst92xx_updata_fw(u8 *bin_addr, u32 len)
 { 
     #define CHECKSUM_OFFECT  (0x7F6C)
     int retry = 0;

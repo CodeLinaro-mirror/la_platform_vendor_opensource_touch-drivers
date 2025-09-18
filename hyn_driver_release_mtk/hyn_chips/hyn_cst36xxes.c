@@ -513,7 +513,7 @@ static int cst36xxes_updata_judge(u8 *p_fw, u16 len)
     return 0;
 }
 
-static int cst36xxes_updata_fw(u8 *bin_addr, u16 len)
+static int cst36xxes_updata_fw(u8 *bin_addr, u32 len)
 {
     #define PKG_SIZE    (512)
     int ret = -1, retry_fw= 4,pak_num;

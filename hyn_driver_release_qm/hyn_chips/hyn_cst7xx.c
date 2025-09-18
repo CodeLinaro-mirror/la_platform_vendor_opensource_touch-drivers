@@ -215,7 +215,7 @@ static uint32_t cst7xx_read_checksum(void)
 }
 
 
-static int cst7xx_updata_fw(u8 *bin_addr, u16 len)
+static int cst7xx_updata_fw(u8 *bin_addr, u32 len)
 { 
     int retry = 0,cnt = 0,ret = -1,addr=0,offset=0;
     u8 i2c_buf[514];

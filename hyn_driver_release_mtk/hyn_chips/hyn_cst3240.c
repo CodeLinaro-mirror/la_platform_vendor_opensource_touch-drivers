@@ -397,7 +397,7 @@ static int cst3240_updata_judge(u8 *p_fw, u16 len)
     return 0;
 }
 
-static int cst3240_updata_fw(u8 *bin_addr, u16 len)
+static int cst3240_updata_fw(u8 *bin_addr, u32 len)
 {
     int i,ret=-1, times = 0,retry;
 	u8 i2c_buf[512+2];

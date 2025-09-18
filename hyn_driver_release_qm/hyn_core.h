@@ -230,6 +230,7 @@ struct tp_info{
     u32 fw_ver;
     u32 ic_fw_checksum;
     u32 fw_module_id;
+    u32 ic_part_no;
 };
 
 
@@ -312,6 +313,8 @@ struct hyn_ts_data {
     struct early_suspend early_suspend;
 #endif
     struct kobject *sys_node;
+
+   u16 fw_block_cnt;
 };
 
 
@@ -323,7 +326,7 @@ struct hyn_ts_fuc{
     int (*tp_supend)(void);
     int (*tp_resum)(void);
     int (*tp_chip_init)(struct hyn_ts_data *ts_data);
-    int (*tp_updata_fw)(u8 *bin_addr, u16 len);
+    int (*tp_updata_fw)(u8 *bin_addr, u32 len);
     int (*tp_set_workmode)(enum work_mode mode,u8 enable);
     u32 (*tp_check_esd)(void);
     int (*tp_prox_handle)(u8 cmd);
@@ -375,5 +378,8 @@ extern const struct hyn_ts_fuc cst92xx_fuc;
 extern const struct hyn_ts_fuc cst3240_fuc;
 extern const struct hyn_ts_fuc cst226se_fuc;
 extern const struct hyn_ts_fuc cst36xxes_fuc;
+
+extern const struct hyn_ts_fuc cst76xx_fuc;
+extern const struct hyn_ts_fuc cst840u_fuc;
 
 #endif

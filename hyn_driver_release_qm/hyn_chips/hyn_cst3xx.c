@@ -308,7 +308,7 @@ static int cst3xx_updata_judge(u8 *p_fw, u16 len)
     return 0;
 }
 
-static int cst3xx_updata_fw(u8 *bin_addr, u16 len)
+static int cst3xx_updata_fw(u8 *bin_addr, u32 len)
 {
     #define CHECKSUM_OFFECT  (24*1024+16)
     int i,ret, retry = 4;

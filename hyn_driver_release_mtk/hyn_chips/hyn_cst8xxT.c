@@ -200,7 +200,7 @@ static uint32_t cst8xxT_read_checksum(void)
 }
 
 
-static int cst8xxT_updata_fw(u8 *bin_addr, u16 len)
+static int cst8xxT_updata_fw(u8 *bin_addr, u32 len)
 { 
     int retry = 0;
     int ok_copy = TRUE;

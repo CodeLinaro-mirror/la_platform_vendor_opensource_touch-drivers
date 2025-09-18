@@ -30,11 +30,13 @@
 
 #define ESD_CHECK_EN          (0)
 
+#define ESD_READ_TIME_EN      (0)
+
 #define HYN_WAKE_LOCK_EN      (0)
 
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
-
+#define JUDGE_MODULE_EN       (0)
 
 #define HYN_DRIVER_VERSION      "== Hynitron V2.22 20250812 =="
 #endif

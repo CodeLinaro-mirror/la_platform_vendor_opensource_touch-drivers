@@ -491,7 +491,7 @@ static int cst66xx_erase_flash(u16 start_addr, u16 len, u16 type)
     return ret;
 }
 
-static int cst66xx_updata_fw(u8 *bin_addr, u16 len)
+static int cst66xx_updata_fw(u8 *bin_addr, u32 len)
 {
     #define PKG_SIZE    (1024)
     int i,ret = -1, retry_fw= 4,pak_num;

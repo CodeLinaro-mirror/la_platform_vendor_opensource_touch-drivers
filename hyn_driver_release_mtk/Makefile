@@ -24,3 +24,4 @@ hynitron_touch-objs += hyn_chips/hyn_cst8xxT.o
 hynitron_touch-objs += hyn_chips/hyn_cst226se.o
 hynitron_touch-objs += hyn_chips/hyn_cst36xxes.o
 hynitron_touch-objs += hyn_chips/hyn_cst840u.o
+hynitron_touch-objs += hyn_chips/hyn_cst76xx.o
