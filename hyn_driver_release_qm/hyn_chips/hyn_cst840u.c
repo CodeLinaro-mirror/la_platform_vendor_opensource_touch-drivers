@@ -603,6 +603,11 @@ static int cst840u_updata_judge(u8 *p_fw, u32 len)
         return 0;
     }
     
+    if (hyn_840udata->boot_is_pass == 0) {
+        HYN_ERROR("emty chip, need updata");
+        return 1;
+    }
+
     ret = cst840u_updata_tpinfo();
     if(ret) {
         HYN_ERROR("get tpinfo failed need updata");

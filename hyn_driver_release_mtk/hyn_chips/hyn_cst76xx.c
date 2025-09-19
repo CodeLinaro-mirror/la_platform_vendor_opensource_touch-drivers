@@ -81,8 +81,7 @@ static int cst76xx_init(struct hyn_ts_data* ts_data)
 
     cst76xx_read_file_addr(hyn_76xxdata->hw_info.ic_part_no, hyn_76xxdata->hw_info.fw_module_id);
     hyn_76xxdata->need_updata_fw = cst76xx_updata_judge(hyn_76xxdata->fw_updata_addr, hyn_76xxdata->fw_updata_len);
-    hyn_76xxdata->need_updata_fw = 0;
-    HYN_INFO("not need updata FW !!!");
+    // hyn_76xxdata->need_updata_fw = 0;
     if (hyn_76xxdata->need_updata_fw) {
         HYN_INFO("need updata FW !!!");
     }
@@ -379,7 +378,7 @@ static int cst76xx_judge_module(void) {
     HYN_INFO("check_sum: 0x%08x", check_sum);
     if (retry == 0) {
         HYN_INFO("main read info err");
-        //return FALSE;
+        return FALSE;
     }
 
     if(module_id > 10) module_id = 0xffffffff;
@@ -561,8 +560,7 @@ static u32 cst76xx_read_checksum(void)
 
 static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
     int ret = 0 ,i = 0;
-
-    return 0;
+    HYN_ENTER();
     for (i = 0; ;i++) {
 #if PART_NO_EN
         if(hyn_xx_fw[i].part_no == partno && hyn_xx_fw[i].moudle_id == moduleId)
@@ -629,12 +627,6 @@ static int cst76xx_updata_judge(u8 *p_fw, u32 len)
     u8 *p_data = p_fw;
     int ret;
 
-    return 0;
-    if (!hyn_76xxdata->boot_is_pass) {
-        HYN_ERROR("bootloader fail, not updata");
-        return 0;
-    }
-
     f_fw_project_id = U8TO32(p_data[39],p_data[38],p_data[37],p_data[36]);
     f_ictype        = U8TO32(p_data[3],p_data[2],p_data[1],p_data[0]);
     f_fw_ver        = U8TO32(p_data[35],p_data[34],p_data[33],p_data[32]);
@@ -645,6 +637,11 @@ static int cst76xx_updata_judge(u8 *p_fw, u32 len)
         return 0;
     }
     
+    if (hyn_76xxdata->boot_is_pass == 0) {
+        HYN_ERROR("emty chip, need updata");
+        return 1;
+    }
+
     ret = cst76xx_updata_tpinfo();
     if(ret) {
         HYN_ERROR("get tpinfo failed need updata");
@@ -658,7 +655,7 @@ static int cst76xx_updata_judge(u8 *p_fw, u32 len)
 
     // if (f_fw_ver > hyn_76xxdata->hw_info.fw_ver && f_checksum != hyn_76xxdata->hw_info.ic_fw_checksum) {
     if (f_checksum != hyn_76xxdata->hw_info.ic_fw_checksum) {
-        HYN_INFO("need updata");
+        HYN_INFO("match new ver file, need updata");
         return 1;
     }
     else {
