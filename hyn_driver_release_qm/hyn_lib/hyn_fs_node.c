@@ -135,7 +135,37 @@ static  ssize_t hyn_tpfwver_store(struct device *dev,struct device_attribute *at
 	return -EPERM;
 }
 
+///cat hynselftest
+static ssize_t hyn_selftest_show(struct device *dev,	struct device_attribute *attr,char *buf)
+{
+	ssize_t num_read = 0;
+	u8 *rbuf = NULL;
+	const struct hyn_ts_fuc* hyn_fun = hyn_fs_data->hyn_fuc_used;
+	int ret = 0;	
+	int max_len = hyn_fs_data->hw_info.fw_sensor_rxnum*hyn_fs_data->hw_info.fw_sensor_txnum*2
+					+ (hyn_fs_data->hw_info.fw_sensor_rxnum + hyn_fs_data->hw_info.fw_sensor_txnum)*4;
+    HYN_ENTER();
+	max_len = max_len*3;
+	rbuf = kzalloc(max_len, GFP_KERNEL);
+    if(rbuf == NULL){
+        HYN_ERROR("zalloc GFP_KERNEL memory[%d] failed.\n",max_len);
+        return -ENOMEM;
+    }
+	hyn_fun->tp_set_workmode(FAC_TEST_MODE,0);
+	ret = hyn_fun->tp_get_test_result(rbuf,max_len);
+	num_read = snprintf(buf, 128, "module selftest %s ret:%d\r\n",
+			   ret==0 ? "pass":"failed", ret);
+	if(!IS_ERR_OR_NULL(rbuf)){	
+		kfree(rbuf);
+	}
+	return num_read;
+}
 
+static ssize_t hyn_selftest_store(struct device *dev,struct device_attribute *attr,const char *buf, size_t count)
+{
+	/*place reserver*/
+	return -EPERM;
+}
 ///cat hyntpfwver
 static  ssize_t hyn_mode_show(struct device *dev,	struct device_attribute *attr,char *buf)
 {
@@ -194,6 +224,7 @@ static ssize_t hyn_dumpfw_store(struct device *dev,struct device_attribute *attr
 
 static DEVICE_ATTR(hyntpfwver, S_IRUGO | S_IWUSR, hyn_tpfwver_show, hyn_tpfwver_store);
 static DEVICE_ATTR(hyntpdbg, S_IRUGO | S_IWUSR, hyn_dbg_show, hyn_dbg_store);
+static DEVICE_ATTR(hynselftest, S_IRUGO | S_IWUSR, hyn_selftest_show, hyn_selftest_store);
 static DEVICE_ATTR(hyndumpfw, S_IRUGO | S_IWUSR, hyn_dumpfw_show, hyn_dumpfw_store);
 static DEVICE_ATTR(hynswitchmode, S_IRUGO | S_IWUSR, hyn_mode_show, hyn_mode_store);
 
@@ -201,6 +232,7 @@ static struct attribute *hyn_attributes[] = {
 	&dev_attr_hynswitchmode.attr,
 	&dev_attr_hyndumpfw.attr,
 	&dev_attr_hyntpdbg.attr,
+	&dev_attr_hynselftest.attr,
 	&dev_attr_hyntpfwver.attr,
 	NULL
 };
