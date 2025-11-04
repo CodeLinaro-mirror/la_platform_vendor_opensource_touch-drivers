@@ -502,7 +502,7 @@ static int cst92xx_updata_tpinfo(void)
         ret = hyn_wr_reg(hyn_92xxdata,0xD101,2,buf,0);
         if(ret) continue;
         ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,28);
-        if(ret = 0 && (buf[19]&0xf0) == 0x90){
+        if(ret == 0 && (buf[19]&0xf0) == 0x90){
             break;
         }
         ret = -1;
