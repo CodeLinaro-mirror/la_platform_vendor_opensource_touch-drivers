@@ -207,6 +207,7 @@ static int cst66xx_set_workmode(enum work_mode mode,u8 enable)
      hyn_wr_reg(hyn_66xxdata,0xD00002AB,2,0,0); //wakeup from plug
      udelay(200);
      hyn_esdcheck_switch(hyn_66xxdata,enable);
+     msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_66xxdata,ENABLE);

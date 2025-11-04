@@ -328,9 +328,9 @@ static void cst76xx_rst(void)
     if(hyn_76xxdata->work_mode==ENTER_BOOT_MODE){
         hyn_set_i2c_addr(hyn_76xxdata,MAIN_I2C_ADDR);
     }
-    gpio_set_value(hyn_76xxdata->plat_data.reset_gpio,0);
+    tpd_gpio_output(hyn_76xxdata->plat_data.reset_gpio,0);
     msleep(8);
-    gpio_set_value(hyn_76xxdata->plat_data.reset_gpio,1);
+    tpd_gpio_output(hyn_76xxdata->plat_data.reset_gpio,1);
 }
 
 static int cst76xx_wait_ready(u16 times,u8 ms,u16 reg,u16 check_vlue)

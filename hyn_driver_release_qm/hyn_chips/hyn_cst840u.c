@@ -119,7 +119,8 @@ static int cst840u_report(void)
         }
     }
     if(ret) return ret;
-    if((report_typ==0xff)&&((finger_num+key_num)>0)) {
+
+    if(report_typ==0xff){
         if(key_num){
             key_id    = buf[8]&0x0f;
             key_state = buf[8]>>4;

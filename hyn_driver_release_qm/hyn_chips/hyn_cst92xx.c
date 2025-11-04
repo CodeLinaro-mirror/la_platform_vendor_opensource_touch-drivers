@@ -502,12 +502,10 @@ static int cst92xx_updata_tpinfo(void)
         ret = hyn_wr_reg(hyn_92xxdata,0xD101,2,buf,0);
         if(ret) continue;
         ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,28);
-        if(ret!=0 
-        || (buf[19]&0xf0) != 0x90
-        ){
-            ret = -1;
-            continue;
+        if(ret = 0 && (buf[19]&0xf0) == 0x90){
+            break;
         }
+        ret = -1;
     }
     if(ret){
          HYN_ERROR("updata_tpinfo faild:%d",ret);
@@ -589,7 +587,6 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
     int ok = FALSE;
     uint8_t i2c_buf[4] = {0};
     uint8_t i = 0;
-    hyn_92xxdata->work_mode = mode;
 
     for(i=0;i<3;i++){
         ok = hyn_wr_reg(hyn_92xxdata,0xD11E,2,NULL,0);
@@ -600,6 +597,7 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
         }     
     }    
     hyn_esdcheck_switch(hyn_92xxdata,enable);
+    msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_92xxdata,ENABLE);
@@ -718,7 +716,7 @@ static int cst92xx_report(void)
 
     ges_state = i2c_buf[4]>>4;
     if(ges_state){ //gesture
-        if((ges_state&0x80) == 0x80){ //palm
+        if((i2c_buf[4]&0x80) == 0x80){ //palm
             hyn_92xxdata->gesture_id = IDX_F11;//IDX_Z;// palm 
         }
         else{ //other gesture
@@ -849,7 +847,7 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
     struct tp_info *ic = &hyn_92xxdata->hw_info;
     u16 scap_len = (ic->fw_sensor_txnum + ic->fw_sensor_rxnum)*2;
     u16 mt_len = ic->fw_sensor_rxnum*ic->fw_sensor_txnum*2,i = 0;
-    u16 *raw_s;
+    u8 *raw_s;
 
     HYN_ENTER();
     if((mt_len*3 + scap_len) > len || mt_len==0){
@@ -886,16 +884,26 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
         goto selftest_end;
     }
     else{
-        raw_s = (u16*)(buf + mt_len*2);
-         HYN_INFO("raw_s start data =  %d",*(raw_s));
+        raw_s = buf + mt_len*2;
         for(i = 0; i< ic->fw_sensor_rxnum+ic->fw_sensor_txnum; i++){
-            HYN_INFO("short raw data = %d %d",i,*(raw_s+i));
-            if(U16REV((u16)*raw_s) != 0)  *raw_s = 2000 / U16REV((u16)*raw_s);
-            else  *raw_s =0;
-            HYN_INFO("short reprocess data = %d %d",i,*(raw_s+i));
-            raw_s++;
+            u16 tmp_s = U8TO16(*(raw_s+1),*raw_s);
+            if(tmp_s != 0){
+                tmp_s = 2000/tmp_s;
+            }
+            *raw_s = tmp_s;
+            *(raw_s+1) = tmp_s>>8;
+            raw_s += 2;
         }
     }
+    //self cap
+    hyn_wr_reg(hyn_92xxdata,0xD118,2,buf,0); //// self cap
+    hyn_wait_irq_timeout(hyn_92xxdata,7000);
+    if(hyn_wr_reg(hyn_92xxdata,0x1000,2,buf+(mt_len*2)+scap_len,scap_len)){
+        ret = FAC_GET_DATA_FAIL;
+        HYN_ERROR("read fac self cap failed");
+        goto selftest_end;
+    }
+
 selftest_end:
     cst92xx_resum();
     return ret;

@@ -38,7 +38,7 @@
 
 #define JUDGE_MODULE_EN       (0)
 
-#define HYN_DRIVER_VERSION      "== Hynitron V2.22 20250812 =="
+#define HYN_DRIVER_VERSION      "== Hynitron V2.23 20251104 =="
 #endif
 
 

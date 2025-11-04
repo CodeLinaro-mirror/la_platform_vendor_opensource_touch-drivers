@@ -8,6 +8,8 @@
 #define MAIN_I2C_ADDR   (0x15)
 #define RW_REG_LEN   (2)
 
+#define MODULE_ID_EN  (1)
+
 #define CST8xxT_BIN_SIZE    (15*1024)
 static struct hyn_ts_data *hyn_8xxTdata = NULL;
 
@@ -15,12 +17,25 @@ static int cst8xxT_updata_judge(u8 *p_fw, u16 len);
 static u32 cst8xxT_read_checksum(void);
 static int cst8xxT_updata_tpinfo(void);
 static int cst8xxT_enter_boot(void);
+static int cst8xxT_get_module_id(u8* module_id);
 static int cst8xxT_set_workmode(enum work_mode mode,u8 enable);
 static void cst8xxT_rst(void);
+
+
+static const struct hyn_chip_series cst8xx_fw_list[] = {
+    {0,0xFF,"cst8xx id0",(u8*)fw_bin}, //default bin
+    {1,0x01,"cst8xx id0",(u8*)fw_bin},  
+    {2,0x02,"cst8xx id1",(u8*)fw_bin},
+    {3,0x02,"cst8xx id0",(u8*)fw_bin},
+    {0xFF,0,"null",NULL}
+};
+
+
 
 static int cst8xxT_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0;
+    struct tp_info *ic = &ts_data->hw_info;
     u8 buf[4];
     HYN_ENTER();
     hyn_8xxTdata = ts_data;
@@ -29,10 +44,31 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         HYN_ERROR("cst8xxT_enter_boot failed");
         return FALSE;
     }
-    hyn_8xxTdata->fw_updata_addr = (u8*)fw_bin;
-    hyn_8xxTdata->fw_updata_len = CST8xxT_BIN_SIZE;
 
+    hyn_8xxTdata->fw_updata_addr = cst8xx_fw_list[0].fw_bin; //set default fw
+    hyn_8xxTdata->fw_updata_len = CST8xxT_BIN_SIZE;
+    if(cst8xxT_get_module_id(&buf[0])==0){
+        ic->fw_module_id = buf[0];
+        #if MODULE_ID_EN
+        {
+            u8 i = 0;
+            ret=-1;
+            for(i = 0; ;i++){
+                if(cst8xx_fw_list[i].fw_bin== NULL){
+                    break;
+                }
+                if(cst8xx_fw_list[i].moudle_id == ic->fw_module_id){
+                    hyn_8xxTdata->fw_updata_addr = cst8xx_fw_list[i].fw_bin;
+                    ret = 0;
+                    break;
+                }
+            }
+            HYN_INFO("module id:0x%02x match fw%d %s\n",ic->fw_module_id,i,ret ? "faild":"success");
+        }
+        #endif
+    }
     hyn_8xxTdata->hw_info.ic_fw_checksum = cst8xxT_read_checksum();
+
     if(hyn_8xxTdata->need_updata_fw ==0){
         hyn_wr_reg(hyn_8xxTdata,0xA006EE,3,buf,0); //exit boot
         cst8xxT_rst();
@@ -46,6 +82,21 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         HYN_INFO("need updata FW !!!");
     }
     return TRUE;
+}
+
+static int cst8xxT_get_module_id(u8* module_id)
+{
+    int ret,retry=3;
+    u8 buf[4];
+    while(retry--){
+        ret = hyn_wr_reg(hyn_8xxTdata, 0xCA30, RW_REG_LEN, buf, 2);
+        if(ret==0  &&  buf[0]+0x55 == buf[1]){
+            *module_id = buf[0];
+            break;
+        }
+        ret = -1;
+    }
+    return ret;
 }
 
 
@@ -318,6 +369,7 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
         cst8xxT_rst();
         mdelay(80);
     }
+    msleep(1); //trig task switch
     hyn_esdcheck_switch(hyn_8xxTdata,mode==NOMAL_MODE? enable : DISABLE);
     switch(mode){
         case NOMAL_MODE:
@@ -435,7 +487,8 @@ static int cst8xxT_report(void)
             hyn_8xxTdata->rp_buf.pos_info[index].pres_z = 3+(x&0x03); //press mast chang
             index++;
         }
-        if(index != 0 || hyn_8xxTdata->rp_buf.rep_num==0) hyn_8xxTdata->rp_buf.report_need = REPORT_POS;
+        if(index != 0 || hyn_8xxTdata->rp_buf.rep_num==0) hyn_8xxTdata->rp_buf.report_need |= REPORT_POS;
+
         if(dt->key_num){
             i = dt->key_num;
             while(i){
@@ -443,9 +496,16 @@ static int cst8xxT_report(void)
                     if(dt->key_y_coords ==hyn_8xxTdata->rp_buf.pos_info[0].pos_y && dt->key_x_coords[i] == hyn_8xxTdata->rp_buf.pos_info[0].pos_x){
                         hyn_8xxTdata->rp_buf.key_id = i;
                         hyn_8xxTdata->rp_buf.key_state = hyn_8xxTdata->rp_buf.pos_info[0].event;
-                        hyn_8xxTdata->rp_buf.report_need = REPORT_KEY;
+                        hyn_8xxTdata->rp_buf.report_need |= REPORT_KEY;
                 }
             }
+        }
+
+        if(i2c_buf[1]== 0xAA){
+            hyn_8xxTdata->gesture_id = IDX_F11;// palm 
+            hyn_8xxTdata->rp_buf.rep_num = 0;
+            hyn_8xxTdata->rp_buf.key_state = 0;
+            hyn_8xxTdata->rp_buf.report_need |= REPORT_GES;
         }
     }
     return TRUE;

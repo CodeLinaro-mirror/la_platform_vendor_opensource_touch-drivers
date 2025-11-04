@@ -181,6 +181,7 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
     int ret = 0;
     HYN_ENTER();
     hyn_esdcheck_switch(hyn_3240data,enable);
+    msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_3240data,ENABLE);

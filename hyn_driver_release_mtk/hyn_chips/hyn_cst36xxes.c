@@ -211,6 +211,7 @@ static int cst36xxes_set_workmode(enum work_mode mode,u8 enable)
      hyn_wr_reg(hyn_36xxesdata,0xD00002AB,2,0,0); //wakeup from plug
      udelay(200);
      hyn_esdcheck_switch(hyn_36xxesdata,enable);
+     msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
             hyn_esdcheck_switch(hyn_36xxesdata,enable);
@@ -240,7 +241,10 @@ static int cst36xxes_set_workmode(enum work_mode mode,u8 enable)
             break;
         case DEEPSLEEP:
             hyn_irq_set(hyn_36xxesdata,DISABLE);
-            ret |= hyn_wr_reg(hyn_36xxesdata,0xD00022AB,4,0,0);
+            // ret |= hyn_wr_reg(hyn_36xxesdata,0xD00022AB,4,0,0);
+            ret |= hyn_wr_reg(hyn_36xxesdata,0xD00000AB,4,0,0);
+             msleep(20);
+            ret |= hyn_wr_reg(hyn_36xxesdata,0xD00021AB,4,0,0);
             break;
         case ENTER_BOOT_MODE:
             ret |= cst36xxes_enter_boot();

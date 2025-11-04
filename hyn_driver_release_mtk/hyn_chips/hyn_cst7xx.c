@@ -368,6 +368,7 @@ static int cst7xx_set_workmode(enum work_mode mode,u8 enable)
 {
     int ret = -1;
     hyn_esdcheck_switch(hyn_7xxdata,mode==NOMAL_MODE? enable : DISABLE);
+    msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
             hyn_irq_set(hyn_7xxdata,ENABLE);

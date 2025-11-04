@@ -37,9 +37,9 @@ void hyn_irq_set(struct hyn_ts_data *ts_data, u8 value)
 	// HYN_ENTER();
     if(atomic_read(&ts_data->irq_is_disable) != value){
 		atomic_set(&ts_data->irq_is_disable,value);
+		msleep(1); //wait switch
         if(value ==0){
 			disable_irq(ts_data->gpio_irq);
-			msleep(1); //wait switch
 		}
         else{
 			enable_irq(ts_data->gpio_irq);
