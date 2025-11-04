@@ -76,7 +76,7 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         hyn_set_i2c_addr(hyn_8xxTdata,MAIN_I2C_ADDR);
         ret = cst8xxT_updata_tpinfo();
         cst8xxT_set_workmode(NOMAL_MODE,1);
-        hyn_8xxTdata->need_updata_fw = cst8xxT_updata_judge((u8*)fw_bin,CST8xxT_BIN_SIZE);
+        hyn_8xxTdata->need_updata_fw = cst8xxT_updata_judge((u8*)hyn_8xxTdata->fw_updata_addr,CST8xxT_BIN_SIZE);
     }
     if(hyn_8xxTdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
