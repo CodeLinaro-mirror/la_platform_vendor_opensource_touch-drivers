@@ -1,7 +1,7 @@
 /*
  * Goodix Touchscreen Driver
  * Copyright (C) 2020 - 2021 Goodix, Inc.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
  *
  */
 #include "goodix_ts_core.h"
+#include <linux/version.h>
 
 #define BUS_TYPE_SPI					1
 #define BUS_TYPE_I2C					0
@@ -1039,9 +1040,15 @@ static ssize_t goodix_sysfs_update_en_store(
 	return -EINVAL;
 }
 
+#if KERNEL_VERSION(6, 16, 0) > LINUX_VERSION_CODE
 static ssize_t goodix_sysfs_fwimage_store(struct file *file,
 		struct kobject *kobj, struct bin_attribute *attr,
 		char *buf, loff_t pos, size_t count)
+#else
+static ssize_t goodix_sysfs_fwimage_store(struct file *file,
+		struct kobject *kobj, const struct bin_attribute *attr,
+		char *buf, loff_t pos, size_t count)
+#endif
 {
 	struct firmware **fw = &goodix_fw_update_ctrl.fw_data.fw_sysfs;
 
