@@ -58,8 +58,12 @@
 #endif
 
 #if defined(CONFIG_FB)
+#if RK_FB
+#include "../tp_suspend.h"
+#else
 #include <linux/notifier.h>
 #include <linux/fb.h>
+#endif
 #elif defined(CONFIG_DRM)
 #include <linux/msm_drm_notify.h>
 #if defined(CONFIG_DRM_PANEL)
@@ -301,8 +305,12 @@ struct hyn_ts_data {
     u8 glove_is_enable;
 
 #if defined(CONFIG_FB)
+#if RK_FB
+    struct  tp_device  tp;
+#else
     struct notifier_block fb_notif;
     int old_fb_state;
+#endif
 #elif defined(CONFIG_DRM)
     struct notifier_block fb_notif;
     int old_fb_state;

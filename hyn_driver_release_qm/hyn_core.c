@@ -541,6 +541,7 @@ static void hyn_resum_work(struct work_struct *work)
 
 static irqreturn_t hyn_irq_handler(int irq, void *data)
 {
+    HYN_ENTER();
 	atomic_set(&hyn_data->hyn_irq_flg,1);
     if(hyn_data->work_mode < DIFF_MODE){
         // queue_work(hyn_data->hyn_workqueue,&hyn_data->work_report);
@@ -558,6 +559,26 @@ static irqreturn_t hyn_irq_handler(int irq, void *data)
 #ifndef FB_EARLY_EVENT_BLANK
 #define FB_EARLY_EVENT_BLANK  FB_EVENT_BLANK
 #endif
+#if RK_FB
+static int hyn_rk_suspend(struct tp_device *tp_d)
+{
+    if(IS_ERR_OR_NULL(hyn_data)){
+        return -1;
+    }
+    hyn_suspend(hyn_data->dev);
+    return 0;
+}
+
+static int hyn_rk_resume(struct tp_device *tp_d)
+{
+    if(IS_ERR_OR_NULL(hyn_data)){
+        return -1;
+    }
+    hyn_resum(hyn_data->dev);
+    return 0;
+}
+
+#else 
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
     if(IS_ERR_OR_NULL(data)){
@@ -598,6 +619,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
     return 0;
     }
 }
+#endif
 #elif defined(CONFIG_PM)
 static int hyn_pm_suspend(struct device *dev)
 {
@@ -788,12 +810,18 @@ static int hyn_ts_probe(struct spi_device *client)
     hyn_irq_set(ts_data , DISABLE);
 
 #if defined(CONFIG_FB)
+#if RK_FB
+	ts_data->tp.tp_resume = hyn_rk_suspend;
+	ts_data->tp.tp_suspend = hyn_rk_resume;
+	tp_register_fb(&ts_data->tp);
+#else
     HYN_INFO("fb_notif_register");
     ts_data->fb_notif.notifier_call = fb_notifier_callback;
     ret = fb_register_client(&ts_data->fb_notif);
     if (ret) {
         HYN_ERROR("register fb_notifier failed: %d", ret);
     }
+#endif
 #elif defined(CONFIG_DRM)
     ts_data->fb_notif.notifier_call = fb_notifier_callback;
 #if defined(CONFIG_DRM_PANEL)
@@ -891,7 +919,11 @@ static int hyn_ts_remove(struct spi_device *client)
         }
         HYN_INFO("ts_remove4");
 #if defined(CONFIG_FB) 
+#if RK_FB
+        tp_unregister_fb(&ts_data->tp);
+#else
         fb_unregister_client(&ts_data->fb_notif);
+#endif
 #elif defined(CONFIG_DRM)
 #if defined(CONFIG_DRM_PANEL)
     if (!IS_ERR_OR_NULL(ts_data->active_panel))

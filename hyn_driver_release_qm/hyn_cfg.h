@@ -26,6 +26,8 @@
 
 #define HYN_PROX_TYEP         (0) //0:disable 1:default 2:mtk_sensor 3:mtk_alps 4:Spread misc
 
+#define RK_FB                 (0)
+
 #define KEY_USED_POS_REPORT   (0)
 
 #define ESD_CHECK_EN          (0)
