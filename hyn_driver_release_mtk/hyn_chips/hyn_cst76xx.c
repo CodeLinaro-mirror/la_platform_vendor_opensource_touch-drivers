@@ -6,7 +6,9 @@
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x5A) //use 2 slave addr
 
+#define MODULE_ID_EN        (0)
 #define PART_NO_EN          (0)
+
 #define MODULE_ID_ADDR      (0x1EC00)
 #define PARTNUM_ADDR        (0x1FF10)
 
@@ -56,7 +58,7 @@ static int cst76xx_init(struct hyn_ts_data* ts_data)
     u32 read_part_no,module_id;
     HYN_ENTER();
     hyn_76xxdata = ts_data;
-#if JUDGE_MODULE_EN
+#if MODULE_ID_EN
     if (cst76xx_judge_module())
 #endif
     {
@@ -347,6 +349,7 @@ static int cst76xx_wait_ready(u16 times,u8 ms,u16 reg,u16 check_vlue)
     return -1;
 }
 
+#if MODULE_ID_EN
 static int cst76xx_judge_module(void) {
     int ret = 0;
     uint8_t buf[44];
@@ -389,6 +392,7 @@ static int cst76xx_judge_module(void) {
     
     return TRUE;
 }
+#endif
 
 static int cst76xx_enter_boot(void)
 {

@@ -559,7 +559,7 @@ static irqreturn_t hyn_irq_handler(int irq, void *data)
 #ifndef FB_EARLY_EVENT_BLANK
 #define FB_EARLY_EVENT_BLANK  FB_EVENT_BLANK
 #endif
-#if RK_FB
+#if HYN_RK_FB
 static int hyn_rk_suspend(struct tp_device *tp_d)
 {
     if(IS_ERR_OR_NULL(hyn_data)){
@@ -810,9 +810,9 @@ static int hyn_ts_probe(struct spi_device *client)
     hyn_irq_set(ts_data , DISABLE);
 
 #if defined(CONFIG_FB)
-#if RK_FB
-	ts_data->tp.tp_resume = hyn_rk_suspend;
-	ts_data->tp.tp_suspend = hyn_rk_resume;
+#if HYN_RK_FB
+	ts_data->tp.tp_resume = hyn_rk_resume;
+	ts_data->tp.tp_suspend = hyn_rk_suspend;
 	tp_register_fb(&ts_data->tp);
 #else
     HYN_INFO("fb_notif_register");
@@ -919,7 +919,7 @@ static int hyn_ts_remove(struct spi_device *client)
         }
         HYN_INFO("ts_remove4");
 #if defined(CONFIG_FB) 
-#if RK_FB
+#if HYN_RK_FB
         tp_unregister_fb(&ts_data->tp);
 #else
         fb_unregister_client(&ts_data->fb_notif);

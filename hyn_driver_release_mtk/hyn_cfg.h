@@ -35,7 +35,6 @@
 
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
-#define JUDGE_MODULE_EN       (0)
 
 #define HYN_DRIVER_VERSION      "== Hynitron V2.23 20251104 =="
 #endif

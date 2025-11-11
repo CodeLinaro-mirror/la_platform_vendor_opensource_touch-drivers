@@ -26,7 +26,7 @@
 
 #define HYN_PROX_TYEP         (0) //0:disable 1:default 2:mtk_sensor 3:mtk_alps 4:Spread misc
 
-#define RK_FB                 (0)
+#define HYN_RK_FB             (0)
 
 #define KEY_USED_POS_REPORT   (0)
 
@@ -38,7 +38,6 @@
 
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
-#define JUDGE_MODULE_EN       (0)
 
 #define HYN_DRIVER_VERSION      "== Hynitron V2.23 20251104 =="
 #endif

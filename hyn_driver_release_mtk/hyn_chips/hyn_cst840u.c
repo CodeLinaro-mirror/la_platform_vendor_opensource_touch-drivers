@@ -7,6 +7,7 @@
 #define MAIN_I2C_ADDR   (0x33) //use 2 slave addr
 
 #define PART_NO_EN          (0)
+#define MODULE_ID_EN        (0)
 
 #define cst840u_BIN_SIZE    (44*1024) //(40*1024)
 #define MODULE_ID_ADDR      (0xA400)
@@ -45,7 +46,9 @@ static u32 cst840u_fread_word(u32 addr);
 static void cst840u_rst(void);
 // static u32 cst840u_read_file_checksum(u8 *p_fw, u32 len);
 static int cst840u_read_file_addr(u32 part_no, u32 module_id);
-static int cst840u_judge_module(void);
+#if MODULE_ID_EN
+    static int cst840u_judge_module(void);
+#endif
 
 static int cst840u_init(struct hyn_ts_data* ts_data)
 {
@@ -54,7 +57,7 @@ static int cst840u_init(struct hyn_ts_data* ts_data)
     HYN_ENTER();
     hyn_840udata = ts_data;
     hyn_840udata->fw_updata_len = cst840u_BIN_SIZE;
-#if JUDGE_MODULE_EN
+#if MODULE_ID_EN
     if (cst840u_judge_module())
 #endif
     {
@@ -119,7 +122,8 @@ static int cst840u_report(void)
         }
     }
     if(ret) return ret;
-    if((report_typ==0xff)&&((finger_num+key_num)>0)) {
+
+    if(report_typ==0xff){
         if(key_num){
             key_id    = buf[8]&0x0f;
             key_state = buf[8]>>4;
@@ -346,6 +350,7 @@ static int cst840u_wait_ready(u16 times,u8 ms,u16 reg,u16 check_vlue)
     return -1;
 }
 
+#if MODULE_ID_EN
 static int cst840u_judge_module(void) {
     int ret = 0;
     uint8_t buf[12];
@@ -389,6 +394,7 @@ static int cst840u_judge_module(void) {
     
     return TRUE;
 }
+#endif 
 
 static int cst840u_enter_boot(void)
 {
@@ -578,6 +584,8 @@ static int cst840u_updata_judge(u8 *p_fw, u32 len)
 {
     u32 f_check_all,f_checksum,f_fw_ver,f_ictype,f_fw_project_id;
     u32 info_offset,check_offset;
+    int ret;
+    u8 *p_data;
     if (hyn_840udata->fw_updata_len >= 44*1024){
         info_offset = 40*1024;
         check_offset = 44*1024;
@@ -586,10 +594,7 @@ static int cst840u_updata_judge(u8 *p_fw, u32 len)
         info_offset = 35*1024;
         check_offset = 40*1024;
     }
-
-    u8 *p_data = p_fw + info_offset;
-    int ret;
-
+    p_data =  p_fw + info_offset;
     f_fw_project_id = U8TO32(p_data[39],p_data[38],p_data[37],p_data[36]);
     f_ictype        = U8TO32(p_data[3],p_data[2],p_data[1],p_data[0]);
     f_fw_ver        = U8TO32(p_data[35],p_data[34],p_data[33],p_data[32]);
@@ -898,7 +903,8 @@ static int cst840u_get_test_result(u8 *buf, u16 len)
     struct tp_info *ic = &hyn_840udata->hw_info;
     u16 st_len = ic->fw_sensor_rxnum*2;
     u8 *rbuf = buf;
-    int ret = 0;
+    u16 *cp_buf = (u16*)buf;
+    int ret = 0,i;
     HYN_ENTER();
     if((st_len*2 + 4) > len){
         HYN_ERROR("%d", ic->fw_sensor_rxnum);
@@ -924,8 +930,7 @@ static int cst840u_get_test_result(u8 *buf, u16 len)
 
     // cst840u_set_workmode(NOMAL_MODE,0);
 
-    u16 *cp_buf = (u16*)buf;
-    for (int i = 0; i < st_len>>1; i++) {
+    for (i = 0; i < st_len>>1; i++) {
         u16 factory_test_threshold_min;
         u16 factory_test_threshold_max;
 
@@ -942,9 +947,9 @@ static int cst840u_get_test_result(u8 *buf, u16 len)
     }
 
 TEST_ERRO:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_840udata,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    }
+    // if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_840udata,(s16*)buf,ret,FACTEST_ITEM)){
+    //     HYN_INFO("fac_test log save success");
+    // }
     cst840u_resum();
     return ret;
 }

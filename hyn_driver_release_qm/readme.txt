@@ -8,6 +8,8 @@
     {.compatible = "hyn,7xx",  .data = &cst7xx_fuc,},    /*suport 726、826、836u*/
     {.compatible = "hyn,8xxt", .data = &cst8xxT_fuc,},   /*suport 816t、816d、820、08C*/
     {.compatible = "hyn,226se", .data = &cst226se_fuc,}, /*suport 226se 8922*/
+    {.compatible = "hyn,840u", .data = &cst840u_fuc,},   /*suport 840u*/
+    {.compatible = "hyn,76xx", .data = &cst76xx_fuc,},   /*suport 7864BG 7964BG HYT7864JL HYT7760BG HYT7760TR CST6960BG*/
 
 
 2、I2c接口最小dts参考配置，下面都是必配项：
