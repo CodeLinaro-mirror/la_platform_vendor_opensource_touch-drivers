@@ -71,7 +71,7 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 					wr_flg='r';
 					break;
 				}
-				if(str_2_num(str,&tmp,16)) break;
+				if(hyn_str_2_num(str,&tmp,16)) break;
 				w_buf[w_len++] = tmp;
 			}
 		}
@@ -82,7 +82,7 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 			hyn_fs_data->host_cmd_save[0] = READ_IIC;
 			hyn_fs_data->host_cmd_save[1] = 1;
 			if(get_word(&next_ptr,str)){
-				if(0== str_2_num(str,&tmp,16)){
+				if(0== hyn_str_2_num(str,&tmp,16)){
 					hyn_fs_data->host_cmd_save[1] = tmp;
 				}
 			}

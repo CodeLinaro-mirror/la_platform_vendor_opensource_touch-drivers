@@ -221,7 +221,7 @@ int get_word(u8**sc_str, u8* ds_str)
 	return cnt;
 }
 
-int str_2_num(char *str,int*result,u8 type)
+int hyn_str_2_num(char *str,int*result,int type)
 {
 	int step = 0,flg = 0,cnt = 15;
 	char ch;
@@ -358,7 +358,7 @@ int exchange_byte(uint8_t *src, uint16_t len)
 // 			continue;
 // 		}
 // 		// HYN_INFO("@@%s",tmp_word);
-// 		dec = str_2_num(tmp_word,10);
+// 		dec = hyn_str_2_num(tmp_word,10);
 // 		if(dec == 0xAC5AC5AC) continue;
 // 		*pstore = dec;
 // 		pstore++;

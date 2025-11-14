@@ -370,7 +370,7 @@ int hyn_proximity_int(struct hyn_ts_data *ts_data);
 int hyn_proximity_report(u8 proximity_value);
 
 int hyn_wait_irq_timeout(struct hyn_ts_data *ts_data,int msec);
-int str_2_num(char *str,int*result,u8 type);
+int hyn_str_2_num(char *str,int*result,int type);
 int exchange_byte(uint8_t *src, uint16_t len);
 u16 hyn_sum16(int val, u8* buf,u16 len);
 u32 hyn_sum32(int val, u32* buf,u16 len);
