@@ -117,6 +117,45 @@ def define_canoe(t,v):
         ],
 )
 
+def define_bengal(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "synaptics_tcm_ts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_ARCH_BENGAL",
+            "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM",
+            "CONFIG_TOUCHSCREEN_DUMMY"
+        ],
+)
+
+def define_chora(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "dummy_ts",
+            "goodix_ts",
+            "focaltech_fts",
+            "qts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_CHORA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GOODIX_BRL",
+            "CONFIG_TOUCH_FOCALTECH",
+            "CONFIG_QTS_ENABLE",
+            "CONFIG_TOUCHSCREEN_DUMMY"
+        ],
+)
+
 def define_pineapple(t,v):
     define_target_variant_modules(
         target = t,
@@ -212,6 +251,7 @@ def define_monaco(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+            "glink_comm",
             "pt_ts",
             "pt_i2c",
             "pt_device_access",
@@ -230,6 +270,7 @@ def define_monaco(t,v):
             "CONFIG_TOUCHSCREEN_PARADE_PROXIMITY",
             "CONFIG_TOUCHSCREEN_PARADE_DEBUG_MDL",
             "CONFIG_TOUCHSCREEN_RM_TS",
+            "CONFIG_TOUCHSCREEN_MSM_GLINK"
         ],
 )
 
@@ -251,10 +292,14 @@ def define_touch_target():
             define_sunvm(t, v)
         elif t == "canoe":
             define_canoe(t, v)
+        elif t == "bengal":
+            define_bengal(t, v)
         elif t == "canoe-tuivm":
             define_canoevm(t, v)
         elif t == "canoe-oemvm":
             define_canoevm(t, v)
+        elif t == "chora":
+            define_chora(t, v)
         elif t == "sun":
             define_sun(t, v)
         elif t == "vienna":

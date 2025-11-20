@@ -280,14 +280,6 @@ enum raydium_touch_status {
 #define PINCTRL_STATE_SUSPEND    "pmx_ts_suspend"
 #define PINCTRL_STATE_RELEASE    "pmx_ts_release"
 
-#ifdef CONFIG_ARCH_VIENNA
-#define PINCTRL_STATE_INT_ACTIVE      "pmx_ts_int_active"
-#define PINCTRL_STATE_RESET_ACTIVE    "pmx_ts_reset_active"
-#define PINCTRL_STATE_INT_SUSPEND     "pmx_ts_int_suspend"
-#define PINCTRL_STATE_RESET_SUSPEND   "pmx_ts_reset_suspend"
-#endif
-
-
 /* Power Management Macros Enablement */
 
 #ifndef CONFIG_PM

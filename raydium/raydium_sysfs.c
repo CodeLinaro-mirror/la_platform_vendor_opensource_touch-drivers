@@ -33,6 +33,9 @@
 #include <linux/pinctrl/consumer.h>
 #include "raydium_driver.h"
 #include <glink_interface.h>
+#if defined(CONFIG_PANEL_NOTIFIER)
+#include <linux/soc/qcom/panel_event_notifier.h>
+#endif
 
 
 static int raydium_ts_touch_entry(void);
@@ -328,15 +331,11 @@ static int raydium_ts_touch_entry(void)
 #ifdef CONFIG_ARCH_VIENNA
 		if (g_raydium_ts->ts_pinctrl) {
 			rc = pinctrl_select_state(g_raydium_ts->ts_pinctrl,
-				 g_raydium_ts->pmx_ts_int_suspend);
+				 g_raydium_ts->pinctrl_state_suspend);
 			if (rc < 0)
-				pr_err("Could not set pin to suspend interrupt\n");
-			rc = pinctrl_select_state(g_raydium_ts->ts_pinctrl,
-				 g_raydium_ts->pmx_ts_reset_suspend);
-			if (rc < 0)
-				pr_err("Could not set pin to suspend reset\n");
+				pr_err("Could not set pins to suspend\n");
 		}
-#elif
+#else
 		//Release the gpio's
 		if (gpio_is_valid(g_raydium_ts->rst_gpio))
 			gpio_free(g_raydium_ts->rst_gpio);
@@ -349,17 +348,19 @@ static int raydium_ts_touch_entry(void)
 		if (!cancel_work_sync(&g_raydium_ts->work))
 			LOGD(LOG_DEBUG, "[touch]workqueue is empty!\n");
 
-		/* release all touches */
-		for (u8_i = 0; u8_i < g_raydium_ts->u8_max_touchs; u8_i++) {
-			pr_err("[touch]%s 1111\n", __func__);
-			input_mt_slot(g_raydium_ts->input_dev, u8_i);
-			input_mt_report_slot_state(g_raydium_ts->input_dev,
-					MT_TOOL_FINGER,
-					false);
-		}
+		if (g_raydium_ts->input_dev) {
+			/* release all touches */
+			for (u8_i = 0; u8_i < g_raydium_ts->u8_max_touchs; u8_i++) {
+				pr_err("[touch]%s 1111\n", __func__);
+				input_mt_slot(g_raydium_ts->input_dev, u8_i);
+				input_mt_report_slot_state(g_raydium_ts->input_dev,
+						MT_TOOL_FINGER,
+						false);
+			}
 
-		input_mt_report_pointer_emulation(g_raydium_ts->input_dev, false);
-		input_sync(g_raydium_ts->input_dev);
+			input_mt_report_pointer_emulation(g_raydium_ts->input_dev, false);
+			input_sync(g_raydium_ts->input_dev);
+		}
 	}
 
 	LOGD(LOG_INFO, "%s[touch] Start End\n", __func__);
@@ -394,21 +395,15 @@ static int raydium_ts_touch_exit(void)
 #ifdef CONFIG_ARCH_VIENNA
 		if (g_raydium_ts->ts_pinctrl) {
 			ret = pinctrl_select_state(g_raydium_ts->ts_pinctrl,
-				 g_raydium_ts->pmx_ts_int_active);
+				 g_raydium_ts->pinctrl_state_active);
 			if (ret < 0) {
-				pr_err("Could not set pin to active interrupt\n");
-				goto err_gpio_req;
-			}
-			ret = pinctrl_select_state(g_raydium_ts->ts_pinctrl,
-				 g_raydium_ts->pmx_ts_reset_active);
-			if (ret < 0) {
-				pr_err("Could not set pin to active reset\n");
+				pr_err("Could not set pins to active\n");
 				goto err_gpio_req;
 			}
 		}
 		pr_err("%d: pinctrl_select_state success for INT and RESET_N : %s\n",
 			 __LINE__, __func__);
-#elif
+#else
 		//Configure the gpio's
 		ret = raydium_ts_gpio_config(true);
 		if (ret < 0) {
@@ -537,6 +532,28 @@ static ssize_t raydium_touch_lock_store(struct device *dev,
 			gpio_set_value(g_raydium_ts->rst_gpio, 1);
 			msleep(RAYDIUM_RESET_DELAY_MSEC);/*100ms*/
 		}
+
+#ifdef CONFIG_ARCH_VIENNA
+#if defined(CONFIG_PANEL_NOTIFIER)
+		if (g_raydium_ts->blank == DRM_PANEL_EVENT_BLANK_LP ||
+		g_raydium_ts->blank == DRM_PANEL_EVENT_BLANK || g_raydium_ts->fb_state == FB_OFF) {
+#else
+		if (g_raydium_ts->blank == DRM_PANEL_BLANK_LP ||
+		g_raydium_ts->blank == DRM_PANEL_BLANK_POWERDOWN
+		|| g_raydium_ts->fb_state == FB_OFF) {
+#endif
+			input_report_key(g_raydium_ts->input_dev, BTN_TOUCH, false);
+			input_report_key(g_raydium_ts->input_dev, BTN_TOOL_FINGER, false);
+			input_report_key(g_raydium_ts->input_dev, BTN_TOOL_PEN, false);
+			input_sync(g_raydium_ts->input_dev);
+			input_report_key(g_raydium_ts->input_dev, KEY_WAKEUP, true);
+			usleep_range(9500, 10500);
+			input_sync(g_raydium_ts->input_dev);
+			input_report_key(g_raydium_ts->input_dev, KEY_WAKEUP, false);
+			input_sync(g_raydium_ts->input_dev);
+		}
+#endif
+
 		LOGD(LOG_INFO, "[touch]RAD %s disable touch lock!!\n", __func__);
 
 		g_raydium_ts->is_sleep = 0;
