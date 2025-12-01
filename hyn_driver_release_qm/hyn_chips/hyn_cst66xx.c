@@ -476,6 +476,7 @@ static int cst66xx_updata_judge(u8 *p_fw, u16 len)
     return 0;
 }
 
+
 static int cst66xx_erase_flash(u16 start_addr, u16 len, u16 type)
 {
     int ret = 0;

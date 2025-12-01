@@ -451,9 +451,9 @@ static int cst76xx_updata_tpinfo(void)
 static u32 cst76xx_fread_word(u32 addr)
 {
     int ret;
-    u8 rec_buf[4],retry,i2c_buf[6];;
-    u32 read_word = 0;
-
+    u8 rec_buf[4],retry,i2c_buf[6];
+    u32 read_word;
+    read_word = 0
     retry = 3;
     while(retry--){
         i2c_buf[0] = 0xA0;
@@ -564,6 +564,8 @@ static u32 cst76xx_read_checksum(void)
 
 static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
     int ret = 0 ,i = 0;
+    u8 *p_data;
+    u8 flag[4];
     HYN_ENTER();
     for (i = 0; ;i++) {
 #if PART_NO_EN
@@ -583,9 +585,7 @@ static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
             break;
         }
     }
-
-    u8 *p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
-    u8 flag[4];
+    p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
     memcpy(flag, p_data, 4);
     if(flag[3] != 0xCA && flag[2] != 0xCA && flag[1] != 0xCA && flag[0] > 114)
         HYN_ERROR("get flag failed");
@@ -854,11 +854,10 @@ static int cst76xx_updata_fw(u8 *bin_addr, u32 len)
 {
     int ret = -1, retry_fw= 4; 
     u32 fw_checksum = 0;
-    HYN_ENTER();
-    // HYN_INFO("len = %d ",len);
-
     u8 *p_data = bin_addr + 0x0A00;
     u8 flag[4];
+    HYN_ENTER();
+    // HYN_INFO("len = %d ",len);
     memcpy(flag, p_data, 4);
     if(flag[3] != 0xCA && flag[2] != 0xCA && flag[1] != 0xCA && flag[0] > 114)
         HYN_ERROR("get flag failed");
