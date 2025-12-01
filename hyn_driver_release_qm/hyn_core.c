@@ -559,7 +559,7 @@ static irqreturn_t hyn_irq_handler(int irq, void *data)
 #ifndef FB_EARLY_EVENT_BLANK
 #define FB_EARLY_EVENT_BLANK  FB_EVENT_BLANK
 #endif
-#if HYN_RK_FB
+#if (HYN_RK_FB==1)
 static int hyn_rk_suspend(struct tp_device *tp_d)
 {
     if(IS_ERR_OR_NULL(hyn_data)){
@@ -577,7 +577,39 @@ static int hyn_rk_resume(struct tp_device *tp_d)
     hyn_resum(hyn_data->dev);
     return 0;
 }
-
+#elif (HYN_RK_FB==2)
+static ssize_t ts_suspend_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+    HYN_ENTER();
+    if(IS_ERR_OR_NULL(hyn_data)){
+        return -1;
+    }
+    return scnprintf(buf, PAGE_SIZE, "%d\n", hyn_data->state_is_sunpend ? 1 : 0);
+}
+static ssize_t ts_suspend_store(struct device *dev,  struct device_attribute *attr, const char *buf, size_t count)
+{
+    unsigned long val;
+    int ret;
+    HYN_ENTER();
+    if(IS_ERR_OR_NULL(hyn_data)){
+        return -1;
+    }
+    ret = kstrtoul(buf, 10, &val);
+    if(ret<0 || (val!=0 && val != 1)){
+        HYN_ERROR("Invalid input value\n");
+        goto ts_store_end;
+    }
+    /* 0:resum, 1: supend */
+    if(val == 1){
+        hyn_suspend(hyn_data->dev);
+    }
+    else{
+        hyn_resum(hyn_data->dev);
+    }
+    ts_store_end:
+    return count;
+}
+static DEVICE_ATTR(ts_suspend, 0644, ts_suspend_show, ts_suspend_store);
 #else 
 static int fb_notifier_callback(struct notifier_block *self, unsigned long event, void *data)
 {
@@ -810,10 +842,23 @@ static int hyn_ts_probe(struct spi_device *client)
     hyn_irq_set(ts_data , DISABLE);
 
 #if defined(CONFIG_FB)
-#if HYN_RK_FB
+#if (HYN_RK_FB==1)
 	ts_data->tp.tp_resume = hyn_rk_resume;
 	ts_data->tp.tp_suspend = hyn_rk_suspend;
 	tp_register_fb(&ts_data->tp);
+#elif (HYN_RK_FB==2)
+    ts_data->rk_sys_supend = kobject_create_and_add("touchscreen", NULL);
+    if(IS_ERR_OR_NULL(ts_data->rk_sys_supend)){
+        HYN_ERROR("Failed to create touchscreen kobject\n");
+    }
+    else{
+        ret = sysfs_create_file(ts_data->rk_sys_supend, &dev_attr_ts_suspend.attr);
+        if(ret){
+            HYN_ERROR("Failed to create ts_suspend file\n");
+            kobject_put(ts_data->rk_sys_supend);
+            ts_data->rk_sys_supend = NULL;
+        }
+    }
 #else
     HYN_INFO("fb_notif_register");
     ts_data->fb_notif.notifier_call = fb_notifier_callback;
@@ -919,8 +964,14 @@ static int hyn_ts_remove(struct spi_device *client)
         }
         HYN_INFO("ts_remove4");
 #if defined(CONFIG_FB) 
-#if HYN_RK_FB
+#if (HYN_RK_FB==1)
         tp_unregister_fb(&ts_data->tp);
+#elif (HYN_RK_FB==2)
+        if(!IS_ERR_OR_NULL(ts_data->rk_sys_supend)){
+            sysfs_remove_file(ts_data->rk_sys_supend, &dev_attr_ts_suspend.attr);
+            kobject_put(ts_data->rk_sys_supend);
+            ts_data->rk_sys_supend = NULL;
+        }
 #else
         fb_unregister_client(&ts_data->fb_notif);
 #endif

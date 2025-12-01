@@ -26,7 +26,7 @@
 
 #define HYN_PROX_TYEP         (0) //0:disable 1:default 2:mtk_sensor 3:mtk_alps 4:Spread misc
 
-#define HYN_RK_FB             (0)
+#define HYN_RK_FB             (2)  //0:disable   1:use Platform interface  2:use sys node
 
 #define KEY_USED_POS_REPORT   (0)
 

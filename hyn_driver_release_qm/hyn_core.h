@@ -58,7 +58,7 @@
 #endif
 
 #if defined(CONFIG_FB)
-#if HYN_RK_FB
+#if (HYN_RK_FB==1)
 #include "../tp_suspend.h"
 #else
 #include <linux/notifier.h>
@@ -305,8 +305,10 @@ struct hyn_ts_data {
     u8 glove_is_enable;
 
 #if defined(CONFIG_FB)
-#if HYN_RK_FB
+#if (HYN_RK_FB==1)
     struct  tp_device  tp;
+#elif (HYN_RK_FB==2)
+    struct kobject *rk_sys_supend;
 #else
     struct notifier_block fb_notif;
     int old_fb_state;

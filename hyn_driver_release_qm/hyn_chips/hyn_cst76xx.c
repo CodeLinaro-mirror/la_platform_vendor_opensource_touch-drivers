@@ -50,7 +50,9 @@ static u32 cst76xx_fread_word(u32 addr);
 static void cst76xx_rst(void);
 static u32 cst76xx_read_file_checksum(u8 *p_fw, u32 len);
 static int cst76xx_read_file_addr(u32 part_no, u32 module_id);
+#if MODULE_ID_EN
 static int cst76xx_judge_module(void);
+#endif
 
 static int cst76xx_init(struct hyn_ts_data* ts_data)
 {
@@ -452,8 +454,8 @@ static u32 cst76xx_fread_word(u32 addr)
 {
     int ret;
     u8 rec_buf[4],retry,i2c_buf[6];
-    u32 read_word;
-    read_word = 0
+    u32 read_word = 0;
+
     retry = 3;
     while(retry--){
         i2c_buf[0] = 0xA0;
