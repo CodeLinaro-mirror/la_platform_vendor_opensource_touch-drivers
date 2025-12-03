@@ -41,6 +41,10 @@ ifeq ($(TARGET_BOARD_PLATFORM), art)
       LOCAL_MODULE_DDK_BUILD := true
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM), monaco)
+      LOCAL_MODULE_DDK_BUILD := true
+endif
+
 include $(CLEAR_VARS)
 
 # This makefile is only for DLKM
