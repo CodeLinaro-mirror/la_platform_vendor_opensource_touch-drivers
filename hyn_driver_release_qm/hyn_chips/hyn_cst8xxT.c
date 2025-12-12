@@ -2,13 +2,13 @@
 #include "cst8xxT_fw.h"
 
 
-#define CUSTOM_SENSOR_NUM  	(10)
+#define CUSTOM_SENSOR_NUM  	(12)
 
 #define BOOT_I2C_ADDR   (0x6A)
 #define MAIN_I2C_ADDR   (0x15)
 #define RW_REG_LEN   (2)
 
-#define MODULE_ID_EN  (1)
+#define MODULE_ID_EN  (0)
 
 #define CST8xxT_BIN_SIZE    (15*1024)
 static struct hyn_ts_data *hyn_8xxTdata = NULL;
@@ -47,6 +47,7 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
 
     hyn_8xxTdata->fw_updata_addr = cst8xx_fw_list[0].fw_bin; //set default fw
     hyn_8xxTdata->fw_updata_len = CST8xxT_BIN_SIZE;
+    hyn_8xxTdata->hw_info.ic_fw_checksum = cst8xxT_read_checksum();
     if(cst8xxT_get_module_id(&buf[0])==0){
         ic->fw_module_id = buf[0];
         #if MODULE_ID_EN
@@ -67,8 +68,6 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         }
         #endif
     }
-    hyn_8xxTdata->hw_info.ic_fw_checksum = cst8xxT_read_checksum();
-
     if(hyn_8xxTdata->need_updata_fw ==0){
         hyn_wr_reg(hyn_8xxTdata,0xA006EE,3,buf,0); //exit boot
         cst8xxT_rst();
@@ -78,9 +77,10 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         cst8xxT_set_workmode(NOMAL_MODE,1);
         hyn_8xxTdata->need_updata_fw = cst8xxT_updata_judge((u8*)hyn_8xxTdata->fw_updata_addr,CST8xxT_BIN_SIZE);
     }
-    if(hyn_8xxTdata->need_updata_fw){
+    else{
         HYN_INFO("need updata FW !!!");
     }
+    hyn_set_i2c_addr(hyn_8xxTdata,MAIN_I2C_ADDR);
     return TRUE;
 }
 
@@ -96,6 +96,7 @@ static int cst8xxT_get_module_id(u8* module_id)
         }
         ret = -1;
     }
+    // hyn_wr_reg(hyn_8xxTdata, 0xA003, 2, 0, 0); //re enter  boot
     return ret;
 }
 
@@ -224,13 +225,9 @@ static uint32_t cst8xxT_read_checksum(void)
             continue;
         }
 
-        if (i2c_buf[0] == 1){
-            chip_checksum_ok = TRUE;
+        if (i2c_buf[0] == 1 || i2c_buf[0] == 2){
+            chip_checksum_ok = i2c_buf[0] == 1  ? TRUE:FALSE;
             break;
-        }
-        else if (i2c_buf[0] == 2){
-            chip_checksum_ok = FALSE;
-            continue;
         }
     }
 
@@ -327,7 +324,7 @@ static int cst8xxT_updata_tpinfo(void)
         return FALSE;
     }
 
-    ic->fw_sensor_txnum = CUSTOM_SENSOR_NUM;
+    ic->fw_sensor_txnum = CUSTOM_SENSOR_NUM/2;
     ic->fw_sensor_rxnum = 2;
     ic->fw_key_num = hyn_8xxTdata->plat_data.key_num;
     ic->fw_res_y = hyn_8xxTdata->plat_data.y_resolution;
@@ -388,7 +385,7 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
             break;
         case FAC_TEST_MODE:
             hyn_write_data(hyn_8xxTdata,(u8[]){0xc0,0x80,0x20,0x30,0x00},1,5);
-            hyn_wr_reg(hyn_8xxTdata,0xF001,2,NULL,0);
+            hyn_wr_reg(hyn_8xxTdata,0xFF01,2,NULL,0);
             msleep(50);
             break;
         case ENTER_BOOT_MODE:
@@ -553,18 +550,19 @@ static int cst8xxT_get_test_result(u8 *buf, u16 len)
     }
     while(--time_out){
         msleep(10);
-        ret = hyn_wr_reg(hyn_8xxTdata, 0xF0, 1,buf,1); 
+        ret = hyn_wr_reg(hyn_8xxTdata, 0xFF, 1,buf,1); 
         if(ret == 0 && buf[0]==0){
             break;
         }
         ret = FAC_GET_DATA_FAIL;
     }
     if(ret==0){
-        ret = hyn_wr_reg(hyn_8xxTdata, 0x2B, 1,buf,len); 
+        ret = hyn_wr_reg(hyn_8xxTdata, 0x40, 1,buf,len); 
         if(ret==0){
             exchange_byte(buf,len);
         }
     }
+    cst8xxT_resum();
     return ret;
 }
 
