@@ -1,3 +1,4 @@
+/* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries. */
 /*
  * Goodix GT9xx touchscreen driver
  *
@@ -32,7 +33,7 @@
 #define GOODIX_COORDS_ARR_SIZE	4
 #define PROP_NAME_SIZE		24
 #define I2C_MAX_TRANSFER_SIZE   255
-static const char *goodix_ts_name = "goodix-ts";
+static const char *goodix_ts_name = "gt9xx-ts";
 static const char *goodix_input_phys = "input/ts";
 struct i2c_client *i2c_connect_client;
 static struct proc_dir_entry *gtp_config_proc;
@@ -243,7 +244,7 @@ s32 gtp_i2c_read_dbl_check(struct i2c_client *client,
  *      result of i2c write operation.
  *              1: succeed, otherwise
  *              0: Not executed
- *		< 0: faild
+ *		< 0: failed
  *********************************************************/
 s32 gtp_send_cfg(struct i2c_client *client)
 {
@@ -280,7 +281,7 @@ s32 gtp_send_cfg(struct i2c_client *client)
  *	Control enable or disable of work thrad.
  * Input:
  *      ts: goodix i2c_client private data
- *	enbale: enbale var.
+ *	enable: enable var.
  *********************************************************/
 void gtp_work_control_enable(struct goodix_ts_data *ts, bool enable)
 {
@@ -300,7 +301,7 @@ static int gtp_gesture_handler(struct goodix_ts_data *ts)
 
 	ret = gtp_i2c_read(ts->client, doze_buf, 3);
 	if (ret < 0) {
-		dev_err(&ts->client->dev, "Failed read doze buf");
+		dev_err(&ts->client->dev, "Failed read doze buf\n");
 		return -EINVAL;
 	}
 
@@ -354,7 +355,7 @@ u8 gtp_get_points(struct goodix_ts_data *ts, struct goodix_point_t *points,
 	ret = gtp_i2c_read(ts->client, point_data, 12);
 	if (ret < 0) {
 		dev_err(&ts->client->dev,
-			"I2C transfer error. errno:%d\n ", ret);
+			"I2C transfer error. errno:%d\n", ret);
 		return 0;
 	}
 
@@ -366,7 +367,7 @@ u8 gtp_get_points(struct goodix_ts_data *ts, struct goodix_point_t *points,
 	if ((finger_state & MASK_BIT_8) == 0 ||
 	    touch_num > ts->pdata->max_touch_id) {
 		dev_err(&ts->client->dev,
-			"Invalid touch state: 0x%x", finger_state);
+			"Invalid touch state: 0x%x\n", finger_state);
 		finger_state = 0;
 		goto exit_get_point;
 	}
@@ -433,7 +434,7 @@ exit_get_point:
 	if (!test_bit(RAW_DATA_MODE, &ts->flags)) {
 		ret = gtp_i2c_write(ts->client, end_cmd, 3);
 		if (ret < 0)
-			dev_info(&ts->client->dev, "I2C write end_cmd error!");
+			dev_info(&ts->client->dev, "I2C write end_cmd error!\n");
 	}
 	return finger_state;
 }
@@ -497,7 +498,7 @@ void gtp_mt_slot_report(struct goodix_ts_data *ts, u8 touch_num,
 	u16 cur_touch = 0;
 	static u16 pre_touch;
 	static u8 pre_pen_id;
-	
+
 	for (i = 0; i < ts->pdata->max_touch_id; i++) {
 		if (touch_num && i == points->id) {
 			input_mt_slot(ts->input_dev, points->id);
@@ -707,10 +708,10 @@ void gtp_reset_guitar(struct i2c_client *client, s32 ms)
 {
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 
-	dev_info(&client->dev, "Guitar reset");
+	dev_info(&client->dev, "Guitar reset\n");
 	set_bit(PANEL_RESETTING, &ts->flags);
 	if (!gpio_is_valid(ts->pdata->rst_gpio)) {
-		dev_warn(&client->dev, "reset failed no valid reset gpio");
+		dev_warn(&client->dev, "reset failed no valid reset gpio\n");
 		return;
 	}
 
@@ -866,14 +867,14 @@ static int gtp_find_vaild_cfg_data(struct goodix_ts_data *ts)
 	/* read sensor id */
 	ret = gtp_i2c_read_dbl_check(ts->client, GTP_REG_SENSOR_ID,
 				     &sensor_id, 1);
-	if (SUCCESS != ret || sensor_id >= 0x06) {
+	if (ret != SUCCESS || sensor_id >= 0x06) {
 		dev_err(&ts->client->dev,
 			"Failed get valid sensor_id(0x%02X), No Config Sent\n",
 			sensor_id);
 		return -EINVAL;
 	}
 
-	dev_info(&ts->client->dev, "Sensor_ID: %d", sensor_id);
+	dev_info(&ts->client->dev, "Sensor_ID: %d\n", sensor_id);
 	/* parse config data */
 #ifdef CONFIG_OF
 	dev_dbg(&ts->client->dev, "Get config data from device tree\n");
@@ -948,7 +949,7 @@ static s32 gtp_init_panel(struct goodix_ts_data *ts)
 
 	/* check firmware */
 	ret = gtp_i2c_read_dbl_check(ts->client, 0x41E4, opr_buf, 1);
-	if (SUCCESS == ret) {
+	if (ret == SUCCESS) {
 		if (opr_buf[0] != 0xBE) {
 			set_bit(FW_ERROR, &ts->flags);
 			dev_err(&ts->client->dev,
@@ -1001,24 +1002,24 @@ static ssize_t gtp_config_read_proc(struct file *file, char __user *page,
 	if (*ppos)
 		return 0;
 
-	ptr += snprintf(ptr, 50, "==== GT9XX config init value====\n");
+	ptr += scnprintf(ptr, 50, "==== GT9XX config init value====\n");
 
 	for (i = 0 ; i < GTP_CONFIG_MAX_LENGTH ; i++) {
-		ptr += snprintf(ptr, 10, "0x%02X ", cfg->data[i + 2]);
+		ptr += scnprintf(ptr, 10, "0x%02X ", cfg->data[i + 2]);
 
 		if (i % 8 == 7)
-			ptr += snprintf(ptr, 10, "\n");
+			ptr += scnprintf(ptr, 10, "\n");
 	}
 
-	ptr += snprintf(ptr, 10, "\n");
+	ptr += scnprintf(ptr, 10, "\n");
 
-	ptr += snprintf(ptr, 50, "==== GT9XX config real value====\n");
+	ptr += scnprintf(ptr, 50, "==== GT9XX config real value====\n");
 	gtp_i2c_read(i2c_connect_client, temp_data, GTP_CONFIG_MAX_LENGTH + 2);
 	for (i = 0 ; i < GTP_CONFIG_MAX_LENGTH ; i++) {
-		ptr += snprintf(ptr, 10, "0x%02X ", temp_data[i+2]);
+		ptr += scnprintf(ptr, 10, "0x%02X ", temp_data[i+2]);
 
 		if (i % 8 == 7)
-			ptr += snprintf(ptr, 10, "\n");
+			ptr += scnprintf(ptr, 10, "\n");
 	}
 	*ppos += ptr - page;
 
@@ -1054,13 +1055,12 @@ static ssize_t gtp_config_write_proc(struct file *filp,
 	return count;
 }
 
-static const struct file_operations config_proc_ops = {
-	.owner = THIS_MODULE,
-	.read = gtp_config_read_proc,
-	.write = gtp_config_write_proc,
+static const struct proc_ops config_proc_ops = {
+	.proc_read = gtp_config_read_proc,
+	.proc_write = gtp_config_write_proc,
 };
 
-static ssize_t gtp_workmode_show(struct device *dev,
+static ssize_t workmode_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct goodix_ts_data *data = dev_get_drvdata(dev);
@@ -1069,10 +1069,10 @@ static ssize_t gtp_workmode_show(struct device *dev,
 			 test_bit(SLEEP_MODE, &data->flags)
 			 ? "in_sleep_mode" : "in_work_mode");
 }
-static DEVICE_ATTR(workmode, S_IRUGO, gtp_workmode_show, NULL);
+static DEVICE_ATTR_RO(workmode);
 
 #define FW_NAME_MAX_LEN	80
-static ssize_t gtp_dofwupdate_store(struct device *dev,
+static ssize_t dofwupdate_store(struct device *dev,
 				    struct device_attribute *attr,
 				    const char *buf, size_t count)
 {
@@ -1086,7 +1086,7 @@ static ssize_t gtp_dofwupdate_store(struct device *dev,
 		goto exit;
 	}
 
-	strlcpy(update_file_name, buf, count);
+	strscpy(update_file_name, buf, count);
 
 	ts->force_update = true;
 	retval = gup_update_proc(update_file_name);
@@ -1100,9 +1100,9 @@ static ssize_t gtp_dofwupdate_store(struct device *dev,
 exit:
 	return retval;
 }
-static DEVICE_ATTR(dofwupdate, (S_IWUSR | S_IWGRP), NULL, gtp_dofwupdate_store);
+static DEVICE_ATTR_WO(dofwupdate);
 
-static ssize_t gtp_productinfo_show(struct device *dev,
+static ssize_t productinfo_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct goodix_ts_data *data = dev_get_drvdata(dev);
@@ -1111,9 +1111,9 @@ static ssize_t gtp_productinfo_show(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "GT%s_%x_%d\n",
 			fw_info->pid, fw_info->version, fw_info->sensor_id);
 }
-static DEVICE_ATTR(productinfo, S_IRUGO, gtp_productinfo_show, NULL);
+static DEVICE_ATTR_RO(productinfo);
 
-static ssize_t gtp_drv_irq_store(struct device *dev,
+static ssize_t drv_irq_store(struct device *dev,
 				 struct device_attribute *attr,
 				 const char *buf, size_t count)
 {
@@ -1144,7 +1144,7 @@ static ssize_t gtp_drv_irq_store(struct device *dev,
 	return count;
 }
 
-static ssize_t gtp_drv_irq_show(struct device *dev,
+static ssize_t drv_irq_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
 	struct goodix_ts_data *data = dev_get_drvdata(dev);
@@ -1153,8 +1153,7 @@ static ssize_t gtp_drv_irq_show(struct device *dev,
 			 test_bit(REPORT_THREAD_ENABLED, &data->flags)
 			 ? "enabled" : "disabled");
 }
-static DEVICE_ATTR(drv_irq, (S_IRUGO | S_IWUSR | S_IWGRP),
-		   gtp_drv_irq_show, gtp_drv_irq_store);
+static DEVICE_ATTR_RW(drv_irq);
 
 static ssize_t gtp_reset_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
@@ -1170,14 +1169,14 @@ static ssize_t gtp_reset_store(struct device *dev,
 
 	return count;
 }
-static DEVICE_ATTR(reset, (S_IWUSR | S_IWGRP), NULL, gtp_reset_store);
+static DEVICE_ATTR_WO(gtp_reset);
 
 static struct attribute *gtp_attrs[] = {
 	&dev_attr_workmode.attr,
 	&dev_attr_productinfo.attr,
 	&dev_attr_dofwupdate.attr,
 	&dev_attr_drv_irq.attr,
-	&dev_attr_reset.attr,
+	&dev_attr_gtp_reset.attr,
 	NULL
 };
 
@@ -1242,7 +1241,7 @@ s32 gtp_get_fw_info(struct i2c_client *client, struct goodix_fw_info *fw_info)
 	fw_info->sensor_id = 0xff;
 	ret = gtp_i2c_read_dbl_check(client, GTP_REG_SENSOR_ID,
 				     &fw_info->sensor_id, 1);
-	if (SUCCESS != ret || fw_info->sensor_id >= 0x06) {
+	if (ret != SUCCESS || fw_info->sensor_id >= 0x06) {
 		dev_err(&client->dev,
 			"Failed get valid sensor_id(0x%02X), No Config Sent\n",
 			fw_info->sensor_id);
@@ -1368,7 +1367,7 @@ static int gtp_request_io_port(struct goodix_ts_data *ts)
  *	Request interrupt if define irq pin, else use hrtimer
  *	as interrupt source
  * Input:
- * 	ts: private data.
+ *	ts: private data.
  * Output:
  *	Executive outcomes.
  *		0: succeed, -1: failed.
@@ -1430,8 +1429,8 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 	}
 
 	input_set_capability(ts->input_dev, EV_KEY, BTN_STYLUS);
-        input_set_capability(ts->input_dev, EV_KEY, BTN_STYLUS2);
-	
+	input_set_capability(ts->input_dev, EV_KEY, BTN_STYLUS2);
+
 	/* touch key register */
 	for (index = 0; index < ts->pdata->key_nums; index++)
 		input_set_capability(ts->input_dev, EV_KEY,
@@ -1600,11 +1599,11 @@ static int gtp_parse_dt(struct device *dev,
 
 	pdata->irq_gpio = of_get_named_gpio(np, "irq-gpios", 0);
 	if (!gpio_is_valid(pdata->irq_gpio))
-		dev_err(dev, "No valid irq gpio");
+		dev_err(dev, "No valid irq gpio\n");
 
 	pdata->rst_gpio = of_get_named_gpio(np, "reset-gpios", 0);
 	if (!gpio_is_valid(pdata->rst_gpio))
-		dev_err(dev, "No valid rst gpio");
+		dev_err(dev, "No valid rst gpio\n");
 
 	return 0;
 }
@@ -1628,7 +1627,7 @@ int gtp_parse_dt_cfg(struct device *dev, u8 *cfg, int *cfg_len, u8 sid)
 	char cfg_name[18];
 	int ret;
 
-	snprintf(cfg_name, sizeof(cfg_name), "goodix,cfg-group%d", sid);
+	scnprintf(cfg_name, sizeof(cfg_name), "goodix,cfg-group%d", sid);
 	prop = of_find_property(np, cfg_name, cfg_len);
 	if (!prop || !prop->value || *cfg_len == 0 ||
 	    *cfg_len > GTP_CONFIG_MAX_LENGTH) {
@@ -1667,6 +1666,7 @@ static int gtp_power_on(struct goodix_ts_data *ts)
 		}
 	}
 
+#ifdef VCC_ENABLE
 	if (ts->vcc_i2c) {
 		ret = regulator_set_voltage(ts->vcc_i2c, GOODIX_I2C_VTG_MIN_UV,
 					    GOODIX_I2C_VTG_MAX_UV);
@@ -1685,15 +1685,19 @@ static int gtp_power_on(struct goodix_ts_data *ts)
 			goto err_enable_vcc_i2c;
 		}
 	}
+#endif
+
 	clear_bit(POWER_OFF_MODE, &ts->flags);
 	return 0;
 
+#ifdef VCC_ENABLE
 err_enable_vcc_i2c:
 	if (ts->vcc_i2c)
 		regulator_set_voltage(ts->vcc_i2c, 0, GOODIX_I2C_VTG_MAX_UV);
 err_set_vtg_vcc_i2c:
 	if (ts->vdd_ana)
 		regulator_disable(ts->vdd_ana);
+#endif
 err_enable_vdd_ana:
 	if (ts->vdd_ana)
 		regulator_set_voltage(ts->vdd_ana, 0, GOODIX_VTG_MAX_UV);
@@ -1706,6 +1710,7 @@ static int gtp_power_off(struct goodix_ts_data *ts)
 {
 	int ret = 0;
 
+#ifdef VCC_ENABLE
 	if (ts->vcc_i2c) {
 		set_bit(POWER_OFF_MODE, &ts->flags);
 		ret = regulator_set_voltage(ts->vcc_i2c, 0,
@@ -1724,6 +1729,7 @@ static int gtp_power_off(struct goodix_ts_data *ts)
 			goto err_disable_vcc_i2c;
 		}
 	}
+#endif
 
 	if (ts->vdd_ana) {
 		set_bit(POWER_OFF_MODE, &ts->flags);
@@ -1750,7 +1756,10 @@ err_disable_vdd_ana:
 				      GOODIX_VTG_MAX_UV);
 err_set_vtg_vdd_ana:
 	if (ts->vcc_i2c)
-		regulator_enable(ts->vcc_i2c);
+		(void)regulator_enable(ts->vcc_i2c);
+	clear_bit(POWER_OFF_MODE, &ts->flags);
+	return ret;
+#ifdef VCC_ENABLE
 err_disable_vcc_i2c:
 	if (ts->vcc_i2c)
 		regulator_set_voltage(ts->vcc_i2c, GOODIX_I2C_VTG_MIN_UV,
@@ -1758,6 +1767,7 @@ err_disable_vcc_i2c:
 err_set_vtg_vcc_i2c:
 	clear_bit(POWER_OFF_MODE, &ts->flags);
 	return ret;
+#endif
 }
 
 static int gtp_power_init(struct goodix_ts_data *ts)
@@ -1766,16 +1776,16 @@ static int gtp_power_init(struct goodix_ts_data *ts)
 
 	ts->vdd_ana = regulator_get(&ts->client->dev, "vdd_ana");
 	if (IS_ERR(ts->vdd_ana)) {
-		ts->vdd_ana = NULL;
 		ret = PTR_ERR(ts->vdd_ana);
+		ts->vdd_ana = NULL;
 		dev_info(&ts->client->dev,
 			 "Regulator get failed vdd ret=%d\n", ret);
 	}
 
 	ts->vcc_i2c = regulator_get(&ts->client->dev, "vcc_i2c");
 	if (IS_ERR(ts->vcc_i2c)) {
-		ts->vcc_i2c = NULL;
 		ret = PTR_ERR(ts->vcc_i2c);
+		ts->vcc_i2c = NULL;
 		dev_info(&ts->client->dev,
 			 "Regulator get failed vcc_i2c ret=%d\n", ret);
 	}
@@ -1803,10 +1813,9 @@ void gtp_shutdown(struct i2c_client *client)
 	gtp_work_control_enable(data, false);
 	gtp_power_off(data);
 
-	return;
 }
 
-static int gtp_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int gtp_probe(struct i2c_client *client)
 {
 	int ret = -1;
 	struct goodix_ts_data *ts;
@@ -1818,22 +1827,17 @@ static int gtp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_connect_client = client;
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
-		dev_err(&client->dev, "Failed check I2C functionality");
+		dev_err(&client->dev, "Failed check I2C functionality\n");
 		return -ENODEV;
 	}
 
 	ts = devm_kzalloc(&client->dev, sizeof(*ts), GFP_KERNEL);
-	if (ts == NULL) {
-		dev_err(&client->dev, "Failed alloc ts memory");
+	if (!ts)
 		return -ENOMEM;
-	}
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(&client->dev, "Failed alloc pdata memory\n");
-		devm_kfree(&client->dev, ts);
+	if (!pdata)
 		return -EINVAL;
-	}
 
 	ts->init_done = false;
 
@@ -1930,21 +1934,21 @@ static int gtp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	ret = gtp_request_irq(ts);
 	if (ret < 0) {
-		dev_err(&client->dev, "Failed create work thread");
+		dev_err(&client->dev, "Failed create work thread\n");
 		goto exit_unreg_input_dev;
 	}
 	gtp_work_control_enable(ts, false);
 	if (ts->pdata->slide_wakeup) {
 		ret = enable_irq_wake(client->irq);
 		if (ret < 0)
-			dev_err(&client->dev, "Failed set irq wake");
+			dev_err(&client->dev, "Failed set irq wake\n");
 	}
 
 	gtp_register_powermanager(ts);
 
 	ret = gtp_create_file(ts);
 	if (ret) {
-		dev_info(&client->dev, "Failed create attributes file");
+		dev_info(&client->dev, "Failed create attributes file\n");
 		goto exit_powermanager;
 	}
 
@@ -1975,15 +1979,13 @@ exit_power_off:
 exit_deinit_power:
 	gtp_power_deinit(ts);
 exit_free_client_data:
-	devm_kfree(&client->dev, pdata);
-	devm_kfree(&client->dev, ts);
 	i2c_set_clientdata(client, NULL);
 
 	return ret;
 }
 
 
-static int gtp_drv_remove(struct i2c_client *client)
+static void gtp_drv_remove(struct i2c_client *client)
 {
 	struct goodix_ts_data *ts = i2c_get_clientdata(client);
 
@@ -2015,15 +2017,10 @@ static int gtp_drv_remove(struct i2c_client *client)
 	gtp_power_off(ts);
 	gtp_power_deinit(ts);
 	gtp_pinctrl_deinit(ts);
-	dev_info(&client->dev, "goodix ts driver removed");
+	dev_info(&client->dev, "goodix ts driver removed\n");
 	i2c_set_clientdata(client, NULL);
 	input_unregister_device(ts->input_dev);
 	mutex_destroy(&ts->lock);
-
-	devm_kfree(&client->dev, ts->pdata);
-	devm_kfree(&client->dev, ts);
-
-	return 0;
 }
 
 static void gtp_suspend(struct goodix_ts_data *ts)
@@ -2227,7 +2224,7 @@ static void gtp_late_resume(struct early_suspend *h)
 
 static int gtp_register_powermanager(struct goodix_ts_data *ts)
 {
-	int ret;
+	int ret = 0;
 #if defined(CONFIG_FB)
 	INIT_WORK(&ts->fb_notify_work, fb_notify_resume_work);
 	ts->notifier.notifier_call = gtp_fb_notifier_callback;
@@ -2299,7 +2296,7 @@ static void gtp_esd_check_func(struct work_struct *work)
 		return;
 	}
 
-	if (ts_esd->esd_on == false)
+	if (!(ts_esd->esd_on))
 		return;
 
 	for (i = 0; i < 3; i++) {
@@ -2367,10 +2364,10 @@ void gtp_esd_on(struct goodix_ts_data *ts)
 	if (!ts->pdata->esd_protect)
 		return;
 	mutex_lock(&ts_esd->mutex);
-	if (ts_esd->esd_on == false) {
+	if (!(ts_esd->esd_on)) {
 		ts_esd->esd_on = true;
 		schedule_delayed_work(&ts_esd->delayed_work, 2 * HZ);
-		dev_info(&ts->client->dev, "ESD on");
+		dev_info(&ts->client->dev, "ESD on\n");
 	}
 	mutex_unlock(&ts_esd->mutex);
 }
@@ -2382,10 +2379,10 @@ void gtp_esd_off(struct goodix_ts_data *ts)
 	if (!ts->pdata->esd_protect)
 		return;
 	mutex_lock(&ts_esd->mutex);
-	if (ts_esd->esd_on == true) {
+	if (ts_esd->esd_on) {
 		ts_esd->esd_on = false;
 		cancel_delayed_work(&ts_esd->delayed_work);
-		dev_info(&ts->client->dev, "ESD off");
+		dev_info(&ts->client->dev, "ESD off\n");
 	}
 	mutex_unlock(&ts_esd->mutex);
 }
@@ -2409,7 +2406,6 @@ static struct i2c_driver goodix_ts_driver = {
 	.shutdown	= gtp_shutdown,
 	.driver = {
 		.name	  = GTP_I2C_NAME,
-		.owner	  = THIS_MODULE,
 #ifdef CONFIG_OF
 		.of_match_table = gtp_match_table,
 #endif
@@ -2439,5 +2435,5 @@ module_init(gtp_init);
 module_exit(gtp_exit);
 
 MODULE_DESCRIPTION("Goodix GT9 serials Driver");
-MODULE_LICENSE("GPL V2");
+MODULE_LICENSE("GPL");
 
