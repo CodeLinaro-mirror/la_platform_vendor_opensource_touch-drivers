@@ -39,7 +39,7 @@
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
 
-#define HYN_DRIVER_VERSION      "== Hynitron V2.24 20251212 =="
+#define HYN_DRIVER_VERSION      "== Hynitron V2.25 20251229 =="
 #endif
 
 

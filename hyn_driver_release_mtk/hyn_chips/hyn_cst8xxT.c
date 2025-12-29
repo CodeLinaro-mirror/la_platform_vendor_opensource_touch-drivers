@@ -369,7 +369,7 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
     hyn_esdcheck_switch(hyn_8xxTdata,mode==NOMAL_MODE? enable : DISABLE);
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_8xxTdata,ENABLE);
+            hyn_wr_reg(hyn_8xxTdata,0xFF00,2,NULL,0);
             break;
         case GESTURE_MODE:
             ret = hyn_wr_reg(hyn_8xxTdata,0xE501,2,NULL,0);
@@ -389,7 +389,6 @@ static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
             ret = cst8xxT_enter_boot();
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_8xxTdata,DISABLE);
             ret = hyn_wr_reg(hyn_8xxTdata,0xE503,2,NULL,0);
             break;
         case CHARGE_EXIT:

@@ -240,7 +240,6 @@ static int cst840u_set_workmode(enum work_mode mode,u8 enable)
 
     switch (mode) {
         case NOMAL_MODE:
-            hyn_irq_set(hyn_840udata,ENABLE);
             reg_cmd[0] = 0xD0000000;
             reg_cmd[1] = 0xD0000100;
             break;

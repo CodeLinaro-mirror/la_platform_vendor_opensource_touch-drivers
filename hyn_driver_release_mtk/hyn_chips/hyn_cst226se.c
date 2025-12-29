@@ -159,7 +159,6 @@ static int cst226se_set_workmode(enum work_mode mode,u8 enable)
     hyn_esdcheck_switch(hyn_226data,enable);
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_226data,ENABLE);
             ret |= hyn_wr_reg(hyn_226data,0xD10B,2,NULL,0); //soft rst
             ret |= hyn_wr_reg(hyn_226data,0xD109,2,NULL,0);
             break;
@@ -180,7 +179,6 @@ static int cst226se_set_workmode(enum work_mode mode,u8 enable)
             msleep(50); //wait  switch to fac mode
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_226data,DISABLE);
             ret |= hyn_wr_reg(hyn_226data,0xD105,2,NULL,0);
             break;
         case ENTER_BOOT_MODE:

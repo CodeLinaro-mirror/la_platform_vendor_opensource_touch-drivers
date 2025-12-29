@@ -600,7 +600,6 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
     msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_92xxdata,ENABLE);
             ok = hyn_wr_reg(hyn_92xxdata,0xD109,2,NULL,0);
             break;
         case GESTURE_MODE:

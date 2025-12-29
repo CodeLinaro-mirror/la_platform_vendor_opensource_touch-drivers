@@ -238,7 +238,6 @@ static int cst36xxes_set_workmode(enum work_mode mode,u8 enable)
 			msleep(50); //wait  switch to fac mode
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_36xxesdata,DISABLE);
             // ret |= hyn_wr_reg(hyn_36xxesdata,0xD00022AB,4,0,0);
             ret |= hyn_wr_reg(hyn_36xxesdata,0xD00000AB,4,0,0);
              msleep(20);

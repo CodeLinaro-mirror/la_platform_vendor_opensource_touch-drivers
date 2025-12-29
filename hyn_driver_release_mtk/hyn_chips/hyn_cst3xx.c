@@ -147,7 +147,6 @@ static int cst3xx_set_workmode(enum work_mode mode,u8 enable)
     hyn_esdcheck_switch(hyn_3xxdata,enable);
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_3xxdata,ENABLE);
             hyn_esdcheck_switch(hyn_3xxdata,enable);
             // hyn_wr_reg(hyn_3xxdata,0xD100,2,NULL,0);
             ret |= hyn_wr_reg(hyn_3xxdata,0xD109,2,NULL,0);
@@ -167,7 +166,6 @@ static int cst3xx_set_workmode(enum work_mode mode,u8 enable)
             ret |= hyn_wr_reg(hyn_3xxdata,0xD119,2,NULL,0);
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_3xxdata,DISABLE);
             ret |= hyn_wr_reg(hyn_3xxdata,0xD105,2,NULL,0);
             break;
         case ENTER_BOOT_MODE:

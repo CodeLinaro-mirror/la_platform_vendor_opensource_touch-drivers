@@ -184,7 +184,6 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
     msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_3240data,ENABLE);
             ret |= hyn_wr_reg(hyn_3240data,0xD109,2,0,0);
             break;
         case GESTURE_MODE:
@@ -207,7 +206,6 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
             msleep(50); //wait  switch to fac mode
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_3240data,DISABLE);
             ret |= hyn_wr_reg(hyn_3240data,0xD105,2,0,0);
             break;
         case ENTER_BOOT_MODE:
