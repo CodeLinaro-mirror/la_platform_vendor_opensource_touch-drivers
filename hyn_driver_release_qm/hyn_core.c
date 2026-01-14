@@ -450,7 +450,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
 
 static void hyn_resum(struct device *dev)
 {
-    int ret = 0;
+    // int ret = 0;
     struct ts_frame *rep_frame;
     struct hyn_plat_data *dt;
     HYN_ENTER();
@@ -470,14 +470,6 @@ static void hyn_resum(struct device *dev)
     hyn_fun->tp_resum();
     //restore_scene
     hyn_restore_scene();
-    if(hyn_data->gesture_is_enable && hyn_data->prox_is_enable==0){
-        hyn_irq_set(hyn_data,DISABLE);
-        ret = disable_irq_wake(hyn_data->client->irq);
-        ret |= irq_set_irq_type(hyn_data->client->irq,dt->irq_gpio_flags); 
-        if(ret < 0){
-            HYN_ERROR("gesture irq_set_irq failed");
-        }  
-    }
     //compensate for lifting
     release_all_finger(hyn_data);
     input_sync(hyn_data->input_dev);
@@ -488,7 +480,7 @@ static void hyn_resum(struct device *dev)
 
 static void hyn_suspend(struct device *dev)
 {
-    int ret = 0;
+    // int ret = 0;
     HYN_ENTER();
     if(IS_ERR_OR_NULL(hyn_data)){
         return;
@@ -500,15 +492,7 @@ static void hyn_suspend(struct device *dev)
     if(hyn_data->prox_is_enable ==1){
     }
     else if(hyn_data->gesture_is_enable){
-        hyn_irq_set(hyn_data,DISABLE);
-        ret = enable_irq_wake(hyn_data->client->irq);
-        ret |= irq_set_irq_type(hyn_data->client->irq,IRQF_TRIGGER_FALLING|IRQF_NO_SUSPEND|IRQF_ONESHOT); 
-        if(ret < 0){
-            HYN_ERROR("gesture irq_set_irq failed");
-        }  
         hyn_fun->tp_set_workmode(GESTURE_MODE,1);
-        hyn_irq_set(hyn_data,ENABLE);
-        hyn_power_source_ctrl(hyn_data, 1);
     }
     else{
         hyn_irq_set(hyn_data,DISABLE);
@@ -831,15 +815,22 @@ static int hyn_ts_probe(struct spi_device *client)
 #endif
 
     ts_data->gpio_irq =  gpio_to_irq(ts_data->plat_data.irq_gpio);
-    hyn_data->plat_data.irq_gpio_flags = (IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
+    ts_data->client->irq = ts_data->gpio_irq;
+    ts_data->plat_data.irq_gpio_flags = (IRQF_TRIGGER_FALLING | IRQF_ONESHOT);
     ret = request_threaded_irq(ts_data->gpio_irq, NULL, hyn_irq_handler,
-                                hyn_data->plat_data.irq_gpio_flags, HYN_DRIVER_NAME, ts_data);
+                                ts_data->plat_data.irq_gpio_flags, HYN_DRIVER_NAME, ts_data);
     if(ret){
         HYN_ERROR("request_threaded_irq failed");
         goto FREE_RESOURCE;
     }
     atomic_set(&ts_data->irq_is_disable,ENABLE);
     hyn_irq_set(ts_data , DISABLE);
+
+    ret = enable_irq_wake(ts_data->gpio_irq);
+    if(ret){
+        HYN_INFO("gpio irq wakeup set failed");
+    }
+    device_init_wakeup(ts_data->dev,true);
 
 #if defined(CONFIG_FB)
 #if (HYN_RK_FB==1)
@@ -956,8 +947,11 @@ static int hyn_ts_remove(struct spi_device *client)
 #endif
         hyn_release_sysfs(ts_data);
         HYN_INFO("ts_remove2");
-        if(ts_data->gpio_irq != 0)
+        if(ts_data->gpio_irq != 0){
+            device_init_wakeup(ts_data->dev,false);
+            disable_irq_wake(ts_data->gpio_irq);
             free_irq(ts_data->gpio_irq, ts_data);
+        }  
         HYN_INFO("ts_remove3");
         if(!IS_ERR_OR_NULL(ts_data->input_dev)){
             input_unregister_device(ts_data->input_dev);
