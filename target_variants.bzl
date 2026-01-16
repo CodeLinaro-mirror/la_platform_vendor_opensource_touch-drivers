@@ -27,6 +27,7 @@ le_variants = [
     # keep sorted
     "perf-defconfig",
     "debug-defconfig",
+    "defconfig",
 ]
 
 vm_types = [
