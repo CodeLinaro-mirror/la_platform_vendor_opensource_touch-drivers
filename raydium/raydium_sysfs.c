@@ -552,6 +552,14 @@ static ssize_t raydium_touch_lock_store(struct device *dev,
 			input_report_key(g_raydium_ts->input_dev, KEY_WAKEUP, false);
 			input_sync(g_raydium_ts->input_dev);
 		}
+
+		if (device_may_wakeup(&g_raydium_ts->client->dev)) {
+			LOGD(LOG_INFO, "[touch]Device may wakeup\n");
+			if (!enable_irq_wake(g_raydium_ts->irq))
+				g_raydium_ts->irq_wake = true;
+		} else {
+			LOGD(LOG_INFO, "[touch]Device not wakeup\n");
+		}
 #endif
 
 		LOGD(LOG_INFO, "[touch]RAD %s disable touch lock!!\n", __func__);
@@ -577,6 +585,15 @@ static ssize_t raydium_touch_lock_store(struct device *dev,
 		if (i32_ret < 0)
 			goto exit_i2c_error;
 #ifdef CONFIG_ARCH_VIENNA
+		if (device_may_wakeup(&g_raydium_ts->client->dev)) {
+			LOGD(LOG_INFO, "[touch]%s Device may wakeup\n", __func__);
+			if (g_raydium_ts->irq_wake) {
+				disable_irq_wake(g_raydium_ts->irq);
+				g_raydium_ts->irq_wake = false;
+			}
+		} else
+			LOGD(LOG_INFO, "[touch]%s Device not wakeup\n", __func__);
+
 		gpio_set_value(g_raydium_ts->rst_gpio, 0);
 		ret = raydium_enable_regulator(g_raydium_ts, false);
 		if (ret)
