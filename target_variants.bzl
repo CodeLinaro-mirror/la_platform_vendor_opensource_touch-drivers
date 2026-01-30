@@ -27,6 +27,7 @@ le_variants = [
     # keep sorted
     "perf-defconfig",
     "debug-defconfig",
+    "defconfig",
 ]
 
 vm_types = [
@@ -37,6 +38,7 @@ vm_types = [
 vm_target_bases = [
     "sun",
     "canoe",
+    "malabar",
 ]
 
 vm_targets = ["{}-{}".format(t, vt) for t in vm_target_bases for vt in vm_types]

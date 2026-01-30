@@ -195,6 +195,23 @@ def define_pineapple(t,v):
         ],
 )
 
+def define_malabarvm(t,v):
+    define_target_variant_modules(
+	target = t,
+	variant = v,
+	registry = touch_driver_modules,
+	modules = [
+	    "focaltech_fts",
+	    "goodix_ts",
+	    "qts"
+	],
+	config_options = [
+	    "TOUCH_DLKM_ENABLE",
+	    "CONFIG_ARCH_MALABAR",
+	],
+        vm_target = True,
+)
+
 def define_malabar(t,v):
     define_target_variant_modules(
 	target = t,
@@ -341,6 +358,10 @@ def define_touch_target():
             define_canoevm(t, v)
         elif t == "canoe-oemvm":
             define_canoevm(t, v)
+        elif t == "malabar-tuivm":
+            define_malabarvm(t, v)
+        elif t == "malabar-oemvm":
+            define_malabarvm(t, v)
         elif t == "sun":
             define_sun(t, v)
         elif t == "vienna":
