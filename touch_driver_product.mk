@@ -51,6 +51,9 @@ ifeq ($(TOUCH_DLKM_ENABLE),  true)
         else ifeq ($(TARGET_BOARD_PLATFORM), khaje)
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/focaltech_fts.ko \
                         $(KERNEL_MODULES_OUT)/qts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), scuba)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/focaltech_fts.ko \
+                        $(KERNEL_MODULES_OUT)/qts.ko
         else
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/nt36xxx-i2c.ko \
                         $(KERNEL_MODULES_OUT)/goodix_ts.ko \
