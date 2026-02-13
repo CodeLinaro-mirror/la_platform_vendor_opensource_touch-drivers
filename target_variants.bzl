@@ -3,8 +3,8 @@ targets = [
     "art",
     "bengal",
     "canoe",
-    "chora",
     "gen3auto",
+    "malabar",
     "monaco",
     "sun",
     "vienna",
@@ -19,12 +19,15 @@ la_variants = [
 
 le_targets = [
     # keep sorted
+    "alor-le",
     "sun-allyes",
 ]
 
 le_variants = [
     # keep sorted
     "perf-defconfig",
+    "debug-defconfig",
+    "defconfig",
 ]
 
 vm_types = [
@@ -35,6 +38,7 @@ vm_types = [
 vm_target_bases = [
     "sun",
     "canoe",
+    "malabar",
 ]
 
 vm_targets = ["{}-{}".format(t, vt) for t in vm_target_bases for vt in vm_types]
