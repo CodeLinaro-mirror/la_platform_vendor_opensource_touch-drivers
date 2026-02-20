@@ -36,6 +36,7 @@ vm_types = [
 ]
 
 vm_target_bases = [
+    "art",
     "sun",
     "canoe",
     "malabar",
