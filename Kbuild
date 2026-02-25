@@ -61,7 +61,7 @@ ifeq ($(CONFIG_ARCH_TRINKET), y)
         LINUX_INC += -include $(TOUCH_ROOT)/config/gki_trinkettouchconf.h
 endif
 
-ifeq ($(CONFIG_ARCH_SUN), y)
+ifeq ($(or $(CONFIG_ARCH_SUN), $(CONFIG_ARCH_KERA)), y)
 	include $(TOUCH_ROOT)/config/gki_suntouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_suntouchconf.h
 endif
