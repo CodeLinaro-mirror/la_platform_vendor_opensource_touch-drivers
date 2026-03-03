@@ -51,7 +51,9 @@ static int cst36xxes_get_fwsize(u8 *bin,int* len);
 static int cst36xxes_get_fwinfo(u32 *buf);
 static int cst36xxes_updata_tpinfo(void);
 static int cst36xxes_wait_ready(u16 times,u8 ms,u16 reg,u16 check_vlue);
+#if USED_GPIO_ID
 static int cst36xxes_fread_gpio(u8 io ,u8 *lv);
+#endif
 
 
 static int cst36xxes_init(struct hyn_ts_data* ts_data)
@@ -527,7 +529,7 @@ static int cst36xxes_updata_tpinfo(void)
     return 0;
 }
 
-
+#if USED_GPIO_ID
 static int cst36xxes_fread_gpio(u8 io ,u8 *lv)
 {
     u8 dr,retry = 4;
@@ -549,6 +551,7 @@ static int cst36xxes_fread_gpio(u8 io ,u8 *lv)
     }
     return ret;
 }
+#endif
 
 static u32 cst36xxes_fread_word(u32 addr)
 {

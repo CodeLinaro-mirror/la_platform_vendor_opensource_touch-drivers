@@ -517,7 +517,7 @@ static int cst3240_get_dbg_data(u8 *buf, u16 len)
         case RAWDATA_MODE:
             timeout = 60;
             while(--timeout){ //wait rise edge
-                if(gpio_get_value(hyn_3240data->plat_data.tpd_irg_gpio)==1) break;
+                if(gpio_get_value(hyn_3240data->plat_data.irq_gpio)==1) break;
                 msleep(1);
             }
             ret = hyn_wr_reg(hyn_3240data,0x1000,2,buf,read_len); //mt 

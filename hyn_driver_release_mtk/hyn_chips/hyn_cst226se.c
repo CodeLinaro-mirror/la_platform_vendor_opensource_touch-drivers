@@ -483,7 +483,7 @@ static int cst226se_get_test_result(u8 *buf, u16 len)
     msleep(1);
     timeout = 500;
     while(--timeout){ //wait rise edge
-        if(gpio_get_value(hyn_226data->plat_data.tpd_irg_gpio)==1) break;
+        if(gpio_get_value(hyn_226data->plat_data.irq_gpio)==1) break;
         msleep(10);
     }
     if(hyn_wr_reg(hyn_226data,0x1215,2,buf,mt_len*2+scap_len+4)){ //open high

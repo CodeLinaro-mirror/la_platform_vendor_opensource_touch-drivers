@@ -3,14 +3,17 @@
 
 #include "cst36xxes_fw.h"
 
-#define BOOT_I2C_ADDR   (0x5A)
-#define MAIN_I2C_ADDR   (0x58) //use 2 slave addr
+#define BOOT_I2C_ADDR       (0x5A)
+#define MAIN_I2C_ADDR       (0x58) //use 2 slave addr
 
-#define PART_NO_EN      (1)
+#define PART_NO_EN          (1)
 #define MODULE_ID_ADDR      (0x6400)
 #define PARTNUM_ADDR        (0x7F10)
 
+#define USED_GPIO_ID        (0)
+
 static struct hyn_ts_data *hyn_36xxesdata = NULL;
+
 static const u8 gest_map_tbl[] = { 
     IDX_POWER,   //GESTURE_LABEL_CLICK, 
     IDX_POWER,  //GESTURE_LABEL_CLICK2, 
@@ -33,6 +36,8 @@ static const u8 gest_map_tbl[] = {
 
 static const struct hyn_chip_series hyn_36xxes_fw[] = {
     {0xcaca2305,0xffffffff,"cst36xxes",(u8*)fw},
+    {0xcaca230a,0x00,"cst3140",(u8*)fw2},
+    {0xcaca230a,0x01,"cst3140",(u8*)fw},
     {0,0,"",NULL}
 };
 
@@ -41,24 +46,71 @@ static u32 cst36xxes_read_checksum(void);
 static int cst36xxes_enter_boot(void);
 static u32 cst36xxes_fread_word(u32 addr);
 static void cst36xxes_rst(void);
+static void  cst36xxes_I2c_wakeup(void);
 static int cst36xxes_get_fwsize(u8 *bin,int* len);
+static int cst36xxes_get_fwinfo(u32 *buf);
+static int cst36xxes_updata_tpinfo(void);
+static int cst36xxes_wait_ready(u16 times,u8 ms,u16 reg,u16 check_vlue);
+#if USED_GPIO_ID
+static int cst36xxes_fread_gpio(u8 io ,u8 *lv);
+#endif
+
 
 static int cst36xxes_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0,i;
-    u32 read_part_no,module_id;
+
+    u32 read_part_no=0,module_id=0,tmp_buf[3];
     HYN_ENTER();
     hyn_36xxesdata = ts_data;
-    
-    ret = cst36xxes_enter_boot();
-    if(ret){
-        HYN_ERROR("cst36xxes_enter_boot failed");
-        return -1;
+    cst36xxes_rst(); 
+    msleep(30);
+    hyn_set_i2c_addr(hyn_36xxesdata,MAIN_I2C_ADDR);
+
+    ret = cst36xxes_updata_tpinfo(); //boot checksum pass, communicate failed not updata
+    if(ret == 0){
+        ret = cst36xxes_get_fwinfo(tmp_buf);
     }
+
+    if(0==ret){ //get checksum in app
+        module_id = tmp_buf[0];
+        read_part_no = tmp_buf[1];
+        hyn_36xxesdata->hw_info.ic_fw_checksum = tmp_buf[2];
+    }
+    else{ //get checksum in boot
+        ret = cst36xxes_enter_boot();
+        if(ret){
+            HYN_ERROR("cst36xxes_enter_boot failed");
+            return -1;
+        }
+        hyn_36xxesdata->hw_info.ic_fw_checksum = cst36xxes_read_checksum();
+        read_part_no = cst36xxes_fread_word(PARTNUM_ADDR);
+#if USED_GPIO_ID
+        {
+            u8 state1,state2;
+            ret = 0;
+            ret = cst36xxes_fread_gpio(0x01,&state1);
+            ret |= cst36xxes_fread_gpio(0x02,&state2);
+            if(ret==0){
+                module_id = ((state1<<1)|state2);
+            }
+            else{
+                HYN_ERROR("gpio module read failed !! \n");
+            }
+        }
+#else
+        module_id =  cst36xxes_fread_word(MODULE_ID_ADDR);
+#endif
+        hyn_set_i2c_addr(hyn_36xxesdata,MAIN_I2C_ADDR);
+        cst36xxes_rst(); //exit boot
+        msleep(50);
+    }
+
+    hyn_36xxesdata->hw_info.fw_chip_type = read_part_no;
+    hyn_36xxesdata->hw_info.fw_module_id = module_id;
+    HYN_INFO("read_part_no:0x%08x module_id:0x%08x check_sum:0x%08x",read_part_no,module_id,hyn_36xxesdata->hw_info.ic_fw_checksum);
+
     hyn_36xxesdata->fw_updata_addr = hyn_36xxes_fw[0].fw_bin;
-    read_part_no = cst36xxes_fread_word(PARTNUM_ADDR);
-    module_id =  cst36xxes_fread_word(MODULE_ID_ADDR);
-    HYN_INFO("read_part_no:0x%08x module_id:0x%08x",read_part_no,module_id);
     if(module_id > 10) module_id = 0xffffffff;
 
     for(i = 0; ;i++){
@@ -67,30 +119,90 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
 #else
         if( hyn_36xxes_fw[i].moudle_id == module_id)
 #endif
-        {   hyn_36xxesdata->fw_updata_addr = hyn_36xxes_fw[i].fw_bin;
+        {   
+            hyn_36xxesdata->fw_updata_addr = hyn_36xxes_fw[i].fw_bin;
             HYN_INFO("chip %s match fw success ,partNo check is [%s]",hyn_36xxes_fw[i].chip_name,PART_NO_EN ? "enable":"disable");
             break;
         }
-
-        if(hyn_36xxes_fw[i].part_no == 0 && hyn_36xxes_fw[i].moudle_id == 0){
-            HYN_INFO("unknown chip or unknown moudle_id use hyn_36xxes_fw[0]");
+        if(hyn_36xxes_fw[i].part_no == 0){
+            HYN_ERROR("missing match, used default bin[0] \n");
             break;
         }
     }
     cst36xxes_get_fwsize(hyn_36xxesdata->fw_updata_addr,&hyn_36xxesdata->fw_updata_len);
-    hyn_36xxesdata->hw_info.ic_fw_checksum = cst36xxes_read_checksum();
-    hyn_set_i2c_addr(hyn_36xxesdata,MAIN_I2C_ADDR);
-    cst36xxes_rst(); //exit boot
-    mdelay(50);
-    
     hyn_36xxesdata->need_updata_fw = cst36xxes_updata_judge(hyn_36xxesdata->fw_updata_addr,hyn_36xxesdata->fw_updata_len);
     if(hyn_36xxesdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
-
-
     return 0;
 }
+
+static int cst36xxes_enter_boot(void)
+{
+    int retry = 0,ret = 0;
+    hyn_set_i2c_addr(hyn_36xxesdata,BOOT_I2C_ADDR);
+    while(++retry<20){
+        cst36xxes_rst();
+        mdelay(12+retry);
+        ret = hyn_wr_reg(hyn_36xxesdata,0xA001A7,3,0,0);
+        if(ret < 0){
+            continue;
+        }
+        if(0==cst36xxes_wait_ready(10,2,0xA002,0x33DD)){
+            HYN_INFO("try win enter boot success\n");
+            return 0;
+        }
+    }
+    return -1;
+}
+
+// static int cst36xxes_enter_bootcmd(void)
+// {
+//     int retry = 0,ret = 0;
+//     //try cmd end boot
+//     while(++retry < 4){
+//         hyn_set_i2c_addr(hyn_36xxesdata,MAIN_I2C_ADDR);
+//         cst36xxes_I2c_wakeup();
+//         ret = hyn_wr_reg(hyn_36xxesdata,0xd0000aac,4,0,0); //enter boot cmd
+//         if(ret == 0){
+//             mdelay(10*retry+50);
+//         }
+//         hyn_set_i2c_addr(hyn_36xxesdata,BOOT_I2C_ADDR);
+//         ret = hyn_wr_reg(hyn_36xxesdata,0xA001A7,3,0,0);
+//         if(ret == 0){
+//             if(0==cst36xxes_wait_ready(10,2,0xA002,0x33DD)){
+//                 HYN_INFO("cmd enter boot success\n");
+//                 return 0;
+//             }
+//         }
+//     }
+//     return -1;
+// }
+
+static int cst36xxes_get_fwinfo(u32 *buf)
+{
+    int ret = 0;
+    u8 rbuf[16];
+    hyn_36xxesdata->boot_is_pass = 1;
+    cst36xxes_I2c_wakeup();
+    ret = hyn_wr_reg(hyn_36xxesdata,0xD01C1000,0x80|4,rbuf,16);
+    if(ret==0 && rbuf[6]==0xCA && rbuf[7]==0xCA){
+        buf[0] = U8TO32(rbuf[3],rbuf[2],rbuf[1],rbuf[0]);
+        buf[1] = U8TO32(rbuf[7],rbuf[6],rbuf[5],rbuf[4]);
+        buf[2] = U8TO32(rbuf[15],rbuf[14],rbuf[13],rbuf[12]);
+    }
+    else{
+        ret = -1;
+    }
+    return ret;
+}
+
+static void cst36xxes_I2c_wakeup(void)
+{
+    hyn_wr_reg(hyn_36xxesdata,0xD000,2,0,0); //wakeup from plug
+    udelay(200);
+}
+
 
 static int cst36xxes_get_fwsize(u8 *bin,int* len)
 {
@@ -120,9 +232,6 @@ static int cst36xxes_report(void)
             if(key_num + finger_num > 1){ 
                 ret |= hyn_read_data(hyn_36xxesdata,&buf[11],(key_num + finger_num -1)*5);
             }
-            // if(hyn_sum16(0x55,&buf[6],(key_num + finger_num)*5) != (buf[0] | buf[1]<<8)){
-            //     ret = -1;
-            // }
         }
         else{
             ret = -2;
@@ -386,23 +495,6 @@ static int write_code(u8 *bin_addr,uint8_t pak_num)
 }
 
 
-static int cst36xxes_enter_boot(void)
-{
-    int retry = 0,ret = 0;
-    hyn_set_i2c_addr(hyn_36xxesdata,BOOT_I2C_ADDR);
-    while(++retry<20){
-        cst36xxes_rst();
-        mdelay(12+retry);
-        ret = hyn_wr_reg(hyn_36xxesdata,0xA001A7,3,0,0);
-        if(ret < 0){
-            continue;
-        }
-        if(0==cst36xxes_wait_ready(10,2,0xA002,0x33DD)){
-            return 0;
-        }
-    }
-    return -1;
-}
 
 static int cst36xxes_updata_tpinfo(void)
 {
@@ -415,8 +507,7 @@ static int cst36xxes_updata_tpinfo(void)
         ret |= cst36xxes_set_workmode(NOMAL_MODE,ENABLE);
         ret |= hyn_wr_reg(hyn_36xxesdata,0xD0010000,0x80|4,buf,50);
         if(ret == 0 && buf[3]==0xCA && buf[2]==0xCA) break; 
-        mdelay(1);
-        ret |= hyn_wr_reg(hyn_36xxesdata,0xD0000400,4,buf,0);
+        mdelay(10);
     }
 
     if(ret || retry==0){
@@ -434,9 +525,33 @@ static int cst36xxes_updata_tpinfo(void)
     ic->fw_project_id = U8TO32(buf[39],buf[38],buf[37],buf[36]);
     ic->fw_chip_type = U8TO32(buf[3],buf[2],buf[1],buf[0]);
     ic->fw_ver = U8TO32(buf[35],buf[34],buf[33],buf[32]);
-    HYN_INFO("IC_info fw_project_id:%04x ictype:%04x fw_ver:%04x checksum:%04x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver,ic->ic_fw_checksum);
+    HYN_INFO("IC_info fw_project_id:%04x ictype:%04x fw_ver:%04x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver);
     return 0;
 }
+
+#if USED_GPIO_ID
+static int cst36xxes_fread_gpio(u8 io ,u8 *lv)
+{
+    u8 dr,retry = 4;
+    int ret = 0;
+    while(--retry){
+        ret = hyn_wr_reg(hyn_36xxesdata,0xA001A7,3,0,0);       //boot mode
+        ret |= hyn_wr_reg(hyn_36xxesdata,0xA00A00+io,3,0,0);   //0?¨ºoDP00  1?¨ºoDP01
+        ret |= hyn_wr_reg(hyn_36xxesdata,0xA00B01,3,0,0);      //set_mode hz:0  pull_up:1
+        ret |= hyn_wr_reg(hyn_36xxesdata,0xA004D7,3,0,0);      //trig
+        if(ret){
+            continue;
+        }
+        udelay(5);
+        ret |= hyn_wr_reg(hyn_36xxesdata,0xA030,2,&dr,1);
+        if(0==ret){
+            *lv = (dr&(0x01<<io));
+            break;
+        }
+    }
+    return ret;
+}
+#endif
 
 static u32 cst36xxes_fread_word(u32 addr)
 {
@@ -493,8 +608,7 @@ static int cst36xxes_updata_judge(u8 *p_fw, u16 len)
 {
     u32 f_checksum,f_fw_ver,f_ictype,f_fw_project_id;
     // u32 f_check_all;
-    u8 *p_data = p_fw + 192; //35k 
-    int ret;
+    u8 *p_data = p_fw + 192; // 
     struct tp_info *ic = &hyn_36xxesdata->hw_info;
 
     f_fw_project_id = U8TO32(p_data[39],p_data[38],p_data[37],p_data[36]);
@@ -505,11 +619,8 @@ static int cst36xxes_updata_judge(u8 *p_fw, u16 len)
     f_checksum = U8TO32(p_data[3],p_data[2],p_data[1],p_data[0]);
     HYN_INFO("Bin_info fw_project_id:%04x ictype:%04x fw_ver:%04x checksum:%04x",f_fw_project_id,f_ictype,f_fw_ver,f_checksum);
     
-    ret = cst36xxes_updata_tpinfo(); //boot checksum pass, communicate failed not updata
-    if(ret) HYN_ERROR("get tpinfo failed");
-
     if(hyn_36xxesdata->boot_is_pass ==0    //boot failed
-    || ( ret == 0 && f_ictype == ic->fw_chip_type && f_checksum != ic->ic_fw_checksum && f_fw_ver > ic->fw_ver ) // match new ver .h file
+    || (f_ictype == ic->fw_chip_type && f_checksum != ic->ic_fw_checksum && f_fw_ver > ic->fw_ver ) // match new ver .h file
     ){
         return 1; //need updata
     } 
@@ -552,19 +663,16 @@ static int cst36xxes_updata_fw(u8 *bin_addr, u32 len)
             HYN_INFO("cst36xxes_enter_boot faill");
             continue;
         }
-
         ret = erase_all_mem();
         if(ret){
             HYN_INFO("erase_all_mem faill");
             continue;
         }
-
         ret = write_code(bin_addr,pak_num);
         if (ret){
             HYN_INFO("write_code faill");
             continue;
         }
-
         hyn_36xxesdata->hw_info.ic_fw_checksum = cst36xxes_read_checksum();
         HYN_INFO("ic_fw_checksum:%04x",hyn_36xxesdata->hw_info.ic_fw_checksum);
         if(fw_checksum == hyn_36xxesdata->hw_info.ic_fw_checksum && 0 != hyn_36xxesdata->boot_is_pass){
