@@ -354,6 +354,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
 			
         if(hyn_data->esd_fail_cnt > 2){
                 hyn_data->esd_fail_cnt = 0;
+        }
     #else
         if (ret) {
             if (ret == 2) 
@@ -379,7 +380,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
 
 static void hyn_resum(struct device *dev)
 {
-    int ret = 0;
+    // int ret = 0;
     struct ts_frame *rep_frame;
     struct hyn_plat_data *dt;
     HYN_ENTER();
@@ -396,23 +397,14 @@ static void hyn_resum(struct device *dev)
     hyn_fun->tp_resum();
     //restore_scene
     hyn_restore_scene();
-    if(hyn_data->gesture_is_enable && hyn_data->prox_is_enable==0){
-        hyn_irq_set(hyn_data,DISABLE);
-        ret = disable_irq_wake(hyn_data->client->irq);
-        ret |= irq_set_irq_type(hyn_data->client->irq,dt->irq_gpio_flags); 
-        if(ret < 0){
-            HYN_ERROR("gesture irq_set_irq failed");
-        }  
-    }
 
-    
     rep_frame->report_need = REPORT_NONE;
     hyn_irq_set(hyn_data,ENABLE);
 }
 
 static void hyn_suspend(struct device *dev)
 {
-    int ret = 0;
+    // int ret = 0;
     HYN_ENTER();
     if(IS_ERR_OR_NULL(hyn_data)){
         return;
@@ -424,15 +416,7 @@ static void hyn_suspend(struct device *dev)
     if(hyn_data->prox_is_enable ==1){
     }
     else if(hyn_data->gesture_is_enable){
-        hyn_irq_set(hyn_data,DISABLE);
-        ret = enable_irq_wake(hyn_data->client->irq);
-        ret |= irq_set_irq_type(hyn_data->client->irq,IRQF_TRIGGER_FALLING|IRQF_NO_SUSPEND|IRQF_ONESHOT); 
-        if(ret < 0){
-            HYN_ERROR("gesture irq_set_irq failed");
-        }  
         hyn_fun->tp_set_workmode(GESTURE_MODE,1);
-        hyn_irq_set(hyn_data,ENABLE);
-        hyn_power_source_ctrl(hyn_data, 1);
     }
     else{
         hyn_irq_set(hyn_data,DISABLE);
@@ -652,6 +636,11 @@ static int hyn_ts_probe(struct spi_device *client)
     atomic_set(&ts_data->irq_is_disable,ENABLE);
     hyn_irq_set(ts_data , DISABLE);
 
+    ret = enable_irq_wake(ts_data->gpio_irq);
+    if(ret){
+        HYN_INFO("gpio irq wakeup set failed");
+    }
+    device_init_wakeup(ts_data->dev,true);
 	hyn_create_sysfs(ts_data);
 #if (HYN_APK_DEBUG_EN)
     hyn_tool_fs_int(ts_data);
