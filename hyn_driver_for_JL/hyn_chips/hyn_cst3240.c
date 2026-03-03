@@ -92,20 +92,16 @@ static int cst3240_report(void)
     u8 buf[80]={0};
     u8 finger_num = 0,key_flg = 0,tmp_dat;
     int len = 0;
-    struct hyn_plat_data *dt = &hyn_3240data->plat_data;
     int ret = 0,retry = 2;
     switch(hyn_3240data->work_mode){
         case NOMAL_MODE:
             retry = 2;
             while(retry--){
                 ret = hyn_wr_reg(hyn_3240data,0xD000,2,buf,7);
-                if(ret || buf[6] != 0xAB || buf[0] == 0xAB){
+                finger_num = buf[5] & 0x7F;
+                if(ret || buf[6] != 0xAB || buf[0] == 0xAB || finger_num > MAX_POINTS_REPORT){
                     ret = -2;
                     continue;
-                }
-                finger_num = buf[5] & 0x7F;
-                if(finger_num > dt->max_touch_num){
-                    finger_num = dt->max_touch_num;
                 }
                 key_flg = (buf[5]&0x80) ? 1:0;
                 len = 0;
@@ -170,7 +166,7 @@ static int cst3240_report(void)
         default:
             break;
     }
-    return 0;
+    return ret;
 }
 
 static int cst3240_prox_handle(u8 cmd)
@@ -199,13 +195,10 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
 {
     int ret = 0;
     HYN_ENTER();
-    hyn_3240data->work_mode = mode;
-    if(mode != NOMAL_MODE)
-        hyn_esdcheck_switch(hyn_3240data,DISABLE);
+    hyn_esdcheck_switch(hyn_3240data,enable);
+    msleep(1); //trig task switch
     switch(mode){
         case NOMAL_MODE:
-            hyn_irq_set(hyn_3240data,ENABLE);
-            hyn_esdcheck_switch(hyn_3240data,enable);
             ret |= hyn_wr_reg(hyn_3240data,0xD109,2,0,0);
             break;
         case GESTURE_MODE:
@@ -228,15 +221,18 @@ static int cst3240_set_workmode(enum work_mode mode,u8 enable)
             msleep(50); //wait  switch to fac mode
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_3240data,DISABLE);
             ret |= hyn_wr_reg(hyn_3240data,0xD105,2,0,0);
             break;
         case ENTER_BOOT_MODE:
             ret |= cst3240_enter_boot();
             break;
         default :
+            hyn_3240data->work_mode = NOMAL_MODE;
             ret = -2;
             break;
+    }
+    if(ret != -2){
+        hyn_3240data->work_mode = mode;
     }
     return ret;
 }
@@ -415,7 +411,7 @@ static int cst3240_updata_judge(u8 *p_fw, u16 len)
     return 0;
 }
 
-static int cst3240_updata_fw(u8 *bin_addr, u16 len)
+static int cst3240_updata_fw(u8 *bin_addr, u32 len)
 {
     int i,ret=-1, times = 0,retry;
 	u8 i2c_buf[512+2];
@@ -558,9 +554,6 @@ static int cst3240_get_dbg_data(u8 *buf, u16 len)
     return ret==0 ? total_len:-1;
 }
 
-#define FACTEST_PATH    "/sdcard/hyn_fac_test_cfg.ini"
-#define FACTEST_LOG_PATH "/sdcard/hyn_fac_test.log"
-#define FACTEST_ITEM      (MULTI_OPEN_TEST|MULTI_SHORT_TEST)
 static int cst3240_get_test_result(u8 *buf, u16 len)
 {
     int ret = 0,timeout;
@@ -604,13 +597,7 @@ static int cst3240_get_test_result(u8 *buf, u16 len)
         }
     }
 
-    //read data finlish start test
-    ret = factory_multitest(hyn_3240data ,FACTEST_PATH, buf,(s16*)(buf+scap_len+mt_len*2),FACTEST_ITEM);
-
 selftest_end:
-    if(0 == fac_test_log_save(FACTEST_LOG_PATH,hyn_3240data,(s16*)buf,ret,FACTEST_ITEM)){
-        HYN_INFO("fac_test log save success");
-    } 
     cst3240_resum();
     return ret;
 }

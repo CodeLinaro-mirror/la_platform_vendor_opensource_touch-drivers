@@ -1,5 +1,6 @@
 #include "hyn_core.h"
 
+
 #define CUSTOM_SENSOR_NUM  	(10)
 
 #define BOOT_I2C_ADDR   (0x6A)

@@ -1,6 +1,8 @@
 #include "hyn_core.h"
 
 
+
+
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x58) //use 2 slave addr
 

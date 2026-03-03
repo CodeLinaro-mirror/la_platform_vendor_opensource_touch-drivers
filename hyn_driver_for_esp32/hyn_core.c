@@ -64,14 +64,16 @@ void touch_init()
 	HYN_INFO(HYN_DRIVER_VERSION);
 /*************************************************************/
 //    handle            chip types
-// &cst66xx_fuc   /*suport 36xx 35xx 66xx 68xx 148E*/
-// &cst36xxes_fuc /*suport 154es 3654es 3640es*/
-// &cst3240_fuc   /*suport 3240 */
-// &cst92xx_fuc   /*suport 9217、9220 */
-// &cst3xx_fuc    /*suport 328 128 140 148 340 348*/
-// &cst7xx_fuc    /*suport 726 826 830 836u*/
-// &cst8xxT_fuc   /*suport 816t 816d 820 08C*/
-// &cst226se_fuc  /*suport 226se 8922*/
+//&cst66xx_fuc,},   /*suport 36xx、35xx、66xx、68xx */
+//&cst36xxes_fuc,}, /*suport 154es 3654es 3640es*/
+//&cst3240_fuc,},   /*suport 3240 */
+//&cst923xx_fuc,},   /*suport 9217、9220 、916e、9317、317q、3217 */
+//&cst3xx_fuc,},    /*suport 340、348、328、128、140、148*/
+//&cst7xx_fuc,},    /*suport 726、826、836u*/
+//&cst8xxT_fuc,},   /*suport 816t、816d、820、08C*/
+//&cst226se_fuc,}, /*suport 226se 8922*/
+//&cst840u_fuc,},   /*suport 840u*/
+//&cst76xx_fuc,},   /*suport 7864BG 7964BG HYT7864JL HYT7760BG HYT7760TR CST6960BG*/
 /*************************************************************/
     hyn_data->hyn_fuc_used = &cst226se_fuc;  //根据芯片型号赋值
     hyn_data->plat_data.max_touch_num = MAX_POINTS_REPORT;   //最大手指数

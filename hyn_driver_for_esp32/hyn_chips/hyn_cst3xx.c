@@ -1,5 +1,6 @@
 #include "hyn_core.h"
 
+
 #define BOOT_I2C_ADDR   (0x1A)
 #define MAIN_I2C_ADDR   (0x1A)
 #define RW_REG_LEN      (2)

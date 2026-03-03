@@ -1,6 +1,5 @@
 #include "../hyn_core.h"
 
-
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x58) //use 2 slave addr
 
@@ -30,7 +29,10 @@ static const u8 gest_map_tbl[] = {
     IDX_Z,      //GESTURE_LABEL_Z
 };
 
-
+static const struct hyn_chip_series hyn_36xxes_fw[] = {
+    {0xcaca2305,0xffffffff,"cst36xxes",(u8*)fw},
+    {0,0,"",NULL}
+};
 
 static int cst36xxes_updata_judge(u8 *p_fw, u16 len);
 static u32 cst36xxes_read_checksum(void);
@@ -41,10 +43,6 @@ static int cst36xxes_updata_tpinfo(void);
 
 #if HYN_POWER_ON_UPDATA
 #include "cst36xxes_fw.h"
-static const struct hyn_chip_series hyn_36xxes_fw[] = {
-    {0xcaca2305,0xffffffff,"cst36xxes",(u8*)fw},
-    {0,0,"",NULL}
-};
 static int cst36xxes_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0,i;
