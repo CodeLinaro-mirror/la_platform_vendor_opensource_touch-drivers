@@ -5,9 +5,9 @@ static struct hyn_ts_data *hyn_data = NULL;
 static const struct hyn_ts_fuc* hyn_fun = NULL;
 static const struct of_device_id hyn_of_match_table[] = {
     {.compatible = "hyn,66xx", .data = &cst66xx_fuc,},   /*suport 36xx 35xx 66xx 68xx 148E*/
-	{.compatible = "hyn,36xxes", .data = &cst36xxes_fuc,}, /*suport 154es 3654es 3640es*/
+	{.compatible = "hyn,36xxes", .data = &cst36xxes_fuc,}, /*suport 154es 3654es 3640es */
     {.compatible = "hyn,3240", .data = &cst3240_fuc,},   /*suport 3240 */
-    {.compatible = "hyn,92xx", .data = &cst92xx_fuc,},   /*suport 9217、9220 */
+    {.compatible = "hyn,923xx", .data = &cst923xx_fuc,},   /*suport 9217、9220 、916e、9317、317q、3217 */
     {.compatible = "hyn,3xx",  .data = &cst3xx_fuc,},    /*suport 340 348 328 128 140 148*/
     {.compatible = "hyn,7xx",  .data = &cst7xx_fuc,},    /*suport 726 826 836u*/
     {.compatible = "hyn,8xxt", .data = &cst8xxT_fuc,},   /*suport 816t 816d 820 08C*/
@@ -70,8 +70,15 @@ static int hyn_parse_dt(struct hyn_ts_data *ts_data)
         }
 
 //gpio info
-        dt->reset_gpio = of_get_named_gpio_flags(np, "reset-gpio", 0, &dt->reset_gpio_flags);
-        dt->irq_gpio = of_get_named_gpio_flags(np, "irq-gpio", 0, &dt->irq_gpio_flags);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+        dt->reset_gpio = of_get_named_gpio_flags(np, "reset-gpios", 0, &dt->reset_gpio_flags);
+        dt->irq_gpio = of_get_named_gpio_flags(np, "irq-gpios", 0, &dt->irq_gpio_flags);
+# else
+        dt->reset_gpio = devm_gpiod_get_optional(dev,"reset",GPIOD_OUT_HIGH);
+        dt->irq_gpio = devm_gpiod_get_optional(dev,"irq",GPIOD_IN);
+        dt->reset_gpio_flags = GPIOD_OUT_HIGH;
+        dt->irq_gpio_flags = GPIOD_IN;
+#endif 
         if(dt->reset_gpio < 0 || dt->irq_gpio < 0){
             HYN_ERROR("dts get gpio failed");
             return -ENODEV;
@@ -79,6 +86,7 @@ static int hyn_parse_dt(struct hyn_ts_data *ts_data)
         else{
             HYN_INFO("reset_gpio:%d irq_gpio:%d",dt->reset_gpio,dt->irq_gpio);
         }
+
 
 //pin_ctl
         ret =-1;
@@ -425,6 +433,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
 			
         if(hyn_data->esd_fail_cnt > 2){
                 hyn_data->esd_fail_cnt = 0;
+        }
     #else
         if (ret) {
             if (ret == 2) 
@@ -470,10 +479,7 @@ static void hyn_resum(struct device *dev)
     hyn_fun->tp_resum();
     //restore_scene
     hyn_restore_scene();
-    //compensate for lifting
-    release_all_finger(hyn_data);
-    input_sync(hyn_data->input_dev);
-    
+
     rep_frame->report_need = REPORT_NONE;
     hyn_irq_set(hyn_data,ENABLE);
 }
@@ -500,8 +506,11 @@ static void hyn_suspend(struct device *dev)
         if(!IS_ERR_OR_NULL(hyn_data->plat_data.pinctl)){
             pinctrl_select_state(hyn_data->plat_data.pinctl, hyn_data->plat_data.pin_suspend);
         }
-        hyn_power_source_ctrl(hyn_data, 0);
+        // hyn_power_source_ctrl(hyn_data, 0);
     }
+    //compensate for lifting
+    release_all_finger(hyn_data);
+    input_sync(hyn_data->input_dev);
 }
 
 static void hyn_updata_fw_work(struct work_struct *work)
@@ -525,7 +534,7 @@ static void hyn_resum_work(struct work_struct *work)
 
 static irqreturn_t hyn_irq_handler(int irq, void *data)
 {
-    HYN_ENTER();
+    // HYN_ENTER();
 	atomic_set(&hyn_data->hyn_irq_flg,1);
     if(hyn_data->work_mode < DIFF_MODE){
         // queue_work(hyn_data->hyn_workqueue,&hyn_data->work_report);
@@ -640,7 +649,7 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
 static int hyn_pm_suspend(struct device *dev)
 {
     hyn_suspend(dev);
-    return 0
+    return 0;
 }
 static int hyn_pm_resume(struct device *dev)
 {

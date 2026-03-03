@@ -3,7 +3,7 @@
     {.compatible = "hyn,66xx", .data = &cst66xx_fuc,},   /*suport 36xx、35xx、66xx、68xx */
     {.compatible = "hyn,36xxes", .data = &cst36xxes_fuc,}, /*suport 154es 3654es 3640es*/
     {.compatible = "hyn,3240", .data = &cst3240_fuc,},   /*suport 3240 */
-    {.compatible = "hyn,92xx", .data = &cst92xx_fuc,},   /*suport 9217、9220 */
+    {.compatible = "hyn,923xx", .data = &cst923xx_fuc,},   /*suport 9217、9220 、916e、9317、317q、3217 */
     {.compatible = "hyn,3xx",  .data = &cst3xx_fuc,},    /*suport 340、348、328、128、140、148*/
     {.compatible = "hyn,7xx",  .data = &cst7xx_fuc,},    /*suport 726、826、836u*/
     {.compatible = "hyn,8xxt", .data = &cst8xxT_fuc,},   /*suport 816t、816d、820、08C*/
@@ -19,8 +19,8 @@
 
         interrupt-parent = <&tlmm>;   //根据平台配置
         interrupts = <65 0x02>;       //根据平台配置
-        reset-gpio = <&tlmm 64 0x01>; //根据平台配置
-        irq-gpio = <&tlmm 65 0x02>;   //根据平台配置
+        reset-gpios = <&tlmm 64 0x01>; //根据平台配置
+        irq-gpios = <&tlmm 65 0x02>;   //根据平台配置
         
         //panel = <&dsi_1080p_video>;  //CONFIG_DRM_PANEL 需要配置 
 
@@ -40,8 +40,8 @@
 			
 			interrupt-parent = <&tlmm>;   //根据平台配置
 			interrupts = <65 0x02>;       //根据平台配置
-			reset-gpio = <&tlmm 64 0x01>; //根据平台配置
-			irq-gpio = <&tlmm 65 0x02>;   //根据平台配置
+			reset-gpios = <&tlmm 64 0x01>; //根据平台配置
+			irq-gpios = <&tlmm 65 0x02>;   //根据平台配置
 			
 			max-touch-number = <5>;
 			display-coords = <0 0 800 1280>;
@@ -60,12 +60,14 @@
 
         interrupt-parent = <&tlmm>;
         interrupts = <65 0x02>;
-        reset-gpio = <&tlmm 64 0x01>;
-        irq-gpio = <&tlmm 65 0x02>;
+        reset-gpios = <&tlmm 64 0x01>;
+        irq-gpios = <&tlmm 65 0x02>;
         
         pinctrl-names = "ts_active","ts_suspend";
         pinctrl-0 = <&ts_int_active &ts_reset_active>;
         pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+
+        //panel = <&dsi_1080p_video>;  //CONFIG_DRM_PANEL 需要配置 
         
         max-touch-number = <5>;
         display-coords = <0 0 800 1280>;
@@ -159,6 +161,8 @@ hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
 
 
 4、sys节点操作
+    0、调试节点路径
+    adb shell find /sys/devices/platform/soc/ -name  "hyn*"
 1、升级
     通过文件升级
     adb push xxx.bin /sdcard/app.bin

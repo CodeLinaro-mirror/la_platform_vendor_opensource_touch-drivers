@@ -10,6 +10,7 @@
 #include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
+
 #include <linux/kthread.h>
 #include <linux/kernel.h>
 //#include <linux/rtpm_prio.h>
@@ -26,6 +27,9 @@
 #include <linux/uaccess.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+    #include <linux/gpio/consumer.h>
+#endif
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
@@ -384,11 +388,10 @@ extern const struct hyn_ts_fuc cst3xx_fuc;
 extern const struct hyn_ts_fuc cst66xx_fuc;
 extern const struct hyn_ts_fuc cst7xx_fuc;
 extern const struct hyn_ts_fuc cst8xxT_fuc;
-extern const struct hyn_ts_fuc cst92xx_fuc;
+extern const struct hyn_ts_fuc cst923xx_fuc;
 extern const struct hyn_ts_fuc cst3240_fuc;
 extern const struct hyn_ts_fuc cst226se_fuc;
 extern const struct hyn_ts_fuc cst36xxes_fuc;
-
 extern const struct hyn_ts_fuc cst76xx_fuc;
 extern const struct hyn_ts_fuc cst840u_fuc;
 

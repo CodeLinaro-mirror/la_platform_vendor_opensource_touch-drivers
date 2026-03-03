@@ -1,5 +1,5 @@
 #include "../hyn_core.h"
-#include "cst92xx_fw.h"
+#include "cst923xx_fw.h"
 
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x5A)
@@ -8,48 +8,65 @@
 #define MAX_FINGER (2)
 #define MODULE_ID_EN  (0)
 
-#define CST92XX_BIN_SIZE    (0x7F80)
+enum chip_group_t{
+    CHIP_92xx = 0,
+    CHIP_93xx = 1
+};
 
-#define HYNITRON_PROGRAM_PAGE_SIZE (128)
 #define ADDR_CHIP_ID            (0x077C)
 #define ADDR_MODULE_ID          (0x7FC0)
 
+static struct {
+    u16 bin_size;
+    u16 page_size;
+    u16 check_sum_offset;
+}ct92xx_addr_tabl[2]={
+    {
+        0x7F80, 128, 0x7F6C  //92xx
+    },
+    {
+        0x7E00, 512, 0x7DFC  //93xx
+    }
+};
+
+static u8 chip_group_id = CHIP_92xx;
 static struct hyn_ts_data *hyn_92xxdata = NULL;
 
-static int cst92xx_updata_judge(u8 *p_fw, u16 len);
-static u32 cst92xx_read_checksum(void);
-static int cst92xx_updata_tpinfo(void);
-static int cst92xx_enter_boot(void);
-static void cst92xx_rst(void);
+static int cst923xx_updata_judge(u8 *p_fw, u16 len);
+static int cst923xx_updata_tpinfo(void);
+static int cst923xx_enter_boot(void);
+static void cst923xx_rst(void);
 static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value);
-static int cst92xx_set_workmode(enum work_mode mode,u8 enable);
+static int cst923xx_set_workmode(enum work_mode mode,u8 enable);
 
-static const struct hyn_chip_series cst92xx_fw_list[] = {
-    {0x92FF,0xFFFF,"cst92xx id0",(u8*)fw_bin_1}, //default bin
-    {0x9217,0x0001,"cst9217 id0",(u8*)fw_bin_1},  
-    {0x9217,0x0002,"cst9217 id1",(u8*)fw_bin_1},
-    {0x9220,0x0002,"cst9220 id0",(u8*)fw_bin_1},
-    {0x916e,0x0003,"cst916e",(u8*)fw_bin_1},
+static const struct hyn_chip_series cst923xx_fw_list[] = {
+    {0x9fff,0x0000,"cst9xxx",(u8*)fw_bin0},//default bin
+    {0x9317,0x0000,"cst9317 id0",(u8*)fw_bin0},
+    {0x92FF,0x0000,"cst92xx id0",(u8*)fw_bin1}, 
+    {0x9217,0x0001,"cst9217 id0",(u8*)fw_bin1},  
+    {0x9217,0x0002,"cst9217 id1",(u8*)fw_bin1},
+    {0x9220,0x0002,"cst9220 id0",(u8*)fw_bin1},
+    {0x916e,0x0003,"cst916e",(u8*)fw_bin1},
     {0xFF,0,"null",NULL}
 };
 
-static int cst92xx_init(struct hyn_ts_data* ts_data)
+static int cst923xx_init(struct hyn_ts_data* ts_data)
 {
     int ret = 0;
     struct tp_info *ic = &ts_data->hw_info;
     HYN_ENTER();
     hyn_92xxdata = ts_data;
     hyn_set_i2c_addr(hyn_92xxdata,MAIN_I2C_ADDR);
-    cst92xx_rst();
+    cst923xx_rst();
     msleep(40);
-    ret = cst92xx_updata_tpinfo();
+    ret = cst923xx_updata_tpinfo();
     if(ret){
         int retry = 3;
-        HYN_INFO("cst92xx_updata_tpinfo failed");
+        HYN_INFO("cst923xx_updata_tpinfo failed");
         hyn_92xxdata->work_mode=ENTER_BOOT_MODE;
-        ret = cst92xx_enter_boot();
+        ret = cst923xx_enter_boot();
         if(ret){
-            HYN_ERROR("cst92xx_ic check failed\r\n");
+            HYN_ERROR("cst923xx_ic check failed\r\n");
             return FALSE;
         }
         while(retry--){
@@ -58,66 +75,69 @@ static int cst92xx_init(struct hyn_ts_data* ts_data)
             if(ret==0)
             break;
         }
-        cst92xx_rst();
+        cst923xx_rst();
     }
     ret = 0;
-    HYN_INFO("MODULE_ID is %s\r\n", MODULE_ID_EN ? "enable":"disable");
-    hyn_92xxdata->fw_updata_addr = cst92xx_fw_list[0].fw_bin;
-    hyn_92xxdata->fw_updata_len = CST92XX_BIN_SIZE;
-    
+    HYN_INFO("CHIP_GROUP:[%s]  MODULE_ID is %s\r\n",chip_group_id==CHIP_92xx ? "92xx":"93xx", MODULE_ID_EN ? "enable":"disable");
+    hyn_92xxdata->fw_updata_addr = cst923xx_fw_list[0].fw_bin;
+    hyn_92xxdata->fw_updata_len = ct92xx_addr_tabl[chip_group_id].bin_size;
 #if MODULE_ID_EN
-{
- 	u8 i = 0;
-    ret=-1;
-    for(i = 0; ;i++){
-        if(cst92xx_fw_list[i].fw_bin== NULL){
-            break;
+    {
+        u8 i = 0;
+        ret=-1;
+        for(i = 0; ;i++){
+            if(cst923xx_fw_list[i].fw_bin== NULL){
+                break;
+            }
+            if(cst923xx_fw_list[i].moudle_id == ic->fw_module_id){
+                hyn_92xxdata->fw_updata_addr = cst923xx_fw_list[i].fw_bin;
+                ret = 0;
+                break;
+            }
         }
-        if(cst92xx_fw_list[i].moudle_id == ic->fw_module_id){
-            hyn_92xxdata->fw_updata_addr = cst92xx_fw_list[i].fw_bin;
-            ret = 0;
-            break;
-        }
+        HYN_INFO("module id:0x%04x match fw %s\n",ic->fw_module_id,ret ? "faild":"success");
     }
-    HYN_INFO("module id:0x%04x match fw %s\n",ic->fw_module_id,ret ? "faild":"success");
-}
 #endif
     if(ret==0){
-        hyn_92xxdata->need_updata_fw = cst92xx_updata_judge(hyn_92xxdata->fw_updata_addr,CST92XX_BIN_SIZE);
+        hyn_92xxdata->need_updata_fw = cst923xx_updata_judge(hyn_92xxdata->fw_updata_addr,hyn_92xxdata->fw_updata_len);
     }
-    HYN_INFO("cst92xx_init done !!!");
+    hyn_92xxdata->need_updata_fw =1;
+    HYN_INFO("cst923xx_init done !!!");
     return TRUE;
 }
 
 
-static int  cst92xx_enter_boot(void)
+static int  cst923xx_enter_boot(void)
 {
-    int ok = FALSE,t,retry = 3;
+    int ok = FALSE,t,retry = 0;
     uint8_t i2c_buf[4] = {0};
     hyn_set_i2c_addr(hyn_92xxdata,BOOT_I2C_ADDR);
-    for (t = 10;; t += 2)
+    for (t = 6;; t += 2)
     {
-        if(t >= 30 || retry==0){
+        if(t >= 30){
             return FALSE;
         }
-
-        cst92xx_rst();
-        mdelay(t);
-
-        ok = hyn_wr_reg(hyn_92xxdata, 0xA001AA, 3, i2c_buf, 0);
-        if(ok == FALSE || (i2c_buf[0]==0x5A && i2c_buf[1]==0x5A)){
-            if(ok==TRUE && retry){
-                retry--;
-                t = 10;
-            }
+        cst923xx_rst();
+        mdelay(t-retry);
+        // 
+        ok = hyn_wr_reg(hyn_92xxdata, 0xA001A2, 3, i2c_buf, 0); //93xx
+        ok |= hyn_wr_reg(hyn_92xxdata, 0xA001AA, 3, i2c_buf, 0); //92xx
+        if(ok == FALSE){
             continue;
         }
         mdelay(1);
         ok = hyn_wr_reg(hyn_92xxdata, 0xA002,  2, i2c_buf, 2);
-        if(ok == FALSE){
+        if(ok == FALSE || (i2c_buf[0]==0xA5 && i2c_buf[1]==0xA5)){
+            if(ok==TRUE && retry<4){ //miss boot win
+                retry++;
+                t = 10;
+            }
             continue;
         }
-        if ((i2c_buf[0] == 0x55) && (i2c_buf[1] == 0xB0)) {
+        if (i2c_buf[0] == 0x55 && (i2c_buf[1] == 0xB0 || i2c_buf[1] == 0xB2)) {
+            if(i2c_buf[1] == 0xB2){
+                chip_group_id = CHIP_93xx;
+            }
             break;
         }
     }
@@ -132,44 +152,35 @@ static int erase_all_mem(void)
 {
     int ok = FALSE,t;
     u8 i2c_buf[8];
-
+    if(chip_group_id == CHIP_93xx){
+        return 0;
+    }
 	//erase_all_mem
     ok = hyn_wr_reg(hyn_92xxdata, 0xA0140000, 4, i2c_buf, 0);
+    ok |= hyn_wr_reg(hyn_92xxdata, 0xA00C807F, 4, i2c_buf, 0);
+    ok |= hyn_wr_reg(hyn_92xxdata, 0xA004EC, 3, i2c_buf, 0);
     if (ok == FALSE){
         return FALSE;
     }
-    ok = hyn_wr_reg(hyn_92xxdata, 0xA00C807F, 4, i2c_buf, 0);
-    if (ok == FALSE){
-        return FALSE;
-    }
-    ok = hyn_wr_reg(hyn_92xxdata, 0xA004EC, 3, i2c_buf, 0);
-    if (ok == FALSE){
-        return FALSE;
-    }
-        
-    mdelay(300);
+    mdelay(400);
     for (t = 0;; t += 10) {
         if (t >= 1000) {
            return FALSE;
         }
-
         mdelay(10);
-
         ok = hyn_wr_reg(hyn_92xxdata, 0xA005, 2, i2c_buf, 1);
         if (ok == FALSE) {
             continue;
         }
-
         if (i2c_buf[0] == 0x88) {
             break;
         }
     }
-
     return TRUE;
 }
 
-
-static int write_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
+//
+static int write92xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 {
     int ok = FALSE,t;
     uint8_t i2c_buf[1024+2] = {0};
@@ -180,20 +191,15 @@ static int write_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
     i2c_buf[3] = len >> 8;
     //ok = hyn_i2c_write_r16(HYN_BOOT_I2C_ADDR, 0xA00C, i2c_buf, 2);
     ok = hyn_write_data(hyn_92xxdata, i2c_buf,RW_REG_LEN, 4);
-    if(ok == FALSE){
-         return FALSE;
-    }
-
 
     i2c_buf[0] = 0xA0;
     i2c_buf[1] = 0x14;
     i2c_buf[2] = addr;
     i2c_buf[3] = addr >> 8;
-    ok = hyn_write_data(hyn_92xxdata, i2c_buf,RW_REG_LEN, 4);
+    ok |= hyn_write_data(hyn_92xxdata, i2c_buf,RW_REG_LEN, 4);
     if(ok == FALSE) {
         return FALSE;
     }
-
 
     i2c_buf[0] = 0xA0;
     i2c_buf[1] = 0x18;
@@ -202,7 +208,6 @@ static int write_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
     if(ok == FALSE){
         return FALSE;
     }
-
 
     ok =  hyn_wr_reg(hyn_92xxdata,0xA004EE,3,i2c_buf,0);
     if(ok == FALSE){
@@ -213,181 +218,220 @@ static int write_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
         if (t >= 1000) {
             return FALSE;
         }
-
         mdelay(5);
-
         ok =  hyn_wr_reg(hyn_92xxdata,0xA005,2,i2c_buf,1);
-        if(ok == FALSE){
-            continue;
-        }        
-
-        if (i2c_buf[0] == 0x55) {
+        if (i2c_buf[0] == 0x55 && ok==TRUE) {
             break;
         }
     }
 
+    return TRUE;
+}
+
+static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
+{
+    int ok = FALSE,t;
+    uint16_t page_idx = addr/ct92xx_addr_tabl[chip_group_id].page_size;
+    uint8_t sram_buf[514] = {0};
+
+    sram_buf[0] = (page_idx&0x01) ? 0xA2:0xA0;//dev_addr;
+    sram_buf[1] = 0x18;
+    memcpy(sram_buf + 2, buf, len);            
+    ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, len+2);  //512 + 2 
+    if(ok == FALSE){
+        return FALSE;
+    }
+
+    memcpy(sram_buf,(u8[]){0xA0,0x14,0x00,0x00,0x00,0x50},6);
+    sram_buf[3] = page_idx * 2;
+    ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //addr
+
+    memcpy(sram_buf,(u8[]){0xA0,0x0C,0x00,0x02,0x00,0x00},6);
+    ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
+
+    memcpy(sram_buf,(u8[]){0xA0,0x0E,0x00, 0x00,0x00,0x00},6);
+    sram_buf[3] = (page_idx&0x01) ? 0x02:0x00;;
+    ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
+
+    ok |=  hyn_wr_reg(hyn_92xxdata, 0xA004EE, 3, NULL, 0);
+    if(ok == FALSE){
+        return FALSE;
+    }
+    mdelay(100);
+    for (t = 0;; t += 10) {
+        uint8_t i2c_buf[2] = {0};
+        if (t >= 1000) {
+            return FALSE;
+        }
+        mdelay(5);
+        ok =  hyn_wr_reg(hyn_92xxdata,0xA005,2,i2c_buf,1);      
+        if (i2c_buf[0] == 0x55 && ok==0) {
+            break; 
+        }
+    }
     return TRUE;
 }
 
 
 static int write_code(u8 *bin_addr,uint8_t retry)
 {
-    uint8_t data[HYNITRON_PROGRAM_PAGE_SIZE+4];//= (uint8_t *)bin_addr;
+    uint8_t data[512];//= (uint8_t *)bin_addr;
     uint16_t addr = 0;
-    uint16_t remain_len = CST92XX_BIN_SIZE;
-    int ret;
-   
+    uint16_t remain_len = ct92xx_addr_tabl[chip_group_id].bin_size;
+    uint16_t page_size = ct92xx_addr_tabl[chip_group_id].page_size;
+    int ret = 0;
+    int (*write_mem_page)(uint16_t addr, uint8_t *buf, uint16_t len);
+
+    write_mem_page = chip_group_id==CHIP_92xx ? write92xx_mem_page : write93xx_mem_page;
     while (remain_len > 0) {
         uint16_t cur_len = remain_len;
-        if (cur_len > HYNITRON_PROGRAM_PAGE_SIZE) {
-            cur_len = HYNITRON_PROGRAM_PAGE_SIZE;
+        if (cur_len > page_size) {
+            cur_len = page_size;
         }
         
         if(0 == hyn_92xxdata->fw_file_name[0]){
-            memcpy(data, bin_addr + addr, HYNITRON_PROGRAM_PAGE_SIZE);
+            memcpy(data, bin_addr + addr, page_size);
         }else{
-            ret = copy_for_updata(hyn_92xxdata,data,addr,HYNITRON_PROGRAM_PAGE_SIZE);
+            ret = copy_for_updata(hyn_92xxdata,data,addr,page_size);
             if(ret == FALSE){
                 HYN_ERROR("copy_for_updata error");
-                return FALSE;   
+                goto wite_end;
             }
         }
         //HYN_INFO("write_code addr 0x%x 0x%x",addr,*data);
         if (write_mem_page(addr, data, cur_len) ==  FALSE) {
-             return FALSE;
+            ret = -2;
+             goto wite_end;
         }
         //data += cur_len;
         addr += cur_len;
         remain_len -= cur_len;
     }
-    return TRUE;
+    if(chip_group_id==CHIP_93xx){ //ram to flash
+        ret  =  hyn_write_data(hyn_92xxdata, (u8[]){0xA0,0x0C,0x00,0x00,0x00,0x50}, RW_REG_LEN, 6);
+        ret |=  hyn_write_data(hyn_92xxdata, (u8[]){0xA0,0x10,0xFC,0x7D,0x00,0x50}, RW_REG_LEN, 6);
+        ret |=  hyn_write_data(hyn_92xxdata, (u8[]){0xA0,0x04,0xE0}, RW_REG_LEN, 3);
+    }
+    wite_end:
+    return ret;
 }
 
 
-static uint32_t cst92xx_read_checksum(void)
+static int cst923xx_read_checksum(u32*checksum)
 {
     int ok = FALSE;
     uint8_t i2c_buf[4] = {0};
-    uint32_t chip_checksum = 0;
-    uint8_t retry = 5;
+    uint8_t retry = 3 ,time_out = 0;
     
-    ok =  hyn_wr_reg(hyn_92xxdata,0xA00300,3,i2c_buf,0);
-    if (ok == FALSE) {
-        return FALSE;
-    }      
-    mdelay(2);    
-    while(retry--){
-        mdelay(5);
-        ok =  hyn_wr_reg(hyn_92xxdata,0xA000,2,i2c_buf,1);
-        if (ok == FALSE) {
+    while(--retry){
+        if(chip_group_id==CHIP_92xx){//92xx
+            ok =  hyn_wr_reg(hyn_92xxdata,0xA00300,3,i2c_buf,0);
+        }
+        else{ //93xx
+            ok =  hyn_wr_reg(hyn_92xxdata,0xA001A2,3,i2c_buf,0);
+            ok |=  hyn_wr_reg(hyn_92xxdata,0xA00355,3,i2c_buf,0);
+        }
+        if(ok){
             continue;
         }
-        if(i2c_buf[0]!=0) break;
+        mdelay(2); 
+        time_out = 5;
+        while(time_out--){
+            mdelay(5);
+            ok =  hyn_wr_reg(hyn_92xxdata,0xA000,2,i2c_buf,1);
+            if(ok ==0 && i2c_buf[0]!=0){ //92:0x01 93:0x88
+                break;
+            }
+            ok = -2;
+        }
+        ok |= hyn_wr_reg(hyn_92xxdata,0xA008,2,i2c_buf,4);
+        if(ok == 0){
+            *checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
+        }
     }
-
-    mdelay(1);
-     if(i2c_buf[0] == 0x01){
-        memset(i2c_buf,0,sizeof(i2c_buf));
-        ok =  hyn_wr_reg(hyn_92xxdata,0xA008,2,i2c_buf,4);
-        if (ok == FALSE) {
-            return FALSE;
-        }      
-        chip_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
-    else{
-        hyn_92xxdata->need_updata_fw = 1;
-    }
-
-    return chip_checksum;
+    return ok;
 }
 
 
-static int cst92xx_updata_fw(u8 *bin_addr, u32 len)
+static int cst923xx_updata_fw(u8 *bin_addr, u32 len)
 { 
-    #define CHECKSUM_OFFECT  (0x7F6C)
     int retry = 0;
-    int ok_copy = TRUE;
     int ok = FALSE;
     u8 i2c_buf[4];
-
+    u16 checksum_addr = ct92xx_addr_tabl[chip_group_id].check_sum_offset;
     u32 fw_checksum=0;
     HYN_ENTER();
 
-    if(len < CST92XX_BIN_SIZE){
+    if(len < ct92xx_addr_tabl[chip_group_id].bin_size){
         HYN_ERROR("len = %d",len);
         goto UPDATA_END;
     }
-    if(len > CST92XX_BIN_SIZE) len = CST92XX_BIN_SIZE;
+    if(len > ct92xx_addr_tabl[chip_group_id].bin_size) len = ct92xx_addr_tabl[chip_group_id].bin_size;
 
     if(0 != hyn_92xxdata->fw_file_name[0]){
         //node to update
-        ok = copy_for_updata(hyn_92xxdata,i2c_buf,CST92XX_BIN_SIZE-20,4);
+        ok = copy_for_updata(hyn_92xxdata,i2c_buf,checksum_addr,4);
         fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
         if(hyn_92xxdata->hw_info.ic_fw_checksum == fw_checksum || ok != 0){
              HYN_INFO("no update,fw_checksum is same:0x%04x",fw_checksum);
              goto UPDATA_END;
         }
     }else{
-        fw_checksum = U8TO32(bin_addr[CHECKSUM_OFFECT+3],bin_addr[CHECKSUM_OFFECT+2],bin_addr[CHECKSUM_OFFECT+1],bin_addr[CHECKSUM_OFFECT+0]);
+        fw_checksum = U8TO32(bin_addr[checksum_addr+3],bin_addr[checksum_addr+2],bin_addr[checksum_addr+1],bin_addr[checksum_addr+0]);
     }
     HYN_INFO("updating fw checksum:0x%04x",fw_checksum);
 
     hyn_irq_set(hyn_92xxdata,DISABLE);
     hyn_esdcheck_switch(hyn_92xxdata,DISABLE);
-    hyn_set_i2c_addr(hyn_92xxdata,BOOT_I2C_ADDR);
-    
+
     HYN_INFO("updata_fw start");
     for(retry = 1; retry<5; retry++){
         hyn_92xxdata->fw_updata_process = 0;
-        ok = cst92xx_enter_boot();
+        ok = cst923xx_enter_boot();
         if (ok == FALSE){
+            HYN_ERROR("updata enter boot faild");
             continue;
         }
         hyn_92xxdata->fw_updata_process = 10;
         ok = erase_all_mem();
         if (ok == FALSE){
+            HYN_ERROR("updata erase flash faild");
             continue;
         }
         hyn_92xxdata->fw_updata_process = 20;
         ok = write_code(bin_addr,retry);
         if (ok == FALSE){
+            HYN_ERROR("updata write flash faild");
             continue;
         }
         hyn_92xxdata->fw_updata_process = 30;
-        hyn_92xxdata->hw_info.ic_fw_checksum = cst92xx_read_checksum();
+        cst923xx_read_checksum(&hyn_92xxdata->hw_info.ic_fw_checksum);
         if(fw_checksum != hyn_92xxdata->hw_info.ic_fw_checksum){
             HYN_INFO("out data fw checksum err:0x%04x",hyn_92xxdata->hw_info.ic_fw_checksum);
             hyn_92xxdata->fw_updata_process |= 0x80;
+            ok = -4;   
             continue;
         }
-        hyn_92xxdata->fw_updata_process = 100;   
-        if(retry>=5){
-            ok_copy = FALSE;
+        else{
+            hyn_92xxdata->fw_updata_process = 100;
             break;
         }
-        break;
     }
 
     hyn_wr_reg(hyn_92xxdata,0xA006EE,3,i2c_buf,0); //exit boot
     mdelay(2);
 
 UPDATA_END:   
-    cst92xx_rst();
+    cst923xx_rst();
     mdelay(50);
-
     hyn_set_i2c_addr(hyn_92xxdata,MAIN_I2C_ADDR);   
-
-    if(ok_copy == TRUE){
-        cst92xx_updata_tpinfo();
-        HYN_INFO("updata_fw success");
+    if(ok == TRUE){
+        cst923xx_updata_tpinfo();
     }
-    else{
-        HYN_INFO("updata_fw failed");
-    }
-
     hyn_irq_set(hyn_92xxdata,ENABLE);
 
-    return ok_copy;
+    HYN_INFO("updata_fw %s",ok == TRUE  ? "success":"failed");
+    return ok;
 }
 
 static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
@@ -445,64 +489,27 @@ static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
 }
 
 
-
-
-// static int cst92xx_read_chip_id(void)
-// {
-//     int16_t ret = 0;
-//     uint8_t retry = 3;
-//     uint32_t partno_chip_type,module_id;
-
-//     ret = cst92xx_enter_boot();
-//     if (ret == FALSE)
-//     {
-//         HYN_ERROR("enter_bootloader error");
-//         return -1;
-//     }
-//     for (; retry > 0; retry--)
-//     {
-//         // partno
-//         ret = read_word_from_mem(1, 0x077C, &partno_chip_type);
-//         if (ret)
-//         {
-//             continue;
-//         }
-//         // module id
-//         ret = read_word_from_mem(0, 0x7FC0, &module_id);
-//         if (ret)
-//         {
-//             continue;
-//         }
-//         if ((partno_chip_type >> 16) == 0xCACA)
-//         {
-//             partno_chip_type &= 0xffff;
-//             break;
-//         }
-//     }
-//     cst92xx_rst();
-//     msleep(30);
-//     HYN_INFO("partno_chip_type: 0x%04x", partno_chip_type);
-//     HYN_INFO("module_id: 0x%04x", module_id);
-//     if ((partno_chip_type != 0x9217) && (partno_chip_type != 0x9220))
-//     {
-//         HYN_ERROR("partno_chip_type error 0x%04x", partno_chip_type);
-//         //return -1;
-//     }
-//     return 0;
-// }
-
-static int cst92xx_updata_tpinfo(void)
+static int cst923xx_updata_tpinfo(void)
 {
     u8 buf[30],retry=8;
     struct tp_info *ic = &hyn_92xxdata->hw_info;
     int ret = 0;
     hyn_92xxdata->boot_is_pass = 0;
     while(retry--){
-        cst92xx_set_workmode(0xff,DISABLE);
+        cst923xx_set_workmode(NOMAL_MODE,0); //wakeup ic
         ret = hyn_wr_reg(hyn_92xxdata,0xD101,2,buf,0);
         if(ret) continue;
-        ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,28);
-        if(ret == 0 && (buf[19]&0xf0) == 0x90){
+        // tx rx res
+        ret = hyn_wr_reg(hyn_92xxdata,0xD1F4,2,buf,8);     
+        // partno  projectid fw_ver
+        ret |= hyn_wr_reg(hyn_92xxdata,0xD204,2,buf+8,8);  
+        // module_id
+        ret |= hyn_wr_reg(hyn_92xxdata,0xD220,2,buf+16,4); 
+        // checksum
+        ret |= hyn_wr_reg(hyn_92xxdata,0xD228,2,buf+20,4); 
+        // chipid
+        ret |= hyn_wr_reg(hyn_92xxdata,0xD224,2,buf+24,4);
+        if(ret == 0 && buf[11]==buf[25] && buf[26]==0xCA && buf[27]==0xCA){
             break;
         }
         ret = -1;
@@ -512,61 +519,48 @@ static int cst92xx_updata_tpinfo(void)
          return FALSE;
     }
     hyn_92xxdata->boot_is_pass = 1;
-    ic->fw_project_id = ((uint16_t)buf[17] <<8) + buf[16];
-    ic->fw_chip_type = ((uint16_t)buf[19] <<8) + buf[18];
 
-    //firmware_version
-    ic->fw_ver = (buf[23]<<24)|(buf[22]<<16)|(buf[21]<<8)|buf[20];
-
+    if(buf[11]==0x93 || buf[11]==0x32){ 
+        chip_group_id = CHIP_93xx;
+    }
     //tx_num   rx_num   key_num
     ic->fw_sensor_txnum = ((uint16_t)buf[1]<<8) + buf[0];
     ic->fw_sensor_rxnum = buf[2];
     ic->fw_key_num = buf[3];
-
     ic->fw_res_y = (buf[7]<<8)|buf[6];
     ic->fw_res_x = (buf[5]<<8)|buf[4];
 
+    //firmware_version
+    ic->fw_project_id = ((uint16_t)buf[9] <<8) + buf[8];
+    ic->fw_chip_type = ((uint16_t)buf[11] <<8) + buf[10];
+    ic->fw_ver = (buf[15]<<24)|(buf[14]<<16)|(buf[13]<<8)|buf[12];
+
+    //module_id
+    ic->fw_module_id = U8TO32(buf[19],buf[18],buf[17],buf[16]);
+
     //fw_checksum
-    ic->ic_fw_checksum = (buf[27]<<24)|(buf[26]<<16)|(buf[25]<<8)|buf[24];
+    ic->ic_fw_checksum = (buf[23]<<24)|(buf[22]<<16)|(buf[21]<<8)|buf[20];
 
-    retry = 4;
-    while(retry--){
-        cst92xx_set_workmode(0xff,DISABLE);
-        ret = hyn_wr_reg(hyn_92xxdata,0xD220,2,buf,8);
-        if(ret==0 && buf[6]== 0xCA && buf[7]== 0xCA){
-            break;
-        }
-        ret = 1;
-    }
-    if(ret == 0){
-        ic->fw_module_id = U8TO32(buf[3],buf[2],buf[1],buf[0]);
-    }
-    else{
-        HYN_ERROR("read module_id from fw faild ! %x,%x",buf[6],buf[7]);
-    }
-
-    HYN_INFO("IC_info project_id:%04x ictype:%04x fw_ver:%x checksum:%#x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver,ic->ic_fw_checksum);
+    HYN_INFO("ic tx_num:%d rx_num:%d res_x:%d res_y:%d",ic->fw_sensor_txnum,ic->fw_sensor_rxnum,ic->fw_res_x,ic->fw_res_y);
+    HYN_INFO("IC_info project_id:%#04x ictype:%#04x fw_ver:%#04x checksum:%#x",ic->fw_project_id,ic->fw_chip_type,ic->fw_ver,ic->ic_fw_checksum);
    
-    cst92xx_set_workmode(NOMAL_MODE,ENABLE);
+    cst923xx_set_workmode(NOMAL_MODE,ENABLE);
    
-    return ret;
+    return 0;
 }
 
-static int cst92xx_updata_judge(u8 *p_fw, u16 len)
+static int cst923xx_updata_judge(u8 *p_fw, u16 len)
 {
     u32 f_checksum,f_fw_ver,f_ictype,f_fw_project_id;
-    u8 *p_data = p_fw + len - 28;   //7F64
+    u8 *p_data = p_fw + len - 28; 
     struct tp_info *ic = &hyn_92xxdata->hw_info;
 
     f_fw_project_id = U8TO16(p_data[1],p_data[0]);
     f_ictype = U8TO16(p_data[3],p_data[2]);
+    f_fw_ver = U8TO32(p_data[7],p_data[6],p_data[5],p_data[4]);
 
-    f_fw_ver = U8TO16(p_data[7],p_data[6]);
-    f_fw_ver = (f_fw_ver<<16)|U8TO16(p_data[5],p_data[4]);
-
-    f_checksum = U8TO16(p_data[11],p_data[10]);
-    f_checksum = (f_checksum << 16)|U8TO16(p_data[9],p_data[8]);
-
+    p_data = p_fw + ct92xx_addr_tabl[chip_group_id].check_sum_offset;
+    f_checksum = U8TO32(p_data[3],p_data[2],p_data[1],p_data[0]);
 
     HYN_INFO("Bin_info project_id:0x%04x ictype:0x%04x fw_ver:0x%x checksum:0x%x",f_fw_project_id,f_ictype,f_fw_ver,f_checksum);
     if(
@@ -576,13 +570,13 @@ static int cst92xx_updata_judge(u8 *p_fw, u16 len)
         HYN_INFO("need update!");
         return 1; //need updata
     }
-    HYN_INFO("cst92xx_updata_judge done, no need update");
+    HYN_INFO("cst923xx_updata_judge done, no need update");
     return 0;
 }
 
 //------------------------------------------------------------------------------//
 
-static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
+static int cst923xx_set_workmode(enum work_mode mode,u8 enable)
 {
     int ok = FALSE;
     uint8_t i2c_buf[4] = {0};
@@ -597,7 +591,7 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
         }     
     }    
     hyn_esdcheck_switch(hyn_92xxdata,enable);
-    msleep(1); //trig task switch
+    msleep(1);
     switch(mode){
         case NOMAL_MODE:
             ok = hyn_wr_reg(hyn_92xxdata,0xD109,2,NULL,0);
@@ -621,12 +615,19 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
         case CHARGE_EXIT:
         case CHARGE_ENTER:
             hyn_92xxdata->charge_is_enable = mode&0x01;
-            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD01F:0xD020,2,0,0); //charg mode
+            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD133:0xD132,2,0,0); //charg mode
             mode = hyn_92xxdata->work_mode; //not switch work mode
             HYN_INFO("set_charge:%d",hyn_92xxdata->charge_is_enable);
             break;
+        case GLOVE_EXIT:
+        case GLOVE_ENTER:
+            hyn_92xxdata->glove_is_enable = mode&0x01;
+            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD131:0xD130,2,0,0); //glove mode
+            mode = hyn_92xxdata->work_mode; //not switch work mode
+            HYN_INFO("set_glove:%d",hyn_92xxdata->glove_is_enable);
+            break;
         case ENTER_BOOT_MODE:
-            ok = cst92xx_enter_boot();
+            ok = cst923xx_enter_boot();
             break;
         case DEEPSLEEP:
             hyn_wr_reg(hyn_92xxdata,0xD105,2,NULL,0);
@@ -643,7 +644,7 @@ static int cst92xx_set_workmode(enum work_mode mode,u8 enable)
     return ok;
 }
 
-static void cst92xx_rst(void)
+static void cst923xx_rst(void)
 {
     if(hyn_92xxdata->work_mode==ENTER_BOOT_MODE){
         hyn_set_i2c_addr(hyn_92xxdata,MAIN_I2C_ADDR);
@@ -653,23 +654,23 @@ static void cst92xx_rst(void)
     gpio_set_value(hyn_92xxdata->plat_data.reset_gpio,1);
 }
 
-static int cst92xx_supend(void)
+static int cst923xx_supend(void)
 {
     HYN_ENTER();
-    cst92xx_set_workmode(DEEPSLEEP,0);
+    cst923xx_set_workmode(DEEPSLEEP,0);
     return 0;
 }
 
-static int cst92xx_resum(void)
+static int cst923xx_resum(void)
 {
-    cst92xx_rst();
+    cst923xx_rst();
     msleep(50);
-    cst92xx_set_workmode(NOMAL_MODE,1);
+    cst923xx_set_workmode(NOMAL_MODE,1);
     return 0;
 }
 
 
-static int cst92xx_report(void)
+static int cst923xx_report(void)
 {
     int ret = FALSE;
     uint8_t i2c_buf[MAX_FINGER*5+5] = {0};
@@ -773,7 +774,7 @@ static int cst92xx_report(void)
 }
 
 
-static u32 cst92xx_check_esd(void)
+static u32 cst923xx_check_esd(void)
 {
     int ok = FALSE;
     uint8_t i2c_buf[6], retry;
@@ -801,13 +802,13 @@ static u32 cst92xx_check_esd(void)
 }
 
 
-static int cst92xx_prox_handle(u8 cmd)
+static int cst923xx_prox_handle(u8 cmd)
 {
     return TRUE;
 }
 
 
-static int cst92xx_get_dbg_data(u8 *buf, u16 len)
+static int cst923xx_get_dbg_data(u8 *buf, u16 len)
 {
     int ret = -1;  
     u16 read_len = (hyn_92xxdata->hw_info.fw_sensor_txnum * hyn_92xxdata->hw_info.fw_sensor_rxnum)*2;
@@ -840,7 +841,7 @@ static int cst92xx_get_dbg_data(u8 *buf, u16 len)
 }
 
 
-static int cst92xx_get_test_result(u8 *buf, u16 len)
+static int cst923xx_get_test_result(u8 *buf, u16 len)
 {
     int ret = 0;
     struct tp_info *ic = &hyn_92xxdata->hw_info;
@@ -904,22 +905,22 @@ static int cst92xx_get_test_result(u8 *buf, u16 len)
     }
 
 selftest_end:
-    cst92xx_resum();
+    cst923xx_resum();
     return ret;
 }
 
-const struct hyn_ts_fuc cst92xx_fuc = {
-    .tp_rest = cst92xx_rst,
-    .tp_report = cst92xx_report,
-    .tp_supend = cst92xx_supend,
-    .tp_resum = cst92xx_resum,
-    .tp_chip_init = cst92xx_init,
-    .tp_updata_fw = cst92xx_updata_fw,
-    .tp_set_workmode = cst92xx_set_workmode,
-    .tp_check_esd = cst92xx_check_esd,
-    .tp_prox_handle = cst92xx_prox_handle,
-    .tp_get_dbg_data = cst92xx_get_dbg_data,
-    .tp_get_test_result = cst92xx_get_test_result
+const struct hyn_ts_fuc cst923xx_fuc = {
+    .tp_rest = cst923xx_rst,
+    .tp_report = cst923xx_report,
+    .tp_supend = cst923xx_supend,
+    .tp_resum = cst923xx_resum,
+    .tp_chip_init = cst923xx_init,
+    .tp_updata_fw = cst923xx_updata_fw,
+    .tp_set_workmode = cst923xx_set_workmode,
+    .tp_check_esd = cst923xx_check_esd,
+    .tp_prox_handle = cst923xx_prox_handle,
+    .tp_get_dbg_data = cst923xx_get_dbg_data,
+    .tp_get_test_result = cst923xx_get_test_result
 };
 
 

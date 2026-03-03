@@ -588,9 +588,9 @@ static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
         }
     }
     p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
-    memcpy(flag, p_data, 4);
-    if(flag[3] != 0xCA && flag[2] != 0xCA && flag[1] != 0xCA && flag[0] > 114)
-        HYN_ERROR("get flag failed");
+    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[1] != 0xCA || p_data[0] > 114){
+        HYN_ERROR("get lens failed");
+    }
     
     hyn_76xxdata->fw_block_cnt   = flag[0] * 2 + 4;
     hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
@@ -857,14 +857,13 @@ static int cst76xx_updata_fw(u8 *bin_addr, u32 len)
     int ret = -1, retry_fw= 4; 
     u32 fw_checksum = 0;
     u8 *p_data = bin_addr + 0x0A00;
-    u8 flag[4];
     HYN_ENTER();
     // HYN_INFO("len = %d ",len);
-    memcpy(flag, p_data, 4);
-    if(flag[3] != 0xCA && flag[2] != 0xCA && flag[1] != 0xCA && flag[0] > 114)
-        HYN_ERROR("get flag failed");
-    
-    hyn_76xxdata->fw_block_cnt   = flag[0] * 2 + 4;
+    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[1] != 0xCA || p_data[0] > 114){
+        HYN_ERROR("get lens failed");
+    }
+        
+    hyn_76xxdata->fw_block_cnt   = p_data[0] * 2 + 4;
     hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
     len = hyn_76xxdata->fw_updata_len;
 
