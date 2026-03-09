@@ -125,17 +125,17 @@ static int cst923xx_init(struct hyn_ts_data* ts_data)
 
 static int  cst923xx_enter_boot(void)
 {
+    #define START_MS    (6) //6ms
     int ok = FALSE,t,retry = 0;
     uint8_t i2c_buf[4] = {0};
     hyn_set_i2c_addr(hyn_92xxdata,BOOT_I2C_ADDR);
-    for (t = 6;; t += 2)
+    for (t = START_MS;; t += 2)
     {
         if(t >= 30){
             return FALSE;
         }
         cst923xx_rst();
-        mdelay(t-retry);
-        // 
+        mdelay(t);
         ok = hyn_wr_reg(hyn_92xxdata, 0xA001A2, 3, i2c_buf, 0); //93xx
         ok |= hyn_wr_reg(hyn_92xxdata, 0xA001AA, 3, i2c_buf, 0); //92xx
         if(ok == FALSE){
@@ -146,7 +146,7 @@ static int  cst923xx_enter_boot(void)
         if(ok == FALSE || (i2c_buf[0]==0xA5 && i2c_buf[1]==0xA5)){
             if(ok==TRUE && retry<4){ //miss boot win
                 retry++;
-                t = 10;
+                t = START_MS-2-retry;
             }
             continue;
         }
@@ -631,14 +631,14 @@ static int cst923xx_set_workmode(enum work_mode mode,u8 enable)
         case CHARGE_EXIT:
         case CHARGE_ENTER:
             hyn_92xxdata->charge_is_enable = mode&0x01;
-            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD133:0xD132,2,0,0); //charg mode
+            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD11f:0xD120,2,0,0); //charg mode
             mode = hyn_92xxdata->work_mode; //not switch work mode
             HYN_INFO("set_charge:%d",hyn_92xxdata->charge_is_enable);
             break;
         case GLOVE_EXIT:
         case GLOVE_ENTER:
             hyn_92xxdata->glove_is_enable = mode&0x01;
-            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD131:0xD130,2,0,0); //glove mode
+            ok = hyn_wr_reg(hyn_92xxdata,(mode&0x01)? 0xD126:0xD127,2,0,0); //glove mode
             mode = hyn_92xxdata->work_mode; //not switch work mode
             HYN_INFO("set_glove:%d",hyn_92xxdata->glove_is_enable);
             break;
