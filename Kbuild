@@ -368,6 +368,16 @@ ifneq ($(CONFIG_ARCH_PINEAPPLE), y)
 
 			obj-$(CONFIG_MSM_TOUCH) += raydium_ts.o
 	endif
+	ifeq ($(CONFIG_TOUCHSCREEN_GT9XX), y)
+		LINUX_INC += -include $(TOUCH_ROOT)/gt9xx/gt9xx.h
+
+		gt9xx-ts-y := \
+			./gt9xx/gt9xx.o \
+			./gt9xx/gt9xx_update.o \
+			./gt9xx/goodix_tool.o
+
+			obj-$(CONFIG_MSM_TOUCH) += gt9xx-ts.o
+	endif
 
 	ifeq ($(CONFIG_TOUCHSCREEN_GT9XX), y)
 		LINUX_INC += -include $(TOUCH_ROOT)/gt9xx/gt9xx.h
