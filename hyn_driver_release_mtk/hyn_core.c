@@ -626,6 +626,7 @@ static int hyn_ts_probe(struct spi_device *client)
     tpd_gpio_as_int(ts_data->plat_data.irq_gpio);
     ts_data->gpio_irq = irq_of_parse_and_map(node, 0);
     HYN_INFO("ts_data->gpio_irq = %d",ts_data->gpio_irq);
+	ts_data->client->irq = ts_data->gpio_irq;
     ts_data->plat_data.irq_gpio_flags = IRQF_TRIGGER_FALLING;
     ret = request_irq(ts_data->gpio_irq,hyn_irq_handler,
                                 (IRQF_TRIGGER_FALLING | IRQF_ONESHOT), HYN_DRIVER_NAME, ts_data);

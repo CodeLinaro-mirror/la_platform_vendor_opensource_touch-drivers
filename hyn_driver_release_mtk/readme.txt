@@ -45,10 +45,16 @@ hynitron_touch-objs += hyn_chips/hyn_cst840u.o
 
 
 4、sys节点操作
+0、调试节点路径
+    adb shell find /sys/devices/platform/soc/ -name  "hyn*"
+	
 1、升级
-    通过文件升级
+    通过文件(需要kernel fs权限)升级
     adb push xxx.bin /sdcard/app.bin
     adb shell "cd /sys/devices/platform/xxxx/i2c-7/7-005a echo fd>./hyntpdbg && cat ./hyntpfwver"
+		如果是自定义路径 user_ph/app.bin
+			adb shell "cd /sys//sys/devices/platform/soc/xxx && echo "fd user_ph/app.bin">hyntpdbg && cat hyntpfwver"
+	
     通过dump升级(GKI version)
     adb root
     adb push xxx.bin /sdcard/app.bin
@@ -56,36 +62,40 @@ hynitron_touch-objs += hyn_chips/hyn_cst840u.o
     
 2、write 
     eg:写 d1 01 02 03 04
-    echo w d1 01 02 03 04 >/sys/hynitron_debug/hyntpdbg
+    echo w d1 01 02 03 04 >hyntpdbg
+	
 3、read
     eg 读 20 byte
-    echo r 20 >/sys/hynitron_debug/hyntpdbg && cat /sys/hynitron_debug/hyntpdbg
+    echo r 20 >hyntpdbg && cat hyntpdbg
+	
 3、read reg （max reg长度4 byte max read 256 byte）
     eg:写 d1 01 读 2 byte
-    echo w d1 01 r 2 >/sys/hynitron_debug/hyntpdbg && cat /sys/hynitron_debug/hyntpdbg
+    echo w d1 01 r 2 >hyntpdbg && cat hyntpdbg
     eg:写 d1 01 02 03 读 20 byte
-    echo w d1 01 02 03 r 20 >/sys/hynitron_debug/hyntpdbg && cat /sys/hynitron_debug/hyntpdbg
-    如果reg 不变可以直接用 cat /sys/hynitron_debug/hyntpdbg 读（reg沿用上次的操作）
+    echo w d1 01 02 03 r 20 >hyntpdbg && cat hyntpdbg
+    如果reg 不变可以直接用 cat hyntpdbg 读（reg沿用上次的操作）
+	
 4、调试log debug
-    echo 7>/proc/sys/kernel/printk
-    echo log,3>/sys/hynitron_debug/hyntpdbg
+    echo 7 >/proc/sys/kernel/printk
+    echo log,3>hyntpdbg
 
 5、读版TP_FW本号
-    cat /sys/hynitron_debug/hyntpfwver
+    cat hyntpfwver
 
 6、tp0 自测(需要提前准备自测配置文件)
-    cat /sys/hynitron_debug/hynselftest
+    在应用层提供节点获取数据，避免kernel 操作fs权限问题
 
 7、充电模式进入和退出
     enter：
-    echo c1>/sys/hynitron_debug/hynswitchmode
+    echo c1>hynswitchmode
     exit：
-    echo c0>/sys/hynitron_debug/hynswitchmode
+    echo c0>hynswitchmode
+	
 8、手套模式进入和退出
     enter：
-    echo g1>/sys/hynitron_debug/hynswitchmode
+    echo g1>hynswitchmode
     exit：
-    echo g0>/sys/hynitron_debug/hynswitchmode
+    echo g0>hynswitchmode
 
 
 
