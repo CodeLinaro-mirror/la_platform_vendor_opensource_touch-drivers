@@ -104,7 +104,6 @@ static int cst923xx_init(struct hyn_ts_data* ts_data)
     if(ret==0){
         hyn_92xxdata->need_updata_fw = cst923xx_updata_judge(hyn_92xxdata->fw_updata_addr,hyn_92xxdata->fw_updata_len);
     }
-    hyn_92xxdata->need_updata_fw =1;
     HYN_INFO("cst923xx_init done !!!");
     return TRUE;
 }

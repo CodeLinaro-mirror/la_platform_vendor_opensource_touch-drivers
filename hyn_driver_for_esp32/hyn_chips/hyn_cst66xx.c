@@ -707,7 +707,7 @@ static int cst66xx_get_test_result(u8 *buf, u16 len)
         goto TEST_ERRO;
     }
     rbuf += mt_len;
-    if(get_fac_test_data(0xD0002300,rbuf,st_len,1)){ //read short test data
+    if(get_fac_test_data(0xD0002300,rbuf,st_len,0)){ //read short test data
         HYN_ERROR("read fac short failed");
         goto TEST_ERRO;
     }
