@@ -1,5 +1,4 @@
 #include "../hyn_core.h"
-#include "cst7xx_fw.h"
 
 #define CUSTOM_SENSOR_NUM  	(20)
 
@@ -21,7 +20,8 @@ static int cst7xx_set_workmode(enum work_mode mode,u8 enable);
 static void cst7xx_rst(void);
 static int write_flash_page(u16 addr,u8 *bin, u8 delay);
 static int cst7xx_get_id(u32 *result);
-
+#if HYN_POWER_ON_UPDATA
+#include "cst7xx_fw.h"
 static const struct hyn_chip_series cst7xx_fw_list[] = {
 //--null--id---name--------bin
     {0,0xff,"module1",(u8*)fw_bin_1},  //default bin
@@ -84,6 +84,20 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
     }
     return TRUE;
 }
+
+#else
+static int cst7xx_init(struct hyn_ts_data* ts_data)
+{
+    int ret = 0;
+    hyn_7xxdata = ts_data;
+    cst7xx_rst();
+    mdelay(50);
+    hyn_set_i2c_addr(hyn_7xxdata,MAIN_I2C_ADDR);
+    ret = cst7xx_updata_tpinfo();
+    ret |= cst7xx_set_workmode(NOMAL_MODE,0);
+    return ret;
+}
+#endif
 
 
 static int cst7xx_get_id(u32 *result)
