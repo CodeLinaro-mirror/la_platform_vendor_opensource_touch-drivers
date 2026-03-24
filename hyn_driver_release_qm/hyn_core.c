@@ -1073,8 +1073,8 @@ static void __exit hyn_ts_exit(void)
 #endif
 }
 
-//late_initcall(hyn_ts_init);
-module_init(hyn_ts_init);
+late_initcall(hyn_ts_init);
+// module_init(hyn_ts_init);
 module_exit(hyn_ts_exit);
 
 MODULE_AUTHOR("Hynitron Driver Team");
