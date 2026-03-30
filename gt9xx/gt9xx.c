@@ -410,7 +410,7 @@ u8 gtp_get_points(struct goodix_ts_data *ts, struct goodix_point_t *points,
 			GTP_SWAP(points[i].x, points[i].y);
 
 		/* TODO: Following code only for debug use */
-		points[i].y = ts->pdata->abs_size_y - points[i].y;
+		//points[i].y = ts->pdata->abs_size_y - points[i].y;
 		//dev_info(&ts->client->dev, "[%d][%d %d %d]\n",
 		//	 points[i].id, points[i].x, points[i].y, points[i].p);
 
