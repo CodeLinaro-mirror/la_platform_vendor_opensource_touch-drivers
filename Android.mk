@@ -76,7 +76,7 @@ KBUILD_OPTIONS += $(TOUCH_SELECT)
 ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
        ifeq ($(TARGET_KERNEL_DLKM_TOUCH_OVERRIDE), false)
                TOUCH_DLKM_ENABLE := false
-               ifneq ($(filter $(TARGET_BOARD_PLATFORM), monaco vienna shikra),$(TARGET_BOARD_PLATFORM))
+               ifneq ($(filter $(TARGET_BOARD_PLATFORM), hamoa_la monaco vienna shikra),$(TARGET_BOARD_PLATFORM))
                      # build dummy_ts.ko
                      include $(CLEAR_VARS)
                      LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
