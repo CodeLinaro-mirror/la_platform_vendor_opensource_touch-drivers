@@ -927,7 +927,7 @@ static void syna_dev_release_irq(struct syna_tcm *tcm)
 		hw->ops_enable_attn(hw, false);
 
 #ifdef DEV_MANAGED_API
-	disable_irq_nosync(attn->irq_id);
+	disable_irq(attn->irq_id);
 #else
 	free_irq(attn->irq_id, tcm);
 #endif
