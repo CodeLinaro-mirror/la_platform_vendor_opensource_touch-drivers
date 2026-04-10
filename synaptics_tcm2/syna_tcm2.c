@@ -1439,6 +1439,13 @@ static int syna_dev_resume(struct device *dev)
 	/* clear all input events  */
 	syna_dev_free_input_events(tcm);
 
+#ifdef CONFIG_ARCH_QTI_VM
+	LOGI("TVM mode: Skip hardware operations in resume\n");
+	tcm->pwr_state = PWR_ON;
+
+	return 0;
+#endif
+
 #ifdef LOW_POWER_MODE
 	/* enter normal power mode */
 	retval = syna_dev_enter_normal_sensing(tcm);
@@ -1537,6 +1544,13 @@ static int syna_dev_suspend(struct device *dev)
 
 	/* clear all pending commands */
 	syna_tcm_clear_command_processing(tcm->tcm_dev);
+
+#ifdef CONFIG_ARCH_QTI_VM
+	LOGI("TVM mode: Skip hardware operations in suspend\n");
+
+	tcm->pwr_state = PWR_OFF;
+	return 0;
+#endif
 
 #ifdef LOW_POWER_MODE
 	/* enter power saved mode */
