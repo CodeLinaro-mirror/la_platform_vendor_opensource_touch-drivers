@@ -145,7 +145,7 @@ def define_art(t,v):
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
-            "CONFIG_ARCH_CANOE",
+            "CONFIG_ARCH_ART",
             "CONFIG_MSM_TOUCH",
             "CONFIG_TOUCHSCREEN_GOODIX_BRL",
             "CONFIG_TOUCHSCREEN_ATMEL_MXT",
@@ -156,19 +156,44 @@ def define_art(t,v):
         ],
 )
 
+def define_artvm(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "goodix_ts",
+            "st_fts",
+            "focaltech_fts",
+            "synaptics_tcm2_ts",
+            "qts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_ART",
+        ],
+        vm_target = True,
+)
+
 def define_bengal(t,v):
     define_target_variant_modules(
         target = t,
         variant = v,
         registry = touch_driver_modules,
         modules = [
-            "synaptics_tcm_ts"
+            "synaptics_tcm_ts",
+            "nt36xxx-i2c",
+            "qts"
+
+
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
             "CONFIG_MSM_TOUCH",
             "CONFIG_ARCH_BENGAL",
             "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM",
+            "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
+            "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_DUMMY"
         ],
 )
@@ -367,6 +392,12 @@ def define_touch_target():
         elif t == "vienna":
             define_vienna(t, v)
         elif t == "art":
+            define_art(t, v)
+        elif t == "art-tuivm":
+            define_artvm(t, v)
+        elif t == "art-oemvm":
+            define_artvm(t, v)
+        elif t == "art16k":
             define_art(t, v)
         else:
             pass
