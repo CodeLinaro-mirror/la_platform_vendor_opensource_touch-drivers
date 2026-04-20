@@ -2,7 +2,7 @@
 # Goodix touchscreen driver configuration
 #
 menuconfig TOUCHSCREEN_GOODIX_BRL
-	tristate "Goodix berlin touchscreen"
+	tristate "Goodix Berlin Touchscreen"
 	help
 	  Say Y here if you have a Goodix berlin series touch controller
 	  to your system.
@@ -13,8 +13,13 @@ menuconfig TOUCHSCREEN_GOODIX_BRL
 if TOUCHSCREEN_GOODIX_BRL
 
 config TOUCHSCREEN_GOODIX_BRL_SPI
-	bool "support SPI bus connection" 
+	bool "enable SPI connection" 
 	help
 		Say Y here if the touchscreen is connected via SPI bus.
+
+config TOUCHSCREEN_GOODIX_BRL_I2C
+	bool "enable I2C connection" 
+	help
+		Say Y here if the touchscreen is connected via I2C bus.		
 
 endif

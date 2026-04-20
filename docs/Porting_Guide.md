@@ -2,24 +2,35 @@
 
 ## **Introduce**
 
-Berlin series driver is currently support BerlinA(GT9897), BerlinB(GT9966), BerlinD(GT9916), Nottingham(GT9895). And support I2C or SPI connection.
+* Support I2C or SPI connection.
+* Support multi devices online at the same time.
+* List of supported chips:
+  * BerlinA(GT9897)
+  * BerlinB(GT9966)
+  * BerlinD(GT9916)
+  * Nottingham(GT9895)
+  * Marseille(GT9615)
+  * AtlantaB(GT9926)
+  * SanJoseC(GT9976)
 
 ## **Driver source file prepare**
 
-1. Move driver source code to $KERNEL_SRC/drivers/input/touchscree/
-2. Change $KERNEL_SRC/drivers/input/touchscree/Makefile  
- Add this line to the Makefile
+1. Move driver source code to `$KERNEL_SRC/drivers/input/touchscree/`
+2. Change `$KERNEL_SRC/drivers/input/touchscree/Makefile` 
 
- ```makefile
- obj-y += goodix_berlin_driver/
- ```
+    Add this line to the Makefile
 
-3. Change $KERNEL_SRC/drivers/input/touchscree/Kconfg
- Add this line to the Kconfig
+    ```makefile
+    obj-y += goodix_berlin_driver/
+    ```
 
- ```conf
- source "drivers/input/touchscreen/goodix_berlin_driver/Kconfig"
- ```
+3. Change `$KERNEL_SRC/drivers/input/touchscree/Kconfg`
+
+    Add this line to the Kconfig
+
+    ```conf
+    source "drivers/input/touchscreen/goodix_berlin_driver/Kconfig"
+    ```
 
 ## **Add device declaration in the board devicetree**
 
@@ -57,154 +68,88 @@ you are on SPI connection, select `<*>`, or on I2C connection.
  CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI=y
  ```
 
+3. If you are on I2C connection, add the following.
+
+ ```conf
+ CONFIG_TOUCHSCREEN_GOODIX_BRL_I2C=y
+ ```
+
 ## **Appendix**
 
-### **goodix-ts-i2c-dtsi**
+### **I2C DTS**
 
 ```dts
-devicetree binding for Goodix i2c touchdriver
-Required properties:
-- compatible: device & driver matching.
- * for berlin series touch device, souch as "goodix,brl-a", "goodix,brl-b", "brl_nottingham"
-
-- reg: i2c client address, value can be 0x14 or 0x5d. please refer to datasheet.
-- goodix,reset-gpio: reset gpio.
-- goodix,irq-gpio: interrupt gpio. 
-- goodix,irq-flags: irq trigger type config, value should be:
-           1 - rising edge,
-           2 - falling edge,
-           4 - high level,
-           5 - low level.
-- goodix,panel-max-x: max resolution of x direction.
-- goodix,panel-max-y: max resolution of y direction.
-- goodix,panel-max-w: panel max width value.
-- goodix,panel-max-p: pen device max pressure value.
-
-Optional properties:
-- goodix,avdd-name: set name of regulator.
-- avdd-supply: power supply for the touch device.
-  example of regulator:
- goodix,avdd-name = "avdd";
- avdd-supply = <&pm8916_l15>;
-- iovdd-supply: power supply for digital io circuit
-  example of regulator:
- goodix,iovdd-name = "iovdd";
- iovdd-supply = <&pm8916_l16>;
-- goodix,pen-enable: set this property if you want support stylus.
- goodix,pen-enable;
-- goodix,sleep-enable: If set this property, it will enter sleep mode instead of power off.
-- goodix,firmware-name: set firmware file name, if not configured, use the default name.
-- goodix,config-name: set config file name, if not configured, use the default name.
-Example 1:
 goodix-berlin@5d {
- compatible = "goodix,brl-a";
-  reg = <0x5d>;
+  /*
+    compatible name:
+    9897 select goodix,brl-a
+    9966 select goodix,brl-b
+    9916 select goodix,brl-d
+    9895 select goodix,nottingham
+    9615 select goodix,marseille
+    9926 select goodix,atb
+    9976 select goodix,brl-b
+  */
+  compatible = "goodix,brl-a";
+  goodix,avdd-name = "avdd";
+  avdd-supply = <&pm8916_l15>;
+  goodix,iovdd-name = "iovdd";
+  iovdd-supply = <&pm8916_l16>;
+
+  reg = <0x5d>; /* i2c slave addr */
   goodix,reset-gpio = <&msm_gpio 12 0x0>;
   goodix,irq-gpio = <&msm_gpio 13 0x0>;
   goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
   goodix,panel-max-x = <720>;
   goodix,panel-max-y = <1280>;
   goodix,panel-max-w = <255>;
-};
 
-Example 2:
-goodix-berlin@5d {
- compatible = "goodix,brl-b";
- goodix,avdd-name = "avdd";
- avdd-supply = <&pm8916_l15>;
- goodix,iovdd-name = "iovdd";
- iovdd-supply = <&pm8916_l16>;
-
- reg = <0x5d>;
- goodix,reset-gpio = <&msm_gpio 12 0x0>;
- goodix,irq-gpio = <&msm_gpio 13 0x0>;
- goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
- goodix,panel-max-x = <720>;
- goodix,panel-max-y = <1280>;
- goodix,panel-max-w = <255>;
-
- /* optional properties */
- goodix,panel-max-p = <4096>; /* max pressure that pen device supported */
- goodix,pen-enable; /* support active stylus device */
- goodix.sleep-enable; /* enter sleep mode */
- goodix,firmware-name = "goodix_firmware.bin";
- goodix,config-name = "goodix_cfg_group.bin";
+  /* optional properties */
+  goodix,panel-max-p = <4096>; /* max pressure that pen device supported */
+  goodix,pen-enable; /* support active stylus device */
+  goodix,sleep-enable; /* enter sleep mode when screen off */
+  goodix,esd-enable;  /* enable esd function */
+  goodix,firmware-name = "goodix_firmware.bin"; /* set firmware name */
+  goodix,config-name = "goodix_cfg_group.bin"; /* set config name */
 };
 ```
 
-### **goodix-ts-spi-dtsi**
+### **SPI DTS**
 
 ```dts
-devicetree binding for Goodix spi touchdriver
-
-Required properties:
-- compatible: device & driver matching.
- * for berlin series touch device, souch as "goodix,brl-a"
-
-- spi-max-frequency: set spi transfer speed.
-- reg: depend on CS gpio.
-- goodix,reset-gpio: reset gpio.
-- goodix,irq-gpio: interrupt gpio.
-- goodix,irq-flags: irq trigger type config, value should be:
-           1 - rising edge,
-           2 - falling edge,
-           4 - high level,
-           5 - low level.
-- goodix,panel-max-x: max resolution of x direction.
-- goodix,panel-max-y: max resolution of y direction.
-- goodix,panel-max-w: panel max width value.
-- goodix,panel-max-p: pen device max pressure value.
-
-Optional properties:
-- goodix,avdd-name: set name of regulator.
-- avdd-supply: power supply for the touch device.
-  example of regulator:
- goodix,avdd-name = "avdd";
- avdd-supply = <&pm8916_l15>;
-- iovdd-supply: power supply for digital io circuit
-  example of regulator:
- goodix,iovdd-name = "iovdd";
- iovdd-supply = <&pm8916_l16>;
-- goodix,pen-enable: set this property if you want support stylus.
- goodix,pen-enable;
-- goodix,firmware-name: set firmware file name, if not configured, use the default name.
-- goodix,config-name: set config file name, if not configured, use the default name. 
-Example 1:
 goodix-berlin@0 {
- compatible = "goodix,brl-a";
- reg = <0>;
- spi-max-frequency = <1000000>;
- goodix,reset-gpio = <&msm_gpio 12 0x0>;
- goodix,irq-gpio = <&msm_gpio 13 0x0>;
- goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling;*/
- goodix,panel-max-x = <720>;
- goodix,panel-max-y = <1280>;
- goodix,panel-max-w = <255>;
-};
+  /*
+    compatible name:
+    9897 select goodix,brl-a
+    9966 select goodix,brl-b
+    9916 select goodix,brl-d
+    9895 select goodix,nottingham
+    9615 select goodix,marseille
+    9926 select goodix,atb
+    9976 select goodix,brl-b
+  */
+  compatible = "goodix,brl-a";
+  reg = <0>;
+  spi-max-frequency = <2000000>;
 
-Example 2:
-goodix-berlin@0 {
- compatible = "goodix,brl-b";
- reg = <0>;
- spi-max-frequency = <1000000>;
+  goodix,avdd-name = "avdd";
+  avdd-supply = <&pm8916_l15>;
+  goodix,iovdd-name = "iovdd";
+  iovdd-supply = <&pm8916_l16>;
 
- goodix,avdd-name = "avdd";
- avdd-supply = <&pm8916_l15>;
- goodix,iovdd-name = "iovdd";
- iovdd-supply = <&pm8916_l16>;
+  goodix,reset-gpio = <&msm_gpio 12 0x0>;
+  goodix,irq-gpio = <&msm_gpio 13 0x0>;
+  goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling; */
+  goodix,panel-max-x = <720>;
+  goodix,panel-max-y = <1280>;
+  goodix,panel-max-w = <256>;
 
- goodix,reset-gpio = <&msm_gpio 12 0x0>;
- goodix,irq-gpio = <&msm_gpio 13 0x0>;
- goodix,irq-flags = <2>; /* 1:trigger rising, 2:trigger falling; */
- goodix,panel-max-x = <720>;
- goodix,panel-max-y = <1280>;
- goodix,panel-max-w = <255>;
-
- /* optional properties */
- goodix,panel-max-p = <4096>; /* max pressure that pen device supported */
- goodix,pen-enable; /* support active stylus device*/
- goodix.sleep-enable; /* enter sleep mode */
- goodix,firmware-name = "goodix_firmware.bin";
- goodix,config-name = "goodix_cfg_group.bin";
+  /* optional properties */
+  goodix,panel-max-p = <4096>; /* max pressure that pen device supported */
+  goodix,pen-enable; /* support active stylus device */
+  goodix,sleep-enable; /* enter sleep mode when screen off */
+  goodix,esd-enable;  /* enable esd function */
+  goodix,firmware-name = "goodix_firmware.bin"; /* set firmware name */
+  goodix,config-name = "goodix_cfg_group.bin"; /* set config name */
 };
 ```

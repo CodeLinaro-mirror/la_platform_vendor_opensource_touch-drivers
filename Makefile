@@ -9,4 +9,8 @@ goodix_core-y := \
 				goodix_brl_fwupdate.o \
 				goodix_ts_gesture.o \
 				goodix_ts_inspect.o \
-				goodix_ts_tools.o
+				goodix_ts_tools.o \
+				goodix_ts_dump.o \
+				goodix_ts_replay.o
+
+ccflags-y += -Wall -Wformat -Wno-unused-parameter

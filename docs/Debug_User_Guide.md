@@ -6,7 +6,7 @@ The driver provides some sysfs and procfs node to debug. You can use them after 
 
 ## **sysfs node**
 
-It's located under ``/sys/devices/platform/goodix_ts.0``.
+It's located under ``/sys/devices/platform/goodix_ts.xx``. xx means device_id, like goodix_ts.0, goodix_ts,1.
 
 * **chip_info**
 
