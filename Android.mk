@@ -49,6 +49,10 @@ ifeq ($(TARGET_BOARD_PLATFORM), monaco)
       LOCAL_MODULE_DDK_BUILD := true
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+      LOCAL_MODULE_DDK_BUILD := true
+endif
+
 include $(CLEAR_VARS)
 
 # This makefile is only for DLKM
@@ -90,8 +94,23 @@ ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
        endif
 endif
 
+
+
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
-ifeq ($(TARGET_BOARD_PLATFORM), vienna)
+ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+
+       ###########################################################
+       include $(CLEAR_VARS)
+       LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+       LOCAL_MODULE              := gt9xx-ts.ko
+       LOCAL_MODULE_KBUILD_NAME  := gt9xx-ts.ko
+       LOCAL_MODULE_TAGS         := optional
+       #LOCAL_MODULE_DEBUG_ENABLE := true
+       LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+       include $(DLKM_DIR)/Build_external_kernelmodule.mk
+       ###########################################################
+
+else ifeq ($(TARGET_BOARD_PLATFORM), vienna)
 
        ###########################################################
        include $(CLEAR_VARS)

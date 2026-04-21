@@ -10,6 +10,7 @@ targets = [
     "sun",
     "vienna",
     "lahaina",
+    "shikra"
 ]
 
 la_variants = [

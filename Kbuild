@@ -1,6 +1,11 @@
 
 KDIR := $(TOP)/kernel_platform/common
 
+ifeq ($(CONFIG_ARCH_SHIKRA), y)
+	include $(TOUCH_ROOT)/config/gki_shikratouch.conf
+	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_shikratouchconf.h
+endif
+
 ifeq ($(CONFIG_ARCH_VIENNA), y)
 	include $(TOUCH_ROOT)/config/gki_viennatouch.conf
 	LINUX_INC += -include $(TOUCH_ROOT)/config/gki_viennatouchconf.h
@@ -362,6 +367,17 @@ ifneq ($(CONFIG_ARCH_PINEAPPLE), y)
 			./raydium/chip_raydium/ic_drv_interface.o
 
 			obj-$(CONFIG_MSM_TOUCH) += raydium_ts.o
+	endif
+
+	ifeq ($(CONFIG_TOUCHSCREEN_GT9XX), y)
+		LINUX_INC += -include $(TOUCH_ROOT)/gt9xx/gt9xx.h
+
+		gt9xx-ts-y := \
+			./gt9xx/gt9xx.o \
+			./gt9xx/gt9xx_update.o
+			./gt9xx/goodix_tool.o
+
+			obj-$(CONFIG_MSM_TOUCH) += gt9xx-ts.o
 	endif
 
 endif # pineapple
