@@ -655,6 +655,7 @@ void gtp_int_output(struct goodix_ts_data *ts, int level)
 		return;
 
 	if (level == 0) {
+#ifdef PINCTRL_ENABLE
 		if (ts->pinctrl.pinctrl)
 			pinctrl_select_state(ts->pinctrl.pinctrl,
 					     ts->pinctrl.int_out_low);
@@ -663,7 +664,15 @@ void gtp_int_output(struct goodix_ts_data *ts, int level)
 		else
 			dev_err(&ts->client->dev,
 				"Failed set int pin output low\n");
+#else
+		if (gpio_is_valid(ts->pdata->irq_gpio))
+			gpio_direction_output(ts->pdata->irq_gpio, 0);
+		else
+			dev_err(&ts->client->dev,
+				"Failed set int pin output low\n");
+#endif
 	} else {
+#ifdef PINCTRL_ENABLE
 		if (ts->pinctrl.pinctrl)
 			pinctrl_select_state(ts->pinctrl.pinctrl,
 					     ts->pinctrl.int_out_high);
@@ -672,6 +681,13 @@ void gtp_int_output(struct goodix_ts_data *ts, int level)
 		else
 			dev_err(&ts->client->dev,
 				"Failed set int pin output high\n");
+#else
+		if (gpio_is_valid(ts->pdata->irq_gpio))
+			gpio_direction_output(ts->pdata->irq_gpio, 1);
+		else
+			dev_err(&ts->client->dev,
+				"Failed set int pin output high\n");
+#endif
 	}
 }
 
@@ -680,6 +696,7 @@ void gtp_int_sync(struct goodix_ts_data *ts, s32 ms)
 	if (!ts->pdata->int_sync)
 		return;
 
+#ifdef PINCTRL_ENABLE
 	if (ts->pinctrl.pinctrl) {
 		gtp_int_output(ts, 0);
 		msleep(ms);
@@ -692,6 +709,15 @@ void gtp_int_sync(struct goodix_ts_data *ts, s32 ms)
 	} else {
 		dev_err(&ts->client->dev, "Failed sync int pin\n");
 	}
+#else
+	if (gpio_is_valid(ts->pdata->irq_gpio)) {
+		gpio_direction_output(ts->pdata->irq_gpio, 0);
+		msleep(ms);
+		gpio_direction_input(ts->pdata->irq_gpio);
+	} else {
+		dev_err(&ts->client->dev, "Failed sync int pin\n");
+	}
+#endif
 }
 
 /*******************************************************
@@ -1338,7 +1364,8 @@ static int gtp_request_io_port(struct goodix_ts_data *ts)
 			return -ENODEV;
 		}
 
-		gpio_direction_input(ts->pdata->irq_gpio);
+		//gpio_direction_input(ts->pdata->irq_gpio);
+		gpio_direction_output(ts->pdata->irq_gpio, 0);
 		dev_info(&ts->client->dev, "Success request irq-gpio\n");
 	}
 
@@ -1355,7 +1382,8 @@ static int gtp_request_io_port(struct goodix_ts_data *ts)
 			return -ENODEV;
 		}
 
-		gpio_direction_input(ts->pdata->rst_gpio);
+		//gpio_direction_input(ts->pdata->rst_gpio);
+		gpio_direction_output(ts->pdata->rst_gpio, 0);
 		dev_info(&ts->client->dev,  "Success request rst-gpio\n");
 	}
 
@@ -1872,6 +1900,12 @@ static int gtp_probe(struct i2c_client *client)
 		goto exit_free_client_data;
 	}
 
+	ret = gtp_request_io_port(ts);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed request IO port\n");
+		goto exit_power_off;
+	}
+
 	ret = gtp_power_on(ts);
 	if (ret) {
 		dev_err(&client->dev, "Failed power on device\n");
@@ -1887,12 +1921,6 @@ static int gtp_probe(struct i2c_client *client)
 		 */
 		dev_err(&client->dev, "Failed get wanted pinctrl state\n");
 		goto exit_deinit_power;
-	}
-
-	ret = gtp_request_io_port(ts);
-	if (ret < 0) {
-		dev_err(&client->dev, "Failed request IO port\n");
-		goto exit_power_off;
 	}
 
 	gtp_reset_guitar(ts->client, 20);
