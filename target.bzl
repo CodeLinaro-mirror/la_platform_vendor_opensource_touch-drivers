@@ -193,6 +193,7 @@ def define_art(t,v):
             "atmel_mxt_ts",
             "dummy_ts",
             "goodix_ts",
+            "goodix_ts2",
             "st_fts",
             "synaptics_tcm2_ts",
             "qts"
@@ -202,6 +203,8 @@ def define_art(t,v):
             "CONFIG_ARCH_ART",
             "CONFIG_MSM_TOUCH",
             "CONFIG_TOUCHSCREEN_GOODIX_BRL",
+            "CONFIG_TOUCHSCREEN_GOODIX_BRL2",
+            "CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI",
             "CONFIG_TOUCHSCREEN_ATMEL_MXT",
             "CONFIG_TOUCHSCREEN_ST",
             "CONFIG_QTS_ENABLE",
