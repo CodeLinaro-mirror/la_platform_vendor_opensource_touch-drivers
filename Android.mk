@@ -53,6 +53,14 @@ ifeq ($(TARGET_BOARD_PLATFORM), shikra)
       LOCAL_MODULE_DDK_BUILD := true
 endif
 
+ifeq ($(TARGET_BOARD_PLATFORM), shikra_64go)
+      LOCAL_MODULE_DDK_BUILD := true
+endif
+
+ifeq ($(TARGET_BOARD_PLATFORM), shikra_tiny_32go)
+      LOCAL_MODULE_DDK_BUILD := true
+endif
+
 include $(CLEAR_VARS)
 
 # This makefile is only for DLKM
@@ -80,7 +88,7 @@ KBUILD_OPTIONS += $(TOUCH_SELECT)
 ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
        ifeq ($(TARGET_KERNEL_DLKM_TOUCH_OVERRIDE), false)
                TOUCH_DLKM_ENABLE := false
-               ifneq ($(filter $(TARGET_BOARD_PLATFORM), hamoa_la monaco vienna shikra),$(TARGET_BOARD_PLATFORM))
+               ifneq ($(filter $(TARGET_BOARD_PLATFORM), hamoa_la monaco vienna shikra shikra_64go shikra_tiny_32go),$(TARGET_BOARD_PLATFORM))
                      # build dummy_ts.ko
                      include $(CLEAR_VARS)
                      LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
@@ -98,6 +106,32 @@ endif
 
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
 ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+
+       ###########################################################
+       include $(CLEAR_VARS)
+       LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+       LOCAL_MODULE              := gt9xx-ts.ko
+       LOCAL_MODULE_KBUILD_NAME  := gt9xx-ts.ko
+       LOCAL_MODULE_TAGS         := optional
+       #LOCAL_MODULE_DEBUG_ENABLE := true
+       LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+       include $(DLKM_DIR)/Build_external_kernelmodule.mk
+       ###########################################################
+
+else ifeq ($(TARGET_BOARD_PLATFORM), shikra_64go)
+
+       ###########################################################
+       include $(CLEAR_VARS)
+       LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+       LOCAL_MODULE              := gt9xx-ts.ko
+       LOCAL_MODULE_KBUILD_NAME  := gt9xx-ts.ko
+       LOCAL_MODULE_TAGS         := optional
+       #LOCAL_MODULE_DEBUG_ENABLE := true
+       LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+       include $(DLKM_DIR)/Build_external_kernelmodule.mk
+       ###########################################################
+
+else ifeq ($(TARGET_BOARD_PLATFORM), shikra_tiny_32go)
 
        ###########################################################
        include $(CLEAR_VARS)

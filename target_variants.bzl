@@ -10,7 +10,9 @@ targets = [
     "sun",
     "vienna",
     "lahaina",
-    "shikra"
+    "shikra",
+    "shikra_tiny_32go",
+    "shikra_64go"
 ]
 
 la_variants = [

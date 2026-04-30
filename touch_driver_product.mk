@@ -9,7 +9,11 @@ ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
 endif
 
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
-        ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+        ifeq ($(TARGET_BOARD_PLATFORM), shikra_tiny_32go)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), shikra_64go)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), shikra)
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
         else ifeq ($(TARGET_BOARD_PLATFORM), vienna)
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/raydium_ts.ko \
