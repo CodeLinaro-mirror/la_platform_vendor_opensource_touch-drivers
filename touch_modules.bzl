@@ -114,7 +114,8 @@ module_entry(
 			"synaptics_tcm2/tcm/synaptics_touchcom_core_v1.c",
 			"synaptics_tcm2/tcm/synaptics_touchcom_image_parsing.c",
 			"synaptics_tcm2/tcm/synaptics_touchcom_func_reflash.c"
-    ]
+    ],
+    deps = ["qts"],
 )
 
 #define ddk_module() for atmel_mxt_ts
@@ -213,4 +214,16 @@ module_entry(
     deps = [
 	    "glink_comm"
     ]
+)
+
+#define ddk_module() for gt9xx-ts
+module_entry(
+    name = "gt9xx-ts",
+    config_option = "CONFIG_TOUCHSCREEN_GT9XX",
+
+    srcs = [
+            "gt9xx/gt9xx.c",
+            "gt9xx/gt9xx_update.c",
+            "gt9xx/goodix_tool.c"
+    ],
 )

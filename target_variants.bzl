@@ -1,6 +1,7 @@
 targets = [
     # keep sorted
     "art",
+    "art16k",
     "bengal",
     "canoe",
     "gen3auto",
@@ -9,6 +10,7 @@ targets = [
     "sun",
     "vienna",
     "lahaina",
+    "shikra"
 ]
 
 la_variants = [
