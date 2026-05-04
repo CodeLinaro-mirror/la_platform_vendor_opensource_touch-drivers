@@ -692,6 +692,12 @@ int raydium_i2c_pda2_write(struct i2c_client *client,
 
 void raydium_irq_control(bool enable)
 {
+	if (g_raydium_ts->touch_offload == 1) {
+		pr_err("[touch]%d: touch offload mode return : %s\n",
+			 __LINE__, __func__);
+		return;
+	}
+
 	if (enable) {
 		if (g_raydium_ts->irq_enabled) {
 			/*mutex_unlock(&ts->lock);*/
@@ -1355,6 +1361,12 @@ static void raydium_work_handler(struct work_struct *work)
 	unsigned char u8_tp_status[MAX_TCH_STATUS_PACKET_SIZE] = {0};
 	unsigned char u8_buf[MAX_REPORT_PACKET_SIZE] = {0};
 
+	if (g_raydium_ts->touch_offload == 1) {
+		pr_err("[touch]%d: touch offload mode return : %s\n",
+			 __LINE__, __func__);
+		return;
+	}
+
 #ifdef GESTURE_EN
 	unsigned char u8_i;
 	LOGD(LOG_DEBUG, "[touch]ts->blank:%x, g_u8_i2c_mode:%x\n",
@@ -1545,6 +1557,12 @@ static void raydium_ts_do_suspend(void)
 
 	LOGD(LOG_INFO, "[touch]%s.\n", __func__);
 
+	if (g_raydium_ts->touch_offload == 1) {
+		pr_err("[touch]%d: touch offload mode return : %s\n",
+			 __LINE__, __func__);
+		return;
+	}
+
 	if (g_u8_raw_data_type == 0)
 		g_u8_resetflag = false;
 	if (g_raydium_ts->is_suspend == 1) {
@@ -1592,6 +1610,12 @@ static void raydium_ts_do_resume(void)
 	int i32_ret = 0;
 	unsigned char u8_retry = 0;
 #endif
+
+	if (g_raydium_ts->touch_offload == 1) {
+		pr_err("[touch]%d: touch offload mode return : %s\n",
+			 __LINE__, __func__);
+		return;
+	}
 
 	LOGD(LOG_INFO, "[touch]%s, %d.\n", __func__, g_raydium_ts->is_suspend);
 	if (g_raydium_ts->is_suspend == 0) {
