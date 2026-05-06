@@ -226,4 +226,5 @@ module_entry(
             "gt9xx/gt9xx_update.c",
             "gt9xx/goodix_tool.c"
     ],
+    deps = ["qts"],
 )
