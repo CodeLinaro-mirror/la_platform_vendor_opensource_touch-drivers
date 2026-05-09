@@ -20,12 +20,14 @@ static struct {
     u16 bin_size;
     u16 page_size;
     u16 check_sum_offset;
+	u32 chip_id_addr;
+	u32 moudle_id_addr;
 }ct92xx_addr_tabl[2]={
     {
-        0x7F80, 128, 0x7F6C  //92xx
+        0x7F80, 128, 0x7F6C, 0x077C, 0x7FC0  //92xx
     },
     {
-        0x7E00, 512, 0x7DFC  //93xx
+        0x7E00, 512, 0x7DFC, 0x4000017C, 0x40000148  //93xx
     }
 };
 
@@ -36,12 +38,13 @@ static int cst923xx_updata_judge(u8 *p_fw, u16 len);
 static int cst923xx_updata_tpinfo(void);
 static int cst923xx_enter_boot(void);
 static void cst923xx_rst(void);
-static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value);
+static int16_t read_word_from_mem(uint16_t type, uint32_t addr, uint32_t *value);
 static int cst923xx_set_workmode(enum work_mode mode,u8 enable);
 
 static const struct hyn_chip_series cst923xx_fw_list[] = {
     {0x9fff,0x0000,"cst9xxx",(u8*)fw_bin0},//default bin
     {0x9317,0x0000,"cst9317 id0",(u8*)fw_bin0},
+    {0x3217,0x0001,"cst3217 id1",(u8*)fw_bin0},
     {0x92FF,0x0000,"cst92xx id0",(u8*)fw_bin1}, 
     {0x9217,0x0001,"cst9217 id0",(u8*)fw_bin1},  
     {0x9217,0x0002,"cst9217 id1",(u8*)fw_bin1},
@@ -69,9 +72,10 @@ static int cst923xx_init(struct hyn_ts_data* ts_data)
             HYN_ERROR("cst923xx_ic check failed\r\n");
             return FALSE;
         }
-        while(retry--){
-            ret = read_word_from_mem(1, ADDR_CHIP_ID, &ic->fw_chip_type);
-            ret |= read_word_from_mem(0, ADDR_MODULE_ID, &ic->fw_module_id);
+        while(retry--) {
+            ret = read_word_from_mem(1, ct92xx_addr_tabl[chip_group_id].chip_id_addr, &ic->fw_chip_type);
+            ret |= read_word_from_mem(0, ct92xx_addr_tabl[chip_group_id].moudle_id_addr, &ic->fw_module_id);
+			HYN_INFO("chip_type:%x, module_id:%x", ic->fw_chip_type, ic->fw_module_id);
             if(ret==0)
             break;
         }
@@ -230,28 +234,31 @@ static int write92xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 {
     int ok = FALSE,t;
-    uint16_t page_idx = addr/ct92xx_addr_tabl[chip_group_id].page_size;
-    uint8_t sram_buf[514] = {0};
+    uint8_t sram_buf[8+2] = {0};
 
-    sram_buf[0] = (page_idx&0x01) ? 0xA2:0xA0;//dev_addr;
-    sram_buf[1] = 0x18;
-    memcpy(sram_buf + 2, buf, len);            
-    ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, len+2);  //512 + 2 
-    if(ok == FALSE){
-        return FALSE;
-    }
-
-    memcpy(sram_buf,(u8[]){0xA0,0x14,0x00,0x00,0x00,0x50},6);
-    sram_buf[3] = page_idx * 2;
+    memcpy(sram_buf,(u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}, 6);
     ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //addr
 
-    memcpy(sram_buf,(u8[]){0xA0,0x0C,0x00,0x02,0x00,0x00},6);
-    ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
-
-    memcpy(sram_buf,(u8[]){0xA0,0x0E,0x00, 0x00,0x00,0x00},6);
-    sram_buf[3] = (page_idx&0x01) ? 0x02:0x00;;
-    ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
-
+    if (addr == 0) {
+        memcpy(sram_buf,(u8[]){0xA0, 0x0C, len, len>>8, 0x00, 0x00}, 6);
+        ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
+    
+        memcpy(sram_buf,(u8[]){0xA0,0x0E,0x00, 0x00,0x00,0x00},6);
+        ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
+    }
+    
+	for (int i = 0; i < len; i+=8) {
+		uint16_t sram_addr = 0xA018 + i;
+		sram_buf[0] = sram_addr >> 8;
+		sram_buf[1] = sram_addr;
+		memcpy(sram_buf + 2, buf+i, 8);     
+		ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 8+2);
+		if(ok == FALSE) {
+			HYN_ERROR("sender 93xx write mem page error");
+			return FALSE;
+		}
+	}
+    
     ok |=  hyn_wr_reg(hyn_92xxdata, 0xA004EE, 3, NULL, 0);
     if(ok == FALSE){
         return FALSE;
@@ -274,7 +281,7 @@ static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 
 static int write_code(u8 *bin_addr,uint8_t retry)
 {
-    uint8_t data[512];//= (uint8_t *)bin_addr;
+    uint8_t *data = bin_addr;//= (uint8_t *)bin_addr;
     uint16_t addr = 0;
     uint16_t remain_len = ct92xx_addr_tabl[chip_group_id].bin_size;
     uint16_t page_size = ct92xx_addr_tabl[chip_group_id].page_size;
@@ -288,17 +295,16 @@ static int write_code(u8 *bin_addr,uint8_t retry)
             cur_len = page_size;
         }
         
-        if(0 == hyn_92xxdata->fw_file_name[0]){
-            memcpy(data, bin_addr + addr, page_size);
-        }else{
+        if(hyn_92xxdata->fw_file_name[0]){
             ret = copy_for_updata(hyn_92xxdata,data,addr,page_size);
             if(ret == FALSE){
                 HYN_ERROR("copy_for_updata error");
                 goto wite_end;
             }
         }
+
         //HYN_INFO("write_code addr 0x%x 0x%x",addr,*data);
-        if (write_mem_page(addr, data, cur_len) ==  FALSE) {
+        if (write_mem_page(addr, data + addr, cur_len) ==  FALSE) {
             ret = -2;
              goto wite_end;
         }
@@ -433,14 +439,14 @@ UPDATA_END:
     return ok;
 }
 
-static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
+static int16_t read_word_from_mem(uint16_t type, uint32_t addr, uint32_t *value)
 {
     int16_t ret = 0;
-    uint8_t i2c_buf[4] = {0},t;
+    uint8_t i2c_buf[6] = {0},t;
 
     i2c_buf[0] = 0xA0;
     i2c_buf[1] = 0x10;
-    i2c_buf[2] = type;
+    i2c_buf[2] = (chip_group_id == CHIP_93xx) ? 4 : type;
     ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,3); 
     if (ret){
         return -1;
@@ -450,7 +456,12 @@ static int16_t read_word_from_mem(uint8_t type, uint16_t addr, uint32_t *value)
     i2c_buf[1] = 0x0C;
     i2c_buf[2] = addr;
     i2c_buf[3] = addr >> 8;
-    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,4); 
+	if (chip_group_id == CHIP_93xx) {
+		i2c_buf[4] = addr >> 16;
+		i2c_buf[5] = addr >> 24;
+	}
+
+    ret = hyn_write_data(hyn_92xxdata,i2c_buf,2,4+chip_group_id*2); 
     if (ret){
         return -1;
     }
