@@ -64,6 +64,15 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "uapi_headers",
+    hdrs = glob([
+            "include/uapi/linux/synaptics_tcm2/*.h"
+        ]
+    ),
+    includes = ["include/uapi"]
+)
+
+ddk_headers(
     name = "config_headers",
     hdrs = glob([
             "config/*.h"
