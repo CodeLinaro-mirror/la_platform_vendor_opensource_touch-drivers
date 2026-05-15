@@ -55,6 +55,10 @@ static int gtp_esd_init(struct goodix_ts_data *ts);
 static void gtp_esd_check_func(struct work_struct *);
 static int gtp_init_ext_watchdog(struct i2c_client *client);
 
+#if defined(CONFIG_DRM) || defined(CONFIG_PANEL_NOTIFIER)
+	static struct drm_panel *active_panel;
+#endif
+
 /*
  * return: 2 - ok, < 0 - i2c transfer error
  */
@@ -1555,6 +1559,47 @@ static void gtp_parse_dt_coords(struct device *dev,
 		 pdata->max_touch_width, pdata->max_touch_pressure);
 }
 
+
+static int gtp_check_dsi_panel_dt(struct device_node *np, struct drm_panel **active_panel)
+{
+	int i = 0, rc = 0;
+	int count = 0;
+	struct device_node *node = NULL;
+	struct drm_panel *panel = ERR_PTR(-ENODEV);
+
+	count = of_count_phandle_with_args(np, "panel", NULL);
+	pr_err("[touch]%s: Active panel count: %d\n", __func__, count);
+
+	if (count <= 0) {
+		pr_err("[touch]%s: No panel found !\n",__func__);
+		return -EPROBE_DEFER;
+	}
+
+	for (i = 0; i < count; i++) {
+		node = of_parse_phandle(np, "panel", i);
+
+		if (node != NULL)
+			pr_err("[touch]%s: Node handle successfully parsed !\n",__func__);
+		else {
+			pr_err("[touch]%s: Node handle parse NULL!\n",__func__);
+			goto err;
+		}
+		panel = of_drm_find_panel(node);
+		of_node_put(node);
+
+		if (!IS_ERR(panel)) {
+			pr_err("[touch]%s: Active panel selected !\n", __func__);
+			*active_panel = panel;
+			return 0;
+		}
+	}
+err:
+	pr_err("[touch]%s: Active panel NOT selected !\n", __func__);
+	rc = PTR_ERR(panel);
+	return rc;
+}
+
+
 static int gtp_parse_dt(struct device *dev,
 			struct goodix_ts_platform_data *pdata)
 {
@@ -1563,6 +1608,7 @@ static int gtp_parse_dt(struct device *dev,
 	struct property *prop;
 	u32 key_map[MAX_KEY_NUMS];
 	struct device_node *np = dev->of_node;
+	//struct drm_panel *active_panel = NULL;
 
 	gtp_parse_dt_coords(dev, pdata);
 
@@ -1575,6 +1621,16 @@ static int gtp_parse_dt(struct device *dev,
 		pdata->irq_flags = GTP_DEFAULT_INT_TRIGGER;
 	}
 	of_property_read_u32(np, "goodix,int-sync", &pdata->int_sync);
+
+	ret = gtp_check_dsi_panel_dt(np, &active_panel);
+	if (ret) {
+		pr_err("[touch]%s: Panel not selected, rc=%d\n", __func__, ret);
+		if (ret == -EPROBE_DEFER) {
+			pr_err("[touch]%s: Probe defer selected, ret=%d\n", __func__, ret);
+			return ret;
+		}
+	}
+	//pdata->active_panel = active_panel;
 
 	of_property_read_u32(np, "goodix,driver-send-cfg",
 			     &pdata->driver_send_cfg);
