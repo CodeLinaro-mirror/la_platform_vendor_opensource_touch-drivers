@@ -9,7 +9,9 @@ ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
 endif
 
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
-        ifeq ($(TARGET_BOARD_PLATFORM), vienna)
+        ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), vienna)
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/raydium_ts.ko \
                         $(KERNEL_MODULES_OUT)/glink_comm.ko
         else ifeq ($(TARGET_BOARD_PLATFORM), monaco)

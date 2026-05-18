@@ -39,7 +39,7 @@
 
 #include <linux/spi/spi.h>
 #include "syna_tcm2.h"
-#include "syna_tcm2_cdev.h"
+#include <linux/synaptics_tcm2/syna_tcm2_cdev.h>
 #include "syna_tcm2_platform.h"
 #include "tcm/synaptics_touchcom_core_dev.h"
 #include "tcm/synaptics_touchcom_func_base.h"
@@ -52,6 +52,7 @@
 #endif
 
 #include "../qts/qts_core_common.h"
+#include <linux/soc/qcom/panel_event_notifier.h>
 
 #ifdef USE_CUSTOM_TOUCH_REPORT_CONFIG
 /* An example of the format of custom touch configuration  */
@@ -89,6 +90,56 @@ static int syna_ts_post_la_tui_enable(void *data);
 static int syna_ts_post_le_tui_enable(void *data);
 static int syna_ts_post_le_tui_disable(void *data);
 static irqreturn_t syna_irq_handler(int irq, void *data);
+
+#if defined(CONFIG_DRM)
+static struct drm_panel *active_panel;
+static void syna_panel_notifier_callback(enum panel_event_notifier_tag tag,
+		struct panel_event_notification *notification, void *client_data);
+
+static int syna_register_for_panel_events(struct device_node *dp,
+					struct syna_tcm *tcm)
+{
+	void *cookie;
+
+	cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_PRIMARY,
+			PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH, active_panel,
+			&syna_panel_notifier_callback, tcm);
+	if (IS_ERR(cookie)) {
+		LOGE("Failed to register for panel events\n");
+		return -EINVAL;
+	}
+
+	LOGI("Registered for panel notifications panel: 0x%pK\n", active_panel);
+
+	tcm->notifier_cookie = cookie;
+
+	return 0;
+}
+
+static int syna_check_dt(struct device_node *np)
+{
+	int i;
+	int count;
+	struct device_node *node;
+	struct drm_panel *panel;
+
+	count = of_count_phandle_with_args(np, "panel", NULL);
+	if (count <= 0)
+		return 0;
+
+	for (i = 0; i < count; i++) {
+		node = of_parse_phandle(np, "panel", i);
+		panel = of_drm_find_panel(node);
+		of_node_put(node);
+		if (!IS_ERR(panel)) {
+			active_panel = panel;
+			return 0;
+		}
+	}
+
+	return PTR_ERR(panel);
+}
+#endif
 
 #if defined(ENABLE_HELPER)
 /*
@@ -927,7 +978,7 @@ static void syna_dev_release_irq(struct syna_tcm *tcm)
 		hw->ops_enable_attn(hw, false);
 
 #ifdef DEV_MANAGED_API
-	disable_irq_nosync(attn->irq_id);
+	disable_irq(attn->irq_id);
 #else
 	free_irq(attn->irq_id, tcm);
 #endif
@@ -1293,7 +1344,6 @@ static int syna_dev_enter_lowpwr_sensing(struct syna_tcm *tcm)
 static int syna_dev_panel_suspend(struct device *dev)
 {
 	struct syna_tcm *tcm = dev_get_drvdata(dev);
-
 	return tcm->dev_suspend(dev);
 }
 /*
@@ -1439,6 +1489,13 @@ static int syna_dev_resume(struct device *dev)
 	/* clear all input events  */
 	syna_dev_free_input_events(tcm);
 
+#ifdef CONFIG_ARCH_QTI_VM
+	LOGI("TVM mode: Skip hardware operations in resume\n");
+	tcm->pwr_state = PWR_ON;
+
+	return 0;
+#endif
+
 #ifdef LOW_POWER_MODE
 	/* enter normal power mode */
 	retval = syna_dev_enter_normal_sensing(tcm);
@@ -1538,6 +1595,13 @@ static int syna_dev_suspend(struct device *dev)
 	/* clear all pending commands */
 	syna_tcm_clear_command_processing(tcm->tcm_dev);
 
+#ifdef CONFIG_ARCH_QTI_VM
+	LOGI("TVM mode: Skip hardware operations in suspend\n");
+
+	tcm->pwr_state = PWR_OFF;
+	return 0;
+#endif
+
 #ifdef LOW_POWER_MODE
 	/* enter power saved mode */
 	if (syna_dev_enter_lowpwr_sensing(tcm) < 0) {
@@ -1567,6 +1631,70 @@ static int syna_dev_suspend(struct device *dev)
 	return 0;
 }
 
+#if defined(CONFIG_DRM)
+/*
+ * Panel notifier callback for suspend/resume events
+ * This replaces the traditional .pm suspend/resume methods
+ *
+ * param
+ *    [ in] tag:          panel event notifier tag
+ *    [ in] notification: panel event notification data
+ *    [ in] client_data:  private data (pointer to syna_tcm)
+ *
+ * return
+ *    void.
+ */
+static void syna_panel_notifier_callback(enum panel_event_notifier_tag tag,
+		struct panel_event_notification *notification, void *client_data)
+{
+	struct syna_tcm *tcm = client_data;
+
+	if (!notification) {
+		LOGE("Invalid notification\n");
+		return;
+	}
+
+	if (!tcm) {
+		LOGE("Invalid tcm data\n");
+		return;
+	}
+
+	LOGD("Notification type:%d, early_trigger:%d, pwr_state:%d\n",
+		notification->notif_type,
+		notification->notif_data.early_trigger,
+		tcm->pwr_state);
+
+	switch (notification->notif_type) {
+	case DRM_PANEL_EVENT_UNBLANK:
+		if (!notification->notif_data.early_trigger) {
+			LOGD("DRM_PANEL_EVENT_UNBLANK\n");
+			syna_dev_resume(&tcm->pdev->dev);
+		}
+		break;
+
+	case DRM_PANEL_EVENT_BLANK:
+		if (notification->notif_data.early_trigger) {
+			LOGD("DRM_PANEL_EVENT_BLANK (early_trigger)\n");
+			syna_dev_suspend(&tcm->pdev->dev);
+		}
+		break;
+
+	case DRM_PANEL_EVENT_BLANK_LP:
+		LOGD("Received LP event\n");
+		break;
+
+	case DRM_PANEL_EVENT_FPS_CHANGE:
+		LOGD("Received FPS change: old fps:%d new fps:%d\n",
+			notification->notif_data.old_fps,
+			notification->notif_data.new_fps);
+		break;
+
+	default:
+		LOGD("Notification serviced: %d\n", notification->notif_type);
+		break;
+	}
+}
+#endif
 /*
  * Output the device information.
  *
@@ -2201,6 +2329,15 @@ static int syna_dev_connect(struct syna_tcm *tcm)
 	tcm->pwr_state = PWR_ON;
 	tcm->is_connected = true;
 
+#if defined(CONFIG_DRM)
+	/* Register for panel events for suspend/resume */
+	if (active_panel) {
+		retval = syna_register_for_panel_events(tcm->pdev->dev.of_node, tcm);
+		if (retval < 0)
+			LOGW("Failed to register for panel events\n");
+	}
+#endif
+
 	syna_dev_show_info(tcm);
 
 	LOGI("Device %s connected\n", PLATFORM_DRIVER_NAME);
@@ -2321,6 +2458,7 @@ static int syna_dev_probe(struct platform_device *pdev)
 	struct tcm_dev *tcm_dev = NULL;
 	struct syna_hw_interface *hw_if = NULL;
 	struct qts_vendor_data qts_vendor_data;
+	struct device *dev;
 
 	hw_if = pdev->dev.platform_data;
 	if (!hw_if) {
@@ -2333,6 +2471,22 @@ static int syna_dev_probe(struct platform_device *pdev)
 		LOGW("Fail to create the handle of syna_tcm, try it later\n");
 		return -EPROBE_DEFER;
 	}
+
+	dev = syna_request_managed_device();
+#if defined(CONFIG_DRM)
+	/* Check device tree for panel configuration */
+	if (dev->of_node) {
+		retval = syna_check_dt(dev->of_node);
+		if (retval == -EPROBE_DEFER) {
+			LOGI("Panel not ready, defer probe\n");
+			return retval;
+		}
+		if (retval < 0)
+			LOGW("No panel found in device tree\n");
+	} else {
+		LOGW("No device tree node found\n");
+	}
+#endif
 
 	syna_pal_completion_alloc(&tcm->init_completed);
 
@@ -2539,6 +2693,11 @@ static int syna_dev_remove(struct platform_device *pdev)
 		mutex_destroy(&tcm->tui_transition_lock);
 	}
 
+#if defined(CONFIG_DRM)
+	if (tcm->notifier_cookie)
+		panel_event_notifier_unregister(tcm->notifier_cookie);
+#endif
+
 #if defined(ENABLE_DISP_NOTIFIER)
 #if defined(USE_DRM_BRIDGE)
 		syna_dev_unregister_panel(&tcm->panel_bridge);
@@ -2590,7 +2749,6 @@ static void syna_dev_shutdown(struct platform_device *pdev)
 {
 	syna_dev_remove(pdev);
 }
-
 
 /* Definitions of TouchComm platform device */
 #ifdef CONFIG_PM
