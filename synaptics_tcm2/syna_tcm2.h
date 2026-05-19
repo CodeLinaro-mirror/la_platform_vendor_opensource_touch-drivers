@@ -90,11 +90,11 @@
 #define RESET_ON_CONNECT
 
 /* Reset the touch controller on system resume */
-/* #define RESET_ON_RESUME */
+#define RESET_ON_RESUME
 
 #if defined(RESET_ON_RESUME)
 /* Use hardware reset on resume */
-/* #define HW_RESET_ON_RESUME */
+#define HW_RESET_ON_RESUME
 #endif
 
 /* Enter low power mode during system suspend */
