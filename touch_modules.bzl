@@ -215,3 +215,15 @@ module_entry(
 	    "glink_comm"
     ]
 )
+
+#define ddk_module() for gt9xx-ts
+module_entry(
+    name = "gt9xx-ts",
+    config_option = "CONFIG_TOUCHSCREEN_GT9XX",
+
+    srcs = [
+            "gt9xx/gt9xx.c",
+            "gt9xx/gt9xx_update.c",
+            "gt9xx/goodix_tool.c"
+    ],
+)
