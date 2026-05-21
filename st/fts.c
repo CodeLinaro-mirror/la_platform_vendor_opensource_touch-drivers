@@ -3193,7 +3193,8 @@ static int fts_interrupt_install(struct fts_ts_info *info)
 
 	logError(1, "%s Interrupt Mode\n", tag);
 	if (request_irq(info->irq, st_irq_handler,
-			info->board->irq_flags, FTS_TS_DRV_NAME, info)) {
+			info->board->irq_flags | IRQF_NO_AUTOEN,
+			FTS_TS_DRV_NAME, info)) {
 		logError(1, "%s Request irq failed\n", tag);
 		kfree(info->event_dispatch_table);
 		error = -EBUSY;
