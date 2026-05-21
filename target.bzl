@@ -419,5 +419,7 @@ def define_touch_target():
             define_art(t, v)
         elif t == "shikra":
             define_shikra(t, v)
+        elif t == "pebble-le":
+            define_art(t, v)
         else:
             pass
