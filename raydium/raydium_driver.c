@@ -2314,6 +2314,7 @@ static void raydium_input_set(struct input_dev *input_dev)
 void touch_notify_glink_channel_state(bool state)
 {
 	LOGD(LOG_INFO, "%s:[touch] channel state: %d\n", __func__, state);
+	g_raydium_ts->glink_channel_state = state;
 }
 
 void glink_touch_rx_msg(void *data, int len)
@@ -2558,6 +2559,7 @@ static int raydium_ts_probe(struct i2c_client *client)
 	g_raydium_ts->y_max = pdata->y_max - 1;
 	g_raydium_ts->is_suspend = 0;
 	g_raydium_ts->is_sleep = 0;
+	g_raydium_ts->glink_channel_state = false;
 
 
 #ifdef GESTURE_EN
