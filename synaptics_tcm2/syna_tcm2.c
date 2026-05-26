@@ -39,7 +39,7 @@
 
 #include <linux/spi/spi.h>
 #include "syna_tcm2.h"
-#include "syna_tcm2_cdev.h"
+#include <linux/synaptics_tcm2/syna_tcm2_cdev.h>
 #include "syna_tcm2_platform.h"
 #include "tcm/synaptics_touchcom_core_dev.h"
 #include "tcm/synaptics_touchcom_func_base.h"
