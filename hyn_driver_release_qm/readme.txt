@@ -158,6 +158,7 @@ hynitron_touch-objs += hyn_chips/hyn_cst1xx.o
 hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
 hynitron_touch-objs += hyn_chips/hyn_cst8xxT.o
 hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
+hynitron_touch-objs += hyn_chips/hyn_cst840u.o
 
 
 4、sys节点操作

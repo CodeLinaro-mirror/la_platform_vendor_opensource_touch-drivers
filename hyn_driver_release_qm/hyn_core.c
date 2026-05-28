@@ -1033,6 +1033,11 @@ static struct i2c_driver hyn_ts_driver = {
     .id_table = hyn_id_table,
 };
 #else
+static const struct spi_device_id spi_id_table[] = {
+     { HYN_DRIVER_NAME, 0 },
+     {},
+};
+
 static struct spi_driver hyn_ts_driver = {
 	.driver = {
         .name = HYN_DRIVER_NAME,
@@ -1042,6 +1047,7 @@ static struct spi_driver hyn_ts_driver = {
         .pm      = &hyn_pm_ops,
 #endif
 	},
+    .id_table = spi_id_table,
 	.probe = hyn_ts_probe,
 	.remove = hyn_ts_remove,
 };

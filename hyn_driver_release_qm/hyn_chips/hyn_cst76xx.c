@@ -567,8 +567,8 @@ static u32 cst76xx_read_checksum(void)
 static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
     int ret = 0 ,i = 0;
     u8 *p_data;
-    u8 flag[4];
     HYN_ENTER();
+    hyn_76xxdata->fw_updata_addr = hyn_xx_fw[0].fw_bin;
     for (i = 0; ;i++) {
 #if PART_NO_EN
         if(hyn_xx_fw[i].part_no == partno && hyn_xx_fw[i].moudle_id == moduleId)
@@ -588,11 +588,11 @@ static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
         }
     }
     p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
-    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[1] != 0xCA || p_data[0] > 114){
+    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[0] > 114){
         HYN_ERROR("get lens failed");
     }
     
-    hyn_76xxdata->fw_block_cnt   = flag[0] * 2 + 4;
+    hyn_76xxdata->fw_block_cnt   = p_data[0] * 2 + 4;
     hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
     HYN_INFO("fw_block_cnt %d fw_updata_len %d", hyn_76xxdata->fw_block_cnt, hyn_76xxdata->fw_updata_len);
 
@@ -859,7 +859,7 @@ static int cst76xx_updata_fw(u8 *bin_addr, u32 len)
     u8 *p_data = bin_addr + 0x0A00;
     HYN_ENTER();
     // HYN_INFO("len = %d ",len);
-    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[1] != 0xCA || p_data[0] > 114){
+    if(p_data[3] != 0xCA || p_data[2] != 0xCA  || p_data[0] > 114){
         HYN_ERROR("get lens failed");
     }
         

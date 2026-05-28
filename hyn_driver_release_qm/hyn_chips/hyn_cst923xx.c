@@ -233,7 +233,7 @@ static int write92xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 
 static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 {
-    int ok = FALSE,t;
+    int ok = FALSE,t,i;
     uint8_t sram_buf[8+2] = {0};
 
     memcpy(sram_buf,(u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}, 6);
@@ -247,7 +247,7 @@ static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
         ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
     }
     
-	for (int i = 0; i < len; i+=8) {
+	for (i = 0; i < len; i+=8) {
 		uint16_t sram_addr = 0xA018 + i;
 		sram_buf[0] = sram_addr >> 8;
 		sram_buf[1] = sram_addr;
