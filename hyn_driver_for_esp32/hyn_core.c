@@ -37,7 +37,7 @@ static void touch_int_handler(void* arg)
             if(hyn_data->work_mode < DIFF_MODE){
                 ret = hyn_data->hyn_fuc_used->tp_report(); //读点
 
-                for(u8 i=0; i< hyn_data->rp_buf.rep_num; i++){   //根据配置修改坐标原点
+                for(u8 i=0; i< hyn_data->plat_data.max_touch_num; i++){   //根据配置修改坐标原点
                     if(hyn_data->plat_data.swap_xy){
                         u16 tmp = hyn_data->rp_buf.pos_info[i].pos_x;
                         hyn_data->rp_buf.pos_info[i].pos_x = hyn_data->rp_buf.pos_info[i].pos_y;
