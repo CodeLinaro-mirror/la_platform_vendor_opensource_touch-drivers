@@ -8,8 +8,8 @@
     #define I2C_USE_DMA      (0)  //0:soft 1:DMA 2:MTK_DMA
 #else
     #define SPI_MODE         (0)
-    #define SPI_DELAY_CS     (10) //us
-    #define SPI_CLOCK_FREQ   (8000000)
+    #define SPI_DELAY_CS     (10)  //us
+    #define SPI_CLOCK_FREQ   (1000000)
     #define I2C_USE_DMA      (0)
     // #define CONFIG_BUS_SPI  //default:0  MTK can try define
 #endif
@@ -36,7 +36,7 @@
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
 
-#define HYN_DRIVER_VERSION      "== Hynitron V2.25 20260320 =="
+#define HYN_DRIVER_VERSION      "== Hynitron V2.25 20260528 =="
 #endif
 
 

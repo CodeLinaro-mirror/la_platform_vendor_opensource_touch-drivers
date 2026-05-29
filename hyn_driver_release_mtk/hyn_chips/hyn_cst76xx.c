@@ -50,7 +50,9 @@ static u32 cst76xx_fread_word(u32 addr);
 static void cst76xx_rst(void);
 static u32 cst76xx_read_file_checksum(u8 *p_fw, u32 len);
 static int cst76xx_read_file_addr(u32 part_no, u32 module_id);
+#if MODULE_ID_EN
 static int cst76xx_judge_module(void);
+#endif
 
 static int cst76xx_init(struct hyn_ts_data* ts_data)
 {
@@ -452,8 +454,8 @@ static u32 cst76xx_fread_word(u32 addr)
 {
     int ret;
     u8 rec_buf[4],retry,i2c_buf[6];
-    u32 read_word;
-    read_word = 0
+    u32 read_word = 0;
+
     retry = 3;
     while(retry--){
         i2c_buf[0] = 0xA0;
@@ -565,8 +567,8 @@ static u32 cst76xx_read_checksum(void)
 static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
     int ret = 0 ,i = 0;
     u8 *p_data;
-    u8 flag[4];
     HYN_ENTER();
+    hyn_76xxdata->fw_updata_addr = hyn_xx_fw[0].fw_bin;
     for (i = 0; ;i++) {
 #if PART_NO_EN
         if(hyn_xx_fw[i].part_no == partno && hyn_xx_fw[i].moudle_id == moduleId)
@@ -586,11 +588,11 @@ static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
         }
     }
     p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
-    memcpy(flag, p_data, 4);
-    if(flag[3] != 0xCA && flag[2] != 0xCA && flag[1] != 0xCA && flag[0] > 114)
-        HYN_ERROR("get flag failed");
+    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[0] > 114){
+        HYN_ERROR("get lens failed");
+    }
     
-    hyn_76xxdata->fw_block_cnt   = flag[0] * 2 + 4;
+    hyn_76xxdata->fw_block_cnt   = p_data[0] * 2 + 4;
     hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
     HYN_INFO("fw_block_cnt %d fw_updata_len %d", hyn_76xxdata->fw_block_cnt, hyn_76xxdata->fw_updata_len);
 
@@ -855,14 +857,13 @@ static int cst76xx_updata_fw(u8 *bin_addr, u32 len)
     int ret = -1, retry_fw= 4; 
     u32 fw_checksum = 0;
     u8 *p_data = bin_addr + 0x0A00;
-    u8 flag[4];
     HYN_ENTER();
     // HYN_INFO("len = %d ",len);
-    memcpy(flag, p_data, 4);
-    if(flag[3] != 0xCA && flag[2] != 0xCA && flag[1] != 0xCA && flag[0] > 114)
-        HYN_ERROR("get flag failed");
-    
-    hyn_76xxdata->fw_block_cnt   = flag[0] * 2 + 4;
+    if(p_data[3] != 0xCA || p_data[2] != 0xCA  || p_data[0] > 114){
+        HYN_ERROR("get lens failed");
+    }
+        
+    hyn_76xxdata->fw_block_cnt   = p_data[0] * 2 + 4;
     hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
     len = hyn_76xxdata->fw_updata_len;
 
@@ -1088,7 +1089,7 @@ static int cst76xx_get_test_result(u8 *buf, u16 len)
         goto TEST_ERRO;
     }
     rbuf += mt_len;
-    if(get_fac_test_data(0xD0002300,rbuf,st_len,1)){ //read short test data
+    if(get_fac_test_data(0xD0002300,rbuf,st_len,0)){ //read short test data
         HYN_ERROR("read fac short failed");
         goto TEST_ERRO;
     }
