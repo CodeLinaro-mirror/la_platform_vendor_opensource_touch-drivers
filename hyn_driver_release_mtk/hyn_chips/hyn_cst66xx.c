@@ -290,7 +290,7 @@ static void cst66xx_rst(void)
         hyn_set_i2c_addr(hyn_66xxdata,MAIN_I2C_ADDR);
     }
     tpd_gpio_output(hyn_66xxdata->plat_data.reset_gpio,0);
-    msleep(8);
+    msleep(5);
     tpd_gpio_output(hyn_66xxdata->plat_data.reset_gpio,1);
 }
 
@@ -312,14 +312,12 @@ static int cst66xx_enter_boot(void)
 {
     int retry = 0,ret = 0;
     hyn_set_i2c_addr(hyn_66xxdata,BOOT_I2C_ADDR);
-    while(++retry<20){
-        cst66xx_rst();
-        mdelay(12+retry);
-        ret = hyn_wr_reg(hyn_66xxdata,0xA001A8,3,0,0);
-        if(ret < 0){
-            continue;
-        }
-        if(0==cst66xx_wait_ready(10,2,0xA002,0x22DD)){
+    cst66xx_rst();
+    retry = 8;
+    while(++retry<80){
+        hyn_wr_reg(hyn_66xxdata,0xA001A8,3,0,0);
+        udelay(150);
+        if(0==cst66xx_wait_ready(2,2,0xA002,0x22DD)){
             return 0;
         }
     }
@@ -730,7 +728,7 @@ static int cst66xx_get_test_result(u8 *buf, u16 len)
         goto TEST_ERRO;
     }
     rbuf += mt_len;
-    if(get_fac_test_data(0xD0002300,rbuf,st_len,1)){ //read short test data
+    if(get_fac_test_data(0xD0002300,rbuf,st_len,0)){ //read short test data
         HYN_ERROR("read fac short failed");
         goto TEST_ERRO;
     }
