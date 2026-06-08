@@ -893,7 +893,7 @@ static int cst923xx_get_test_result(u8 *buf, u16 len)
         HYN_ERROR("read fac short failed");
         goto selftest_end;
     }
-    else{
+    else if (chip_group_id == CHIP_92xx){
         raw_s = buf + mt_len*2;
         for(i = 0; i< ic->fw_sensor_rxnum+ic->fw_sensor_txnum; i++){
             u16 tmp_s = U8TO16(*(raw_s+1),*raw_s);
