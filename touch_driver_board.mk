@@ -11,7 +11,9 @@ endif
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
         ifneq ($(TARGET_BOARD_AUTO),true)
                 ifneq (,$(call is-board-platform-in-list2,$(TARGET_BOARD_PLATFORM)))
-                        ifeq ($(TARGET_BOARD_PLATFORM), vienna)
+                        ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+                        else ifeq ($(TARGET_BOARD_PLATFORM), vienna)
                                 BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/raydium_ts.ko \
                                         $(KERNEL_MODULES_OUT)/glink_comm.ko
                         else ifeq ($(TARGET_BOARD_PLATFORM), monaco)
