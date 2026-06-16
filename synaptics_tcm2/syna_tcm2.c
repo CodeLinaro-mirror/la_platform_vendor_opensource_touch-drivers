@@ -104,7 +104,7 @@ static int syna_register_for_panel_events(struct device_node *dp,
 	cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_PRIMARY,
 			PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH, active_panel,
 			&syna_panel_notifier_callback, tcm);
-	if (!cookie) {
+	if (IS_ERR(cookie)) {
 		LOGE("Failed to register for panel events\n");
 		return -EINVAL;
 	}
