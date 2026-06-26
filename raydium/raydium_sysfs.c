@@ -404,10 +404,12 @@ static int raydium_ts_touch_exit(void)
 	glink_send_msg = &glink_touch_exit_prep;
 	LOGD(LOG_INFO, "[touch]glink_send_msg = %0x\n", *(int *)glink_send_msg);
 	slate_ack_resp = 0;
-	ret = glink_touch_tx_msg(glink_send_msg, TOUCH_MSG_SIZE);
-	if (ret && g_raydium_ts->glink_channel_state)
-		pr_err("[touch]glink_touch_tx_msg line:%d failed: %d\n", __LINE__, ret);
+	if (g_raydium_ts->glink_channel_state) {
+		ret = glink_touch_tx_msg(glink_send_msg, TOUCH_MSG_SIZE);
+		if (ret)
+			pr_err("[touch]glink_touch_tx_msg line:%d failed: %d\n", __LINE__, ret);
 
+	}
 	msleep(200);
 
 	if ((slate_ack_resp != 0) && g_raydium_ts->glink_channel_state) {
@@ -442,18 +444,22 @@ static int raydium_ts_touch_exit(void)
 	glink_send_msg = &glink_touch_exit;
 	LOGD(LOG_INFO, "[touch]glink_send_msg = %d\n", *(int *)glink_send_msg);
 	slate_ack_resp = 0;
-	ret = glink_touch_tx_msg(glink_send_msg, TOUCH_MSG_SIZE);
-	if (ret && g_raydium_ts->glink_channel_state)
-		pr_err("[touch]glink_touch_tx_msg line:%d failed: %d\n", __LINE__, ret);
+	if (g_raydium_ts->glink_channel_state) {
+		ret = glink_touch_tx_msg(glink_send_msg, TOUCH_MSG_SIZE);
+		if (ret)
+			pr_err("[touch]glink_touch_tx_msg line:%d failed: %d\n", __LINE__, ret);
 
-	msleep(200);
+		msleep(200);
 
-	if ((slate_ack_resp != 0) && g_raydium_ts->glink_channel_state) {
-		rc = -EINVAL;
-		pr_err("%d: [touch]glink touch exit cmd failed : %s\n",
-			 __LINE__, __func__);
-		goto err_ret;
-	}
+		if (slate_ack_resp != 0) {
+			rc = -EINVAL;
+			pr_err("%d: [touch]glink touch exit cmd failed : %s\n",
+				 __LINE__, __func__);
+			goto err_ret;
+		}
+	} else {
+		msleep(200);
+        }
 
 	LOGD(LOG_INFO, "%s[touch] End\n", __func__);
 	return 0;
