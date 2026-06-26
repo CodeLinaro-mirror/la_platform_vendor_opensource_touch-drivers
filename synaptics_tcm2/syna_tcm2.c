@@ -2237,8 +2237,11 @@ static int syna_dev_disconnect(struct syna_tcm *tcm)
 	tcm->input_dev_params.max_objects = 0;
 
 exit:
-	/* power off */
-	if (hw_if->ops_power_on)
+	/* power off only if not already powered down to avoid unbalanced
+	 * regulator disable when shutdown follows a prior suspend path
+	 * that already called ops_power_on(false).
+	 */
+	if (hw_if->ops_power_on && tcm->pwr_state != PWR_OFF)
 		hw_if->ops_power_on(false);
 
 	tcm->pwr_state = PWR_OFF;
