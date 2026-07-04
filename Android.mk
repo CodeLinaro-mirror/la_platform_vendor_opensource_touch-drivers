@@ -470,6 +470,17 @@ else ifeq ($(TARGET_BOARD_PLATFORM), art)
        ###########################################################
        include $(CLEAR_VARS)
        LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
+       LOCAL_MODULE              := goodix_ts2.ko
+       LOCAL_MODULE_KBUILD_NAME  := goodix_ts2.ko
+       LOCAL_MODULE_TAGS         := optional
+       #LOCAL_MODULE_DEBUG_ENABLE := true
+       LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+       include $(DLKM_DIR)/Build_external_kernelmodule.mk
+       ###########################################################
+
+       ###########################################################
+       include $(CLEAR_VARS)
+       LOCAL_SRC_FILES   := $(wildcard $(LOCAL_PATH)/**/*) $(wildcard $(LOCAL_PATH)/*)
        LOCAL_MODULE              := synaptics_tcm2_ts.ko
        LOCAL_MODULE_KBUILD_NAME  := synaptics_tcm2_ts.ko
        LOCAL_MODULE_TAGS         := optional
