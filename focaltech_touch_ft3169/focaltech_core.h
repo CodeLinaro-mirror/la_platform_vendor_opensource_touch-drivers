@@ -75,7 +75,7 @@
 *****************************************************************************/
 #define FTS_DRIVER_NAME                     "fts_ts"
 
-#define FTS_MAX_POINTS_SUPPORT              10 /* constant value, can't be changed */
+#define FTS_MAX_POINTS_SUPPORT              2 /* constant value, can't be changed */
 #define FTS_MAX_KEYS                        4
 #define FTS_KEY_DIM                         10
 #define FTS_COORDS_ARR_SIZE                 4
@@ -94,7 +94,7 @@
 #define FTS_SIZE_DEFAULT_V2                 21
 
 
-#define FTS_MAX_ID                          0x0A
+#define FTS_MAX_ID                          0x02
 #define FTS_TOUCH_OFF_E_XH                  0
 #define FTS_TOUCH_OFF_XL                    1
 #define FTS_TOUCH_OFF_ID_YH                 2
