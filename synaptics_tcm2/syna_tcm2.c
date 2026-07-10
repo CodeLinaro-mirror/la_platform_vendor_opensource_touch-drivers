@@ -2203,7 +2203,7 @@ static int syna_dev_disconnect(struct syna_tcm *tcm)
 {
 	struct syna_hw_interface *hw_if = tcm->hw_if;
 
-	if (!tcm->is_connected) {
+	if (!tcm->is_connected && tcm->pwr_state == PWR_OFF) {
 		LOGI("%s already disconnected\n", PLATFORM_DRIVER_NAME);
 		return 0;
 	}
@@ -2237,10 +2237,6 @@ static int syna_dev_disconnect(struct syna_tcm *tcm)
 	tcm->input_dev_params.max_objects = 0;
 
 exit:
-	/* power off only if not already powered down to avoid unbalanced
-	 * regulator disable when shutdown follows a prior suspend path
-	 * that already called ops_power_on(false).
-	 */
 	if (hw_if->ops_power_on && tcm->pwr_state != PWR_OFF)
 		hw_if->ops_power_on(false);
 
@@ -2420,6 +2416,8 @@ err_request_irq:
 #endif
 err_setup_input_dev:
 err_detect_dev:
+	if (hw_if->ops_power_on)
+		hw_if->ops_power_on(false);
 	return retval;
 }
 

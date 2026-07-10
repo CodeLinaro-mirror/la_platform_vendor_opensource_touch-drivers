@@ -1145,18 +1145,19 @@ static int syna_spi_power_on(bool on)
 		retval = syna_spi_power_setup(&pwr->vio, true, pwr->power_on_state);
 		if (retval < 0) {
 			LOGE("Fail to power on VIO\n");
+			syna_spi_power_setup(&pwr->vdd, false, pwr->power_on_state);
 			goto exit;
 		}
 	} else {
 		retval = syna_spi_power_setup(&pwr->vio, false, pwr->power_on_state);
 		if (retval < 0) {
-			LOGE("Fail to power off VDD\n");
+			LOGE("Fail to power off VIO\n");
 			goto exit;
 		}
 
 		retval = syna_spi_power_setup(&pwr->vdd, false, pwr->power_on_state);
 		if (retval < 0) {
-			LOGE("Fail to power off VIO\n");
+			LOGE("Fail to power off VDD\n");
 			goto exit;
 		}
 	}
