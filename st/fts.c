@@ -54,6 +54,9 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
+#if IS_ENABLED(CONFIG_GUNYAH_CRASH_CLEANER)
+#include <linux/gunyah/gunyah_crash_cleaner.h>
+#endif
 
 #if defined(CONFIG_DRM)
 #include <linux/soc/qcom/panel_event_notifier.h>
@@ -141,6 +144,77 @@ static int fts_enable_reg(struct fts_ts_info *info, bool enable);
 static int fts_chip_initialization(struct fts_ts_info *info, int init_type);
 static irqreturn_t st_irq_handler(int irq, void *data);
 
+#if IS_ENABLED(CONFIG_GUNYAH_CRASH_CLEANER)
+static void fts_crash_cleaner_reset_gpio(struct fts_ts_info *info)
+{
+	int reset_gpio;
+
+	if (!info)
+		return;
+
+	reset_gpio = info->reset_gpio;
+	if (reset_gpio == GPIO_NOT_DEFINED)
+		return;
+
+	gpio_set_value(reset_gpio, 0);
+	udelay(10);	/* busy-wait to satisfy crash cleaner atomic context */
+	gpio_set_value(reset_gpio, 1);
+}
+
+static int fts_crash_cleaner_notifier(struct notifier_block *nb,
+				      unsigned long event, void *data)
+{
+	struct fts_ts_info *info = container_of(nb, struct fts_ts_info,
+						crash_cleaner_nb);
+#if IS_ENABLED(CONFIG_QTS_ENABLE)
+	int ret;
+#endif
+
+	fts_crash_cleaner_reset_gpio(info);
+#if IS_ENABLED(CONFIG_QTS_ENABLE)
+	ret = qts_trusted_touch_mem_release(info);
+	if (ret && ret != -ENODEV && ret != -EOPNOTSUPP)
+		logError(1, "%s crash cleaner mem release failed: %d\n", tag, ret);
+#endif
+
+	return NOTIFY_OK;
+}
+
+static void fts_crash_cleaner_register(struct fts_ts_info *info)
+{
+	int ret;
+
+	if (!info || info->crash_cleaner_registered)
+		return;
+
+	if (info->reset_gpio == GPIO_NOT_DEFINED)
+		return;
+
+	info->crash_cleaner_nb.notifier_call = fts_crash_cleaner_notifier;
+	ret = gunyah_crash_cleaner_register(&info->crash_cleaner_nb);
+	if (ret) {
+		logError(1, "%s failed to register crash cleaner notifier: %d\n",
+			 tag, ret);
+		return;
+	}
+
+	info->crash_cleaner_registered = true;
+	logError(0, "%s registered crash cleaner notifier\n", tag);
+}
+
+static void fts_crash_cleaner_unregister(struct fts_ts_info *info)
+{
+	if (!info || !info->crash_cleaner_registered)
+		return;
+
+	gunyah_crash_cleaner_unregister(&info->crash_cleaner_nb);
+	info->crash_cleaner_registered = false;
+}
+#else
+static inline void fts_crash_cleaner_register(struct fts_ts_info *info) {}
+static inline void fts_crash_cleaner_unregister(struct fts_ts_info *info) {}
+#endif
+
 #if defined(CONFIG_DRM)
 static struct drm_panel *active_panel;
 static void st_ts_panel_notifier_callback(enum panel_event_notifier_tag tag,
@@ -174,7 +248,7 @@ static int st_register_for_panel_events(struct device_node *dp,
  * @param info pointer to fts_ts_info which contains info about the device and
  * its hw setup
  */
-void release_all_touches(struct fts_ts_info *info)
+static void release_all_touches(struct fts_ts_info *info)
 {
 	unsigned int type = MT_TOOL_FINGER;
 	int i;
@@ -483,7 +557,7 @@ END:
   * @return OK if is possible to enable/disable feature, ERROR_OP_NOT_ALLOW
   * in case of any other conflict
   */
-int check_feature_feasibility(struct fts_ts_info *info, unsigned int feature)
+static int check_feature_feasibility(struct fts_ts_info *info, unsigned int feature)
 {
 	int res = OK;
 
@@ -2088,7 +2162,8 @@ static struct attribute *fts_attr_group[] = {
   * and its hw setup
   * @param key_code	button value
   */
-void fts_input_report_key(struct fts_ts_info *info, int key_code)
+#ifdef PHONE_KEY
+static void fts_input_report_key(struct fts_ts_info *info, int key_code)
 {
 	mutex_lock(&info->input_report_mutex);
 	input_report_key(info->input_dev, key_code, 1);
@@ -2097,8 +2172,7 @@ void fts_input_report_key(struct fts_ts_info *info, int key_code)
 	input_sync(info->input_dev);
 	mutex_unlock(&info->input_report_mutex);
 }
-
-
+#endif
 
 /**
   * Event Handler for no events (EVT_ID_NOEVENT)
@@ -2836,7 +2910,7 @@ static void fts_event_handler(struct work_struct *work)
   *	@return  OK if success or an error code which specify the type of error
   *	encountered
   */
-int fts_fw_update(struct fts_ts_info *info)
+static int fts_fw_update(struct fts_ts_info *info)
 {
 	u8 error_to_search[4] = { EVT_TYPE_ERROR_CRC_CX_HEAD,
 				  EVT_TYPE_ERROR_CRC_CX,
@@ -3119,7 +3193,8 @@ static int fts_interrupt_install(struct fts_ts_info *info)
 
 	logError(1, "%s Interrupt Mode\n", tag);
 	if (request_irq(info->irq, st_irq_handler,
-			info->board->irq_flags, FTS_TS_DRV_NAME, info)) {
+			info->board->irq_flags | IRQF_NO_AUTOEN,
+			FTS_TS_DRV_NAME, info)) {
 		logError(1, "%s Request irq failed\n", tag);
 		kfree(info->event_dispatch_table);
 		error = -EBUSY;
@@ -4645,10 +4720,14 @@ skip_to_fw_update:
 			   msecs_to_jiffies(EXP_FN_WORK_DELAY_MS));
 #endif
 
+	fts_crash_cleaner_register(info);
+
 	logError(1, "%s Probe Finished!\n", tag);
 	return OK;
 
 ProbeErrorExit_6:
+	fts_crash_cleaner_unregister(info);
+
 	input_unregister_device(info->input_dev);
 
 ProbeErrorExit_5:
@@ -4798,6 +4877,8 @@ static int st_fts_spi_probe(struct spi_device *spi)
   */
 static void st_fts_remove_entry(struct fts_ts_info *info)
 {
+	fts_crash_cleaner_unregister(info);
+
 	/* sysfs stuff */
 	sysfs_remove_group(&info->dev->kobj, &info->attrs);
 
