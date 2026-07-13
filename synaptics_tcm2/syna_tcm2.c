@@ -2752,6 +2752,9 @@ static int syna_dev_remove(struct platform_device *pdev)
 	/* remove the cdev and sysfs nodes */
 	syna_cdev_remove(tcm);
 
+	if (tcm->hw_if)
+		tcm->hw_if->ops_power_on = NULL;
+
 	/* check the connection status, and do disconnection */
 	if (syna_dev_disconnect(tcm) < 0)
 		LOGE("Fail to do device disconnection\n");
