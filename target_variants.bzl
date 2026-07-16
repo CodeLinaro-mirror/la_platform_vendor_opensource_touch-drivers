@@ -10,6 +10,9 @@ targets = [
     "sun",
     "vienna",
     "lahaina",
+    "shikra",
+    "shikra_tiny_32go",
+    "shikra_64go"
 ]
 
 la_variants = [
@@ -21,6 +24,7 @@ la_variants = [
 le_targets = [
     # keep sorted
     "alor-le",
+    "pebble-le",
     "sun-allyes",
 ]
 

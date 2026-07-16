@@ -2,6 +2,60 @@ load(":touch_modules.bzl", "touch_driver_modules")
 load(":touch_modules_build.bzl", "define_target_variant_modules")
 load(":target_variants.bzl", "get_all_variants")
 
+def define_shikra_tiny_32go(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "gt9xx-ts",
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG"
+        ],
+)
+
+def define_shikra_64go(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "gt9xx-ts",
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG"
+        ],
+)
+
+def define_shikra(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "gt9xx-ts",
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG"
+        ],
+)
+
 def define_vienna(t,v):
     define_target_variant_modules(
         target = t,
@@ -398,6 +452,14 @@ def define_touch_target():
         elif t == "art-oemvm":
             define_artvm(t, v)
         elif t == "art16k":
+            define_art(t, v)
+        elif t == "shikra_tiny_32go":
+            define_shikra_tiny_32go(t, v)
+        elif t == "shikra_64go":
+            define_shikra_64go(t, v)
+        elif t == "shikra":
+            define_shikra(t, v)
+        elif t == "pebble-le":
             define_art(t, v)
         else:
             pass

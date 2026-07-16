@@ -52,15 +52,19 @@ def define_target_variant_modules(target, variant, registry, modules, config_opt
     options = _get_kernel_build_options(modules, config_options)
     build_print = lambda message: print("{}: {}".format(kernel_build, message))
     formatter = lambda s: s.replace("%b", kernel_build).replace("%t", target)
+    socrepo_deps = [
+        "//soc-repo:all_headers",
+        "//soc-repo:{}/drivers/pinctrl/qcom/pinctrl-msm".format(kernel_build),
+        "//soc-repo:{}/drivers/virt/gunyah/gh_mem_notifier".format(kernel_build),
+        "//soc-repo:{}/drivers/virt/gunyah/gh_irq_lend".format(kernel_build),
+        "//soc-repo:{}/drivers/virt/gunyah/gh_rm_drv".format(kernel_build),
+        "//soc-repo:{}/drivers/soc/qcom/panel_event_notifier".format(kernel_build),
+    ]
+    if target in ("art-tuivm", "art-oemvm"):
+        socrepo_deps.append("//soc-repo:{}/drivers/virt/gunyah/gunyah_crash_cleaner".format(kernel_build))
+
     deps = select({
-        "//build/kernel/kleaf:socrepo_true": [
-            "//soc-repo:all_headers",
-            "//soc-repo:{}/drivers/pinctrl/qcom/pinctrl-msm".format(kernel_build),
-            "//soc-repo:{}/drivers/virt/gunyah/gh_mem_notifier".format(kernel_build),
-            "//soc-repo:{}/drivers/virt/gunyah/gh_irq_lend".format(kernel_build),
-            "//soc-repo:{}/drivers/virt/gunyah/gh_rm_drv".format(kernel_build),
-            "//soc-repo:{}/drivers/soc/qcom/panel_event_notifier".format(kernel_build),
-        ],
+        "//build/kernel/kleaf:socrepo_true": socrepo_deps,
         "//build/kernel/kleaf:socrepo_false": ["//msm-kernel:all_headers"],
     })
 
