@@ -1914,6 +1914,7 @@ static int syna_ts_post_le_tui_enable(void *data)
 	struct syna_hw_interface *hw_if;
 	struct tcm_dev *tcm_dev;
 	int retval;
+	bool need_full_init = false;
 
 	if (!tcm || !tcm->hw_if || !tcm->tcm_dev)
 		return -EINVAL;
@@ -1922,8 +1923,13 @@ static int syna_ts_post_le_tui_enable(void *data)
 	tcm_dev = tcm->tcm_dev;
 
 	LOGI("TVM: post_le_tui_enable - Hardware now accessible\n");
+	if (tcm->pwr_state == PWR_OFF || !tcm->is_connected) {
+		need_full_init = true;
+		LOGI("TVM: Full initialization required (pwr_state:%d, connected:%d)\n",
+			tcm->pwr_state, tcm->is_connected);
+	}
 
-	if (hw_if->ops_power_on) {
+	if (need_full_init && hw_if->ops_power_on) {
 		retval = hw_if->ops_power_on(true);
 		if (retval < 0) {
 			LOGE("TVM: Fail to power on device\n");
@@ -1931,11 +1937,9 @@ static int syna_ts_post_le_tui_enable(void *data)
 		}
 		if (hw_if->bdata_pwr.power_delay_ms > 0)
 			syna_pal_sleep_ms(hw_if->bdata_pwr.power_delay_ms);
-	}
 
-	if (hw_if->ops_hw_reset) {
-		hw_if->ops_hw_reset();
-		syna_pal_sleep_ms(hw_if->bdata_rst.reset_delay_ms);
+		if (hw_if->ops_hw_reset)
+			hw_if->ops_hw_reset();
 	}
 
 #if defined(TOUCHCOMM_VERSION_1)
@@ -1981,6 +1985,7 @@ static int syna_ts_post_le_tui_enable(void *data)
 	}
 
 	tcm->pwr_state = PWR_ON;
+	tcm->is_connected = true;
 	syna_dev_show_info(tcm);
 	LOGI("TVM: Hardware initialization completed successfully\n");
 
@@ -2045,15 +2050,50 @@ static int syna_ts_post_le_tui_disable(void *data)
 static irqreturn_t syna_irq_handler(int irq, void *data)
 {
 	struct syna_tcm *tcm = data;
+	struct syna_hw_attn_data *attn;
+	int max_reads = 10;
+	int read_count = 0;
 
 	if (!tcm)
 		return IRQ_HANDLED;
 
-	/* Use trylock to avoid blocking during TUI transitions */
-	if (!mutex_trylock(&tcm->tui_transition_lock))
-		return IRQ_HANDLED;
+	attn = &tcm->hw_if->bdata_attn;
 
-	syna_dev_isr(irq, data);
+	/* Use trylock to avoid blocking during TUI transitions */
+	if (!mutex_trylock(&tcm->tui_transition_lock)) {
+		/* Lock failed - likely during TUI transition
+		 * Still need to read ALL FIFO events to prevent blocking
+		 * Loop until IRQ line is deasserted or max reads reached
+		 */
+		if (tcm->tcm_dev) {
+			unsigned char code = 0;
+			struct tcm_buffer temp_buf;
+
+			syna_tcm_buf_init(&temp_buf);
+
+			/* Keep reading until FIFO is empty (IRQ deasserted) */
+			while (gpio_get_value(attn->irq_gpio) == attn->irq_on_state &&
+			       read_count < max_reads) {
+				/* Quick read to clear FIFO - ignore errors during transition */
+				if (syna_tcm_get_event_data(tcm->tcm_dev, &code, &temp_buf) < 0)
+					break;
+				read_count++;
+			}
+
+			syna_tcm_buf_release(&temp_buf);
+
+			if (read_count > 0)
+				pr_debug("TUI transition: cleared %d FIFO events\n", read_count);
+		}
+
+		return IRQ_HANDLED;
+	}
+
+	while (gpio_get_value(attn->irq_gpio) == attn->irq_on_state &&
+	       read_count < max_reads) {
+		syna_dev_isr(irq, data);
+		read_count++;
+	}
 
 	mutex_unlock(&tcm->tui_transition_lock);
 
