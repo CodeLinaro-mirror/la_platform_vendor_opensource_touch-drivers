@@ -35,7 +35,7 @@
 #define MAIN_I2C_ADDR   (0x5A)
 #define RW_REG_LEN   (2)
 
-#define MAX_FINGER (2)
+#define MAX_FINGER (5)
 #define MODULE_ID_EN  (0)
 
 enum chip_group_t{
@@ -266,16 +266,16 @@ static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
     int ok = FALSE,t,i;
     uint8_t sram_buf[8+2] = {0};
 
-    memcpy(sram_buf,(u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}, 6);
-    ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //addr
+	memcpy(sram_buf, ((u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}), 6);
+	ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //addr
 
-    if (addr == 0) {
-        memcpy(sram_buf,(u8[]){0xA0, 0x0C, len, len>>8, 0x00, 0x00}, 6);
-        ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
-    
-        memcpy(sram_buf,(u8[]){0xA0,0x0E,0x00, 0x00,0x00,0x00},6);
-        ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
-    }
+	if (addr == 0) {
+		memcpy(sram_buf, ((u8[]){0xA0, 0x0C, len, len>>8, 0x00, 0x00}), 6);
+		ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
+
+		memcpy(sram_buf, ((u8[]){0xA0, 0x0E, 0x00, 0x00, 0x00, 0x00}), 6);
+		ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
+	}
     
 	for (i = 0; i < len; i+=8) {
 		uint16_t sram_addr = 0xA018 + i;

@@ -57,7 +57,7 @@
 #include <linux/uaccess.h>
 #include <linux/of.h>
 #include <linux/of_gpio.h>
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+#if KERNEL_VERSION(6, 2, 0) > LINUX_VERSION_CODE
     #include <linux/gpio/consumer.h>
 #endif
 #include <linux/delay.h>
@@ -99,7 +99,9 @@
 #include <linux/fb.h>
 #endif
 #elif defined(CONFIG_DRM)
+#if KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
 #include <linux/msm_drm_notify.h>
+#endif
 #if defined(CONFIG_DRM_PANEL)
 #include <drm/drm_panel.h>
 #endif

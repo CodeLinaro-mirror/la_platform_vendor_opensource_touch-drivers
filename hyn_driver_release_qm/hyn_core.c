@@ -100,15 +100,20 @@ static int hyn_parse_dt(struct hyn_ts_data *ts_data)
         }
 
 //gpio info
-#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 2, 0)
+#if KERNEL_VERSION(6, 2, 0) > LINUX_VERSION_CODE
         dt->reset_gpio = of_get_named_gpio_flags(np, "reset-gpios", 0, &dt->reset_gpio_flags);
         dt->irq_gpio = of_get_named_gpio_flags(np, "irq-gpios", 0, &dt->irq_gpio_flags);
-# else
-        dt->reset_gpio = devm_gpiod_get_optional(dev,"reset",GPIOD_OUT_HIGH);
-        dt->irq_gpio = devm_gpiod_get_optional(dev,"irq",GPIOD_IN);
+#else
+		struct gpio_desc *reset_desc =
+			devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
+		struct gpio_desc *irq_desc = devm_gpiod_get_optional(dev, "irq", GPIOD_IN);
+
+		dt->reset_gpio = IS_ERR_OR_NULL(reset_desc) ? -1 : desc_to_gpio(reset_desc);
+		dt->irq_gpio = IS_ERR_OR_NULL(irq_desc) ? -1 : desc_to_gpio(irq_desc);
+
         dt->reset_gpio_flags = GPIOD_OUT_HIGH;
         dt->irq_gpio_flags = GPIOD_IN;
-#endif 
+#endif
         if(dt->reset_gpio < 0 || dt->irq_gpio < 0){
             HYN_ERROR("dts get gpio failed");
             return -ENODEV;
@@ -182,14 +187,14 @@ static int hyn_poweron(struct hyn_ts_data *ts_data)
             HYN_ERROR("pin active set failed");
         }
     }
-
+#if KERNEL_VERSION(6, 2, 0) > LINUX_VERSION_CODE
     ret = gpio_request(dt->irq_gpio, "hyn_irq_gpio");
     ret |= gpio_request(dt->reset_gpio, "hyn_reset_gpio");
     if(ret < 0){
         HYN_ERROR("gpio_request failed");
         goto GPIO_SET_FAILE;
     }
-    
+#endif
     ret = gpio_direction_input(dt->irq_gpio);
     ret |= gpio_direction_output(dt->reset_gpio, 0);
     if(ret < 0){
@@ -514,7 +519,7 @@ static void hyn_resum(struct device *dev)
     hyn_irq_set(hyn_data,ENABLE);
 }
 
-static void hyn_suspend(struct device *dev)
+static void __maybe_unused hyn_suspend(struct device *dev)
 {
     // int ret = 0;
     HYN_ENTER();
@@ -646,32 +651,38 @@ static int fb_notifier_callback(struct notifier_block *self, unsigned long event
         const unsigned long event_enum[2] = {FB_EARLY_EVENT_BLANK, FB_EVENT_BLANK};
         const int blank_enum[2] = {FB_BLANK_POWERDOWN, FB_BLANK_UNBLANK};
 #elif defined(CONFIG_DRM)
-    #if defined(CONFIG_DRM_PANEL)
+    #if defined(CONFIG_DRM_PANEL) && (KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE)
         int blank_value = *((int *)(((struct drm_panel_notifier *)data)->data));
         const unsigned long event_enum[2] = {DRM_PANEL_EARLY_EVENT_BLANK, DRM_PANEL_EVENT_BLANK};
         const int blank_enum[2] = {DRM_PANEL_BLANK_POWERDOWN, DRM_PANEL_BLANK_UNBLANK};
-    #else //CONFIG_DRM_PANEL
+    #elif KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
         int blank_value = *((int *)(((struct msm_drm_notifier *)data)->data));
         const unsigned long event_enum[2] = {MSM_DRM_EARLY_EVENT_BLANK, MSM_DRM_EVENT_BLANK};
         const int blank_enum[2] = {MSM_DRM_BLANK_POWERDOWN, MSM_DRM_BLANK_UNBLANK};
+    #else
+		return 0;
     #endif //CONFIG_DRM_PANEL
+#else
+		return 0;
 #endif //CONFIG_DRM
 
+#if defined(CONFIG_FB) || (defined(CONFIG_DRM) && (KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE))
     HYN_INFO("notifier,event:%lu,blank:%d", event, blank_value);
     if(hyn_data->old_fb_state == blank_value || (event != event_enum[0] && event != event_enum[1])){
         HYN_INFO("don't care");
         return 0;
     }
 
-    if (blank_enum[1] == blank_value) {
-        queue_work(hyn_data->hyn_workqueue, &hyn_data->work_resume);
-    } else{
-        cancel_work_sync(&hyn_data->work_resume);
-        hyn_suspend(hyn_data->dev);
-    } 
+	if (blank_enum[1] == blank_value) {
+		queue_work(hyn_data->hyn_workqueue, &hyn_data->work_resume);
+	} else {
+		cancel_work_sync(&hyn_data->work_resume);
+		hyn_suspend(hyn_data->dev);
+	}
 
     hyn_data->old_fb_state = blank_value;
     return 0;
+#endif
     }
 }
 #endif
@@ -706,8 +717,16 @@ static void hyn_ts_late_resume(struct early_suspend *handler)
 
 
 #ifdef I2C_PORT
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void hyn_ts_remove(struct i2c_client *client);
+#else
 static int hyn_ts_remove(struct i2c_client *client);
+#endif
+#if KERNEL_VERSION(6, 3, 0) <= LINUX_VERSION_CODE
+static int hyn_ts_probe(struct i2c_client *client)
+#else
 static int hyn_ts_probe(struct i2c_client *client, const struct i2c_device_id *id)
+#endif
 #else
 
 #ifdef CONFIG_BUS_SPI
@@ -899,7 +918,7 @@ static int hyn_ts_probe(struct spi_device *client)
 #endif
 #elif defined(CONFIG_DRM)
     ts_data->fb_notif.notifier_call = fb_notifier_callback;
-#if defined(CONFIG_DRM_PANEL)
+#if defined(CONFIG_DRM_PANEL) && (KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE)
     HYN_INFO("drm_panel register");
     {
         int i,count;
@@ -929,7 +948,7 @@ static int hyn_ts_probe(struct spi_device *client)
              HYN_ERROR("drm_panel_notifier_register failed: %d", ret);
         }
     }
-#else
+#elif KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
     HYN_INFO("msm_drm_register");
     ret = msm_drm_register_client(&ts_data->fb_notif);
     if(ret < 0){
@@ -963,7 +982,11 @@ FREE_RESOURCE:
 
 
 #ifdef I2C_PORT
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void hyn_ts_remove(struct i2c_client *client)
+#else
 static int hyn_ts_remove(struct i2c_client *client)
+#endif
 #else
 static int hyn_ts_remove(struct spi_device *client)
 #endif
@@ -1009,10 +1032,10 @@ static int hyn_ts_remove(struct spi_device *client)
         fb_unregister_client(&ts_data->fb_notif);
 #endif
 #elif defined(CONFIG_DRM)
-#if defined(CONFIG_DRM_PANEL)
+#if defined(CONFIG_DRM_PANEL) && (KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE)
     if (!IS_ERR_OR_NULL(ts_data->active_panel))
             drm_panel_notifier_unregister(ts_data->active_panel, &ts_data->fb_notif);
-#else
+#elif KERNEL_VERSION(5, 15, 0) > LINUX_VERSION_CODE
     msm_drm_unregister_client(&ts_data->fb_notif);
 #endif
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
@@ -1040,7 +1063,9 @@ static int hyn_ts_remove(struct spi_device *client)
         hyn_data = NULL;
         HYN_INFO("ts_remove7");
     }
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE || !defined(I2C_PORT)
     return 0;
+#endif
 }
 
 #ifdef I2C_PORT
@@ -1116,4 +1141,4 @@ module_exit(hyn_ts_exit);
 MODULE_AUTHOR("Hynitron Driver Team");
 MODULE_DESCRIPTION("Hynitron Touchscreen Driver");
 MODULE_LICENSE("GPL v2");
-
+MODULE_INFO(import_ns, "ANDROID_GKI_VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver");
