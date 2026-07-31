@@ -1632,6 +1632,15 @@ static int syna_dev_suspend(struct device *dev)
 }
 
 #if defined(CONFIG_DRM)
+static void syna_dev_kref_release(struct kref *kref)
+{
+	struct syna_tcm *tcm = container_of(kref, struct syna_tcm, dev_kref);
+
+	complete(&tcm->dev_released);
+}
+#endif
+
+#if defined(CONFIG_DRM)
 /*
  * Panel notifier callback for suspend/resume events
  * This replaces the traditional .pm suspend/resume methods
@@ -1656,6 +1665,11 @@ static void syna_panel_notifier_callback(enum panel_event_notifier_tag tag,
 
 	if (!tcm) {
 		LOGE("Invalid tcm data\n");
+		return;
+	}
+
+	if (!kref_get_unless_zero(&tcm->dev_kref)) {
+		LOGW("Device is being removed, skip callback\n");
 		return;
 	}
 
@@ -1693,6 +1707,8 @@ static void syna_panel_notifier_callback(enum panel_event_notifier_tag tag,
 		LOGD("Notification serviced: %d\n", notification->notif_type);
 		break;
 	}
+
+	kref_put(&tcm->dev_kref, syna_dev_kref_release);
 }
 #endif
 /*
@@ -2530,6 +2546,11 @@ static int syna_dev_probe(struct platform_device *pdev)
 
 	syna_pal_completion_alloc(&tcm->init_completed);
 
+#if defined(CONFIG_DRM)
+	kref_init(&tcm->dev_kref);
+	init_completion(&tcm->dev_released);
+#endif
+
 	/* allocate the TouchComm device handle */
 	retval = syna_tcm_allocate_device(&tcm_dev,
 		&hw_if->hw_platform, (void *)tcm);
@@ -2721,6 +2742,18 @@ static int syna_dev_remove(struct platform_device *pdev)
 #endif
 	}
 
+#if defined(CONFIG_DRM)
+	if (tcm->notifier_cookie) {
+		panel_event_notifier_unregister(tcm->notifier_cookie);
+		tcm->notifier_cookie = NULL;
+	}
+
+	kref_put(&tcm->dev_kref, syna_dev_kref_release);
+	if (!wait_for_completion_timeout(&tcm->dev_released,
+			msecs_to_jiffies(3000)))
+		LOGW("Timeout waiting for notifier callbacks\n");
+#endif
+
 #if defined(ENABLE_HELPER)
 	cancel_work_sync(&tcm->helper.work);
 	flush_workqueue(tcm->helper.workqueue);
@@ -2732,11 +2765,6 @@ static int syna_dev_remove(struct platform_device *pdev)
 		qts_client_unregister();
 		mutex_destroy(&tcm->tui_transition_lock);
 	}
-
-#if defined(CONFIG_DRM)
-	if (tcm->notifier_cookie)
-		panel_event_notifier_unregister(tcm->notifier_cookie);
-#endif
 
 #if defined(ENABLE_DISP_NOTIFIER)
 #if defined(USE_DRM_BRIDGE)
