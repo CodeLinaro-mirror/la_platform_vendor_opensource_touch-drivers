@@ -1308,6 +1308,7 @@ static int gtp_i2c_test(struct i2c_client *client)
 	return -EAGAIN;
 }
 
+#ifdef PINCTRL_ENABLE
 #ifndef CONFIG_ARCH_QTI_VM
 static int gtp_pinctrl_init(struct goodix_ts_data *ts)
 {
@@ -1365,6 +1366,7 @@ static void gtp_pinctrl_deinit(struct goodix_ts_data *ts)
 	if (ts->pinctrl.pinctrl)
 		devm_pinctrl_put(ts->pinctrl.pinctrl);
 }
+#endif
 
 #ifndef CONFIG_ARCH_QTI_VM
 static int gtp_request_io_port(struct goodix_ts_data *ts)
@@ -1594,9 +1596,9 @@ static int gtp_check_dsi_panel_dt(struct device_node *np, struct drm_panel **act
 		node = of_parse_phandle(np, "panel", i);
 
 		if (node != NULL)
-			pr_err("[touch]%s: Node handle successfully parsed !\n",__func__);
+			pr_err("[touch]%s: Node handle successfully parsed !\n", __func__);
 		else {
-			pr_err("[touch]%s: Node handle parse NULL!\n",__func__);
+			pr_err("[touch]%s: Node handle parse NULL!\n", __func__);
 			goto err;
 		}
 		panel = of_drm_find_panel(node);
@@ -2249,6 +2251,7 @@ static int gtp_probe(struct i2c_client *client)
 		goto exit_deinit_power;
 	}
 
+#ifdef PINCTRL_ENABLE
 	ret = gtp_pinctrl_init(ts);
 	if (ret < 0) {
 		/* if define pinctrl must define the following state
@@ -2258,6 +2261,7 @@ static int gtp_probe(struct i2c_client *client)
 		dev_err(&client->dev, "Failed get wanted pinctrl state\n");
 		goto exit_deinit_power;
 	}
+#endif
 
 	gtp_reset_guitar(ts->client, 20);
 #endif
@@ -2346,7 +2350,9 @@ exit_free_io_port:
 #ifndef CONFIG_ARCH_QTI_VM
 exit_power_off:
 	gtp_power_off(ts);
+#ifdef PINCTRL_ENABLE
 	gtp_pinctrl_deinit(ts);
+#endif
 exit_deinit_power:
 	gtp_power_deinit(ts);
 #endif
@@ -2388,7 +2394,9 @@ static void gtp_drv_remove(struct i2c_client *client)
 
 	gtp_power_off(ts);
 	gtp_power_deinit(ts);
+#ifdef PINCTRL_ENABLE
 	gtp_pinctrl_deinit(ts);
+#endif
 	dev_info(&client->dev, "goodix ts driver removed\n");
 	i2c_set_clientdata(client, NULL);
 	input_unregister_device(ts->input_dev);
