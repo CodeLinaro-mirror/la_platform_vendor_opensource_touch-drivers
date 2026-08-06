@@ -51,6 +51,7 @@
 #endif
 #include <linux/usb.h>
 #include <linux/power_supply.h>
+#include "../qts/qts_core_common.h"
 
 #define GTP_TOOL_PEN	1
 #define GTP_TOOL_FINGER 2
@@ -162,6 +163,16 @@ struct goodix_ts_data {
 	struct goodix_fw_info fw_info;
 	bool force_update;
 	bool init_done;
+	int bus_type;
+	bool qts_en;	/* indicate whether qts is enabled or not */
+	struct mutex tui_transition_lock;	/* mutex for trusted input operation */
+};
+
+enum _FTS_BUS_TYPE {
+	BUS_TYPE_NONE,
+	BUS_TYPE_I2C,
+	BUS_TYPE_SPI,
+	BUS_TYPE_SPI_V2,
 };
 
 extern u16 show_len;

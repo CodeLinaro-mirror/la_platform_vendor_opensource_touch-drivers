@@ -2,7 +2,7 @@ TOUCH_DLKM_ENABLE := true
 ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
         ifeq ($(TARGET_KERNEL_DLKM_TOUCH_OVERRIDE), false)
                 TOUCH_DLKM_ENABLE := false
-                ifneq ($(filter $(TARGET_BOARD_PLATFORM), hamoa_la monaco vienna lahaina shikra shikra_tiny_32go shikra_64go),$(TARGET_BOARD_PLATFORM))
+                ifneq ($(filter $(TARGET_BOARD_PLATFORM), hamoa_la monaco vienna lahaina shikra shikra_tiny_32go shikra_64go shikra-tuivm shikra-oemvm mahua),$(TARGET_BOARD_PLATFORM))
                         BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/dummy_ts.ko
                 endif
         endif
@@ -11,12 +11,21 @@ endif
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
         ifneq ($(TARGET_BOARD_AUTO),true)
                 ifneq (,$(call is-board-platform-in-list2,$(TARGET_BOARD_PLATFORM)))
-                        ifeq ($(TARGET_BOARD_PLATFORM), shikra_tiny_32go)
-                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+                        ifeq ($(TARGET_BOARD_PLATFORM), shikra)
+                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                                $(KERNEL_MODULES_OUT)/qts.ko
+                        else ifeq ($(TARGET_BOARD_PLATFORM), shikra_tiny_32go)
+                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                                $(KERNEL_MODULES_OUT)/qts.ko
                         else ifeq ($(TARGET_BOARD_PLATFORM), shikra_64go)
-                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
-                        else ifeq ($(TARGET_BOARD_PLATFORM), shikra)
-                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                                $(KERNEL_MODULES_OUT)/qts.ko
+                        else ifeq ($(TARGET_BOARD_PLATFORM), shikra-tuivm)
+                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                                $(KERNEL_MODULES_OUT)/qts.ko
+                        else ifeq ($(TARGET_BOARD_PLATFORM), shikra-oemvm)
+                                BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                                $(KERNEL_MODULES_OUT)/qts.ko
                         else ifeq ($(TARGET_BOARD_PLATFORM), vienna)
                                 BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/raydium_ts.ko \
                                         $(KERNEL_MODULES_OUT)/glink_comm.ko
@@ -42,6 +51,7 @@ ifeq ($(TOUCH_DLKM_ENABLE),  true)
                                         $(KERNEL_MODULES_OUT)/qts.ko
                         else ifeq ($(TARGET_BOARD_PLATFORM), art)
                                 BOARD_VENDOR_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/goodix_ts.ko \
+                                        $(KERNEL_MODULES_OUT)/goodix_ts2.ko \
                                         $(KERNEL_MODULES_OUT)/atmel_mxt_ts.ko \
                                         $(KERNEL_MODULES_OUT)/st_fts.ko \
                                         $(KERNEL_MODULES_OUT)/qts.ko \
