@@ -2,7 +2,7 @@ TOUCH_DLKM_ENABLE := true
 ifeq ($(TARGET_KERNEL_DLKM_DISABLE), true)
         ifeq ($(TARGET_KERNEL_DLKM_TOUCH_OVERRIDE), false)
                 TOUCH_DLKM_ENABLE := false
-                ifneq ($(filter $(TARGET_BOARD_PLATFORM), hamoa_la monaco vienna lahaina shikra),$(TARGET_BOARD_PLATFORM))
+                ifneq ($(filter $(TARGET_BOARD_PLATFORM), taro hamoa_la monaco vienna lahaina shikra shikra-tuivm shikra-oemvm mahua),$(TARGET_BOARD_PLATFORM))
                         PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/dummy_ts.ko
                 endif
         endif
@@ -10,7 +10,20 @@ endif
 
 ifeq ($(TOUCH_DLKM_ENABLE),  true)
         ifeq ($(TARGET_BOARD_PLATFORM), shikra)
-                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                $(KERNEL_MODULES_OUT)/qts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), shikra_tiny_32go)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                $(KERNEL_MODULES_OUT)/qts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), shikra_64go)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                $(KERNEL_MODULES_OUT)/qts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), shikra-tuivm)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                $(KERNEL_MODULES_OUT)/qts.ko
+        else ifeq ($(TARGET_BOARD_PLATFORM), shikra-oemvm)
+                PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/gt9xx-ts.ko \
+                $(KERNEL_MODULES_OUT)/qts.ko
         else ifeq ($(TARGET_BOARD_PLATFORM), vienna)
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/raydium_ts.ko \
                         $(KERNEL_MODULES_OUT)/glink_comm.ko
@@ -36,6 +49,7 @@ ifeq ($(TOUCH_DLKM_ENABLE),  true)
                         $(KERNEL_MODULES_OUT)/qts.ko
         else ifeq ($(TARGET_BOARD_PLATFORM), art)
                 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/goodix_ts.ko \
+                        $(KERNEL_MODULES_OUT)/goodix_ts2.ko \
                         $(KERNEL_MODULES_OUT)/atmel_mxt_ts.ko \
                         $(KERNEL_MODULES_OUT)/st_fts.ko \
                         $(KERNEL_MODULES_OUT)/qts.ko \

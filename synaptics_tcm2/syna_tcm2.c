@@ -825,28 +825,26 @@ static int syna_dev_set_up_input_device(struct syna_tcm *tcm)
 
 	syna_dev_free_input_events(tcm);
 
-	if (!syna_dev_check_input_params(tcm))
-		return 0;
+	if (syna_dev_check_input_params(tcm)) {
+		syna_pal_mutex_lock(&tcm->tp_event_mutex);
 
-	syna_pal_mutex_lock(&tcm->tp_event_mutex);
+		if (tcm->input_dev != NULL)
+			syna_dev_release_input_device(tcm);
 
-	if (tcm->input_dev != NULL)
-		syna_dev_release_input_device(tcm);
+		retval = syna_dev_create_input_device(tcm);
+		if (retval < 0) {
+			LOGE("Fail to create input device\n");
+			syna_pal_mutex_unlock(&tcm->tp_event_mutex);
+			return retval;
+		}
 
-	retval = syna_dev_create_input_device(tcm);
-	if (retval < 0) {
-		LOGE("Fail to create input device\n");
 		syna_pal_mutex_unlock(&tcm->tp_event_mutex);
-		return retval;
 	}
 
-	/* register the handling function for touch reports */
 	retval = syna_tcm_set_report_dispatcher(tcm->tcm_dev,
 			REPORT_TOUCH, syna_dev_process_touch_report, (void *)tcm);
 	if (retval < 0)
 		LOGE("Fail to register the touch report handling function\n");
-
-	syna_pal_mutex_unlock(&tcm->tp_event_mutex);
 
 	return 0;
 }
@@ -1632,6 +1630,15 @@ static int syna_dev_suspend(struct device *dev)
 }
 
 #if defined(CONFIG_DRM)
+static void syna_dev_kref_release(struct kref *kref)
+{
+	struct syna_tcm *tcm = container_of(kref, struct syna_tcm, dev_kref);
+
+	complete(&tcm->dev_released);
+}
+#endif
+
+#if defined(CONFIG_DRM)
 /*
  * Panel notifier callback for suspend/resume events
  * This replaces the traditional .pm suspend/resume methods
@@ -1656,6 +1663,11 @@ static void syna_panel_notifier_callback(enum panel_event_notifier_tag tag,
 
 	if (!tcm) {
 		LOGE("Invalid tcm data\n");
+		return;
+	}
+
+	if (!kref_get_unless_zero(&tcm->dev_kref)) {
+		LOGW("Device is being removed, skip callback\n");
 		return;
 	}
 
@@ -1693,6 +1705,8 @@ static void syna_panel_notifier_callback(enum panel_event_notifier_tag tag,
 		LOGD("Notification serviced: %d\n", notification->notif_type);
 		break;
 	}
+
+	kref_put(&tcm->dev_kref, syna_dev_kref_release);
 }
 #endif
 /*
@@ -1914,6 +1928,7 @@ static int syna_ts_post_le_tui_enable(void *data)
 	struct syna_hw_interface *hw_if;
 	struct tcm_dev *tcm_dev;
 	int retval;
+	bool need_full_init = false;
 
 	if (!tcm || !tcm->hw_if || !tcm->tcm_dev)
 		return -EINVAL;
@@ -1922,8 +1937,13 @@ static int syna_ts_post_le_tui_enable(void *data)
 	tcm_dev = tcm->tcm_dev;
 
 	LOGI("TVM: post_le_tui_enable - Hardware now accessible\n");
+	if (tcm->pwr_state == PWR_OFF || !tcm->is_connected) {
+		need_full_init = true;
+		LOGI("TVM: Full initialization required (pwr_state:%d, connected:%d)\n",
+			tcm->pwr_state, tcm->is_connected);
+	}
 
-	if (hw_if->ops_power_on) {
+	if (need_full_init && hw_if->ops_power_on) {
 		retval = hw_if->ops_power_on(true);
 		if (retval < 0) {
 			LOGE("TVM: Fail to power on device\n");
@@ -1931,11 +1951,9 @@ static int syna_ts_post_le_tui_enable(void *data)
 		}
 		if (hw_if->bdata_pwr.power_delay_ms > 0)
 			syna_pal_sleep_ms(hw_if->bdata_pwr.power_delay_ms);
-	}
 
-	if (hw_if->ops_hw_reset) {
-		hw_if->ops_hw_reset();
-		syna_pal_sleep_ms(hw_if->bdata_rst.reset_delay_ms);
+		if (hw_if->ops_hw_reset)
+			hw_if->ops_hw_reset();
 	}
 
 #if defined(TOUCHCOMM_VERSION_1)
@@ -1981,6 +1999,7 @@ static int syna_ts_post_le_tui_enable(void *data)
 	}
 
 	tcm->pwr_state = PWR_ON;
+	tcm->is_connected = true;
 	syna_dev_show_info(tcm);
 	LOGI("TVM: Hardware initialization completed successfully\n");
 
@@ -2045,15 +2064,50 @@ static int syna_ts_post_le_tui_disable(void *data)
 static irqreturn_t syna_irq_handler(int irq, void *data)
 {
 	struct syna_tcm *tcm = data;
+	struct syna_hw_attn_data *attn;
+	int max_reads = 10;
+	int read_count = 0;
 
 	if (!tcm)
 		return IRQ_HANDLED;
 
-	/* Use trylock to avoid blocking during TUI transitions */
-	if (!mutex_trylock(&tcm->tui_transition_lock))
-		return IRQ_HANDLED;
+	attn = &tcm->hw_if->bdata_attn;
 
-	syna_dev_isr(irq, data);
+	/* Use trylock to avoid blocking during TUI transitions */
+	if (!mutex_trylock(&tcm->tui_transition_lock)) {
+		/* Lock failed - likely during TUI transition
+		 * Still need to read ALL FIFO events to prevent blocking
+		 * Loop until IRQ line is deasserted or max reads reached
+		 */
+		if (tcm->tcm_dev) {
+			unsigned char code = 0;
+			struct tcm_buffer temp_buf;
+
+			syna_tcm_buf_init(&temp_buf);
+
+			/* Keep reading until FIFO is empty (IRQ deasserted) */
+			while (gpio_get_value(attn->irq_gpio) == attn->irq_on_state &&
+			       read_count < max_reads) {
+				/* Quick read to clear FIFO - ignore errors during transition */
+				if (syna_tcm_get_event_data(tcm->tcm_dev, &code, &temp_buf) < 0)
+					break;
+				read_count++;
+			}
+
+			syna_tcm_buf_release(&temp_buf);
+
+			if (read_count > 0)
+				pr_debug("TUI transition: cleared %d FIFO events\n", read_count);
+		}
+
+		return IRQ_HANDLED;
+	}
+
+	while (gpio_get_value(attn->irq_gpio) == attn->irq_on_state &&
+	       read_count < max_reads) {
+		syna_dev_isr(irq, data);
+		read_count++;
+	}
 
 	mutex_unlock(&tcm->tui_transition_lock);
 
@@ -2221,16 +2275,27 @@ static int syna_dev_connect(struct syna_tcm *tcm)
 	}
 
 #ifdef CONFIG_ARCH_QTI_VM
-	/* TVM: Defer all hardware initialization to post_le_tui_enable callback
-	 * At probe time in TVM:
-	 * - No IC access, no SPI operations, no power control
-	 * - Hardware becomes accessible only after TVM receives IRQ/memory from PVM
-	 * - Do NOT call syna_dev_set_up_input_device() here (requires max_x/max_y from IC)
+	/* TVM: Defer hardware initialization to post_le_tui_enable callback.
+	 * However, pre-register the input device at probe time
+	 * so that udev processes the uevent early and
+	 * /dev/input/eventX has correct permissions before openTouchDeviceFd()
+	 * is called. This mirrors the ST FTS approach.
 	 */
 	LOGI("TVM mode: Defer hardware initialization to post_le_tui_enable\n");
 
 	tcm->is_connected = true;
 	tcm->pwr_state = PWR_OFF;
+
+	tcm->tcm_dev->max_x = TVM_PANEL_MAX_X;
+	tcm->tcm_dev->max_y = TVM_PANEL_MAX_Y;
+	tcm->tcm_dev->max_objects = MAX_NUM_OBJECTS;
+
+	syna_pal_mutex_lock(&tcm->tp_event_mutex);
+	if (syna_dev_create_input_device(tcm) < 0)
+		LOGW("TVM: Failed to pre-register input device, try later\n");
+	else
+		LOGI("TVM: Input device pre-registered successfully\n");
+	syna_pal_mutex_unlock(&tcm->tp_event_mutex);
 
 	LOGI("TVM: Driver probe completed, waiting for TUI session\n");
 	return 0;
@@ -2459,6 +2524,7 @@ static int syna_dev_probe(struct platform_device *pdev)
 	struct syna_hw_interface *hw_if = NULL;
 	struct qts_vendor_data qts_vendor_data;
 	struct device *dev;
+	static int tcm_alloc_retry;
 
 	hw_if = pdev->dev.platform_data;
 	if (!hw_if) {
@@ -2468,9 +2534,16 @@ static int syna_dev_probe(struct platform_device *pdev)
 
 	tcm = syna_pal_mem_alloc(1, sizeof(struct syna_tcm));
 	if (!tcm) {
-		LOGW("Fail to create the handle of syna_tcm, try it later\n");
+		if (++tcm_alloc_retry >= 3) {
+			LOGE("Fail to create the handle of syna_tcm, already retried %d times\n",
+				tcm_alloc_retry);
+			return -ENOMEM;
+		}
+		LOGW("Fail to create the handle of syna_tcm, try it later (%d/3)\n",
+			tcm_alloc_retry);
 		return -EPROBE_DEFER;
 	}
+	tcm_alloc_retry = 0;
 
 	dev = syna_request_managed_device();
 #if defined(CONFIG_DRM)
@@ -2489,6 +2562,11 @@ static int syna_dev_probe(struct platform_device *pdev)
 #endif
 
 	syna_pal_completion_alloc(&tcm->init_completed);
+
+#if defined(CONFIG_DRM)
+	kref_init(&tcm->dev_kref);
+	init_completion(&tcm->dev_released);
+#endif
 
 	/* allocate the TouchComm device handle */
 	retval = syna_tcm_allocate_device(&tcm_dev,
@@ -2681,6 +2759,18 @@ static int syna_dev_remove(struct platform_device *pdev)
 #endif
 	}
 
+#if defined(CONFIG_DRM)
+	if (tcm->notifier_cookie) {
+		panel_event_notifier_unregister(tcm->notifier_cookie);
+		tcm->notifier_cookie = NULL;
+	}
+
+	kref_put(&tcm->dev_kref, syna_dev_kref_release);
+	if (!wait_for_completion_timeout(&tcm->dev_released,
+			msecs_to_jiffies(3000)))
+		LOGW("Timeout waiting for notifier callbacks\n");
+#endif
+
 #if defined(ENABLE_HELPER)
 	cancel_work_sync(&tcm->helper.work);
 	flush_workqueue(tcm->helper.workqueue);
@@ -2692,11 +2782,6 @@ static int syna_dev_remove(struct platform_device *pdev)
 		qts_client_unregister();
 		mutex_destroy(&tcm->tui_transition_lock);
 	}
-
-#if defined(CONFIG_DRM)
-	if (tcm->notifier_cookie)
-		panel_event_notifier_unregister(tcm->notifier_cookie);
-#endif
 
 #if defined(ENABLE_DISP_NOTIFIER)
 #if defined(USE_DRM_BRIDGE)
@@ -2711,6 +2796,9 @@ static int syna_dev_remove(struct platform_device *pdev)
 #endif
 	/* remove the cdev and sysfs nodes */
 	syna_cdev_remove(tcm);
+
+	if (tcm->hw_if)
+		tcm->hw_if->ops_power_on = NULL;
 
 	/* check the connection status, and do disconnection */
 	if (syna_dev_disconnect(tcm) < 0)
