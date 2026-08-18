@@ -51,6 +51,7 @@
 #endif
 #include <linux/usb.h>
 #include <linux/power_supply.h>
+#include "../qts/qts_core_common.h"
 
 #define GTP_TOOL_PEN	1
 #define GTP_TOOL_FINGER 2
@@ -58,6 +59,25 @@
 #define MAX_KEY_NUMS 4
 #define GTP_CONFIG_MAX_LENGTH 240
 #define GTP_ADDR_LENGTH       2
+
+
+#ifndef CONFIG_DRM
+#define CONFIG_DRM
+#endif
+
+#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
+#define CONFIG_PANEL_NOTIFIER
+#endif
+
+#include <linux/device.h>
+#include <linux/fb.h>
+#include <linux/notifier.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#elif defined(CONFIG_DRM) || defined(CONFIG_PANEL_NOTIFIER)
+#include <drm/drm_panel.h>
+#endif
+
 
 /***************************PART1:ON/OFF define*******************************/
 #define GTP_DEBUG_ON          1
@@ -102,6 +122,7 @@ struct goodix_ts_platform_data {
 	u32 resume_in_workqueue;
 	u32 pen_suppress_finger;
 	struct goodix_config_data config;
+	struct  drm_panel *active_panel;
 };
 
 struct goodix_ts_esd {
@@ -162,6 +183,16 @@ struct goodix_ts_data {
 	struct goodix_fw_info fw_info;
 	bool force_update;
 	bool init_done;
+	int bus_type;
+	bool qts_en;	/* indicate whether qts is enabled or not */
+	struct mutex tui_transition_lock;	/* mutex for trusted input operation */
+};
+
+enum _FTS_BUS_TYPE {
+	BUS_TYPE_NONE,
+	BUS_TYPE_I2C,
+	BUS_TYPE_SPI,
+	BUS_TYPE_SPI_V2,
 };
 
 extern u16 show_len;
