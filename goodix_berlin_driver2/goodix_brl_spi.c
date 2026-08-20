@@ -22,7 +22,7 @@
 #include <linux/spi/spi.h>
 
 #include "goodix_ts_core.h"
-#define TS_DRIVER_NAME "gtx8_spi"
+#define TS_DRIVER_NAME "gtx8_spi_atb"
 
 #define SPI_TRANS_PREFIX_LEN 1
 #define REGISTER_WIDTH 4

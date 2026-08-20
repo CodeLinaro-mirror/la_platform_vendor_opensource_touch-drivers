@@ -215,19 +215,19 @@ ifeq ($(CONFIG_TOUCHSCREEN_GOODIX_BRL2), y)
 	LINUX_INC += -include $(TOUCH_ROOT)/goodix_berlin_driver2/goodix_ts_core.h
 	LINUX_INC += -include $(TOUCH_ROOT)/goodix_berlin_driver2/goodix_ts_replay_type.h
 
-	goodix_ts-y := \
-		 ./goodix_berlin_driver2/goodix_brl_fwupdate.o \
-		 ./goodix_berlin_driver2/goodix_brl_hw.o \
-		 ./goodix_berlin_driver2/goodix_brl_i2c.o \
-		 ./goodix_berlin_driver2/goodix_brl_spi.o \
-		 ./goodix_berlin_driver2/goodix_cfg_bin.o \
-		 ./goodix_berlin_driver2/goodix_ts_core.o \
-		 ./goodix_berlin_driver2/goodix_ts_dump.o \
-		 ./goodix_berlin_driver2/goodix_ts_gesture.o \
-		 ./goodix_berlin_driver2/goodix_ts_inspect.o \
-		 ./goodix_berlin_driver2/goodix_ts_replay.o \
-		 ./goodix_berlin_driver2/goodix_ts_tools.o \
-		 ./goodix_berlin_driver2/goodix_ts_utils.o
+	goodix_ts2-y := \
+		 goodix_berlin_driver2/goodix_brl_fwupdate.o \
+		 goodix_berlin_driver2/goodix_brl_hw.o \
+		 goodix_berlin_driver2/goodix_brl_i2c.o \
+		 goodix_berlin_driver2/goodix_brl_spi.o \
+		 goodix_berlin_driver2/goodix_cfg_bin.o \
+		 goodix_berlin_driver2/goodix_ts_core.o \
+		 goodix_berlin_driver2/goodix_ts_dump.o \
+		 goodix_berlin_driver2/goodix_ts_gesture.o \
+		 goodix_berlin_driver2/goodix_ts_inspect.o \
+		 goodix_berlin_driver2/goodix_ts_replay.o \
+		 goodix_berlin_driver2/goodix_ts_tools.o \
+		 goodix_berlin_driver2/goodix_ts_utils.o
 
 	obj-$(CONFIG_MSM_TOUCH) += goodix_ts2.o
 endif

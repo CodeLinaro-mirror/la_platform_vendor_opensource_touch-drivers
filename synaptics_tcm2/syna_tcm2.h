@@ -41,6 +41,7 @@
 #include "syna_tcm2_platform.h"
 #include "tcm/synaptics_touchcom_core_dev.h"
 #include "tcm/synaptics_touchcom_func_base.h"
+#include <linux/kref.h>
 
 #define PLATFORM_DRIVER_NAME "synaptics_tcm"
 
@@ -331,6 +332,8 @@ struct syna_tcm {
 	/* Panel notifier for power management */
 	void *notifier_cookie;
 #endif
+	struct kref        dev_kref;
+	struct completion  dev_released;
 };
 
 /* Helpers for the character device registration */
