@@ -8,7 +8,6 @@ targets = [
     "malabar",
     "monaco",
     "sun",
-    "waipio",
     "vienna",
     "lahaina",
     "shikra",
