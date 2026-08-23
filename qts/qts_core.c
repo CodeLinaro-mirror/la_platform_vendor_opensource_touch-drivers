@@ -209,18 +209,10 @@ static int qts_populate_vm_info(struct qts_data *qts_data)
 	return 0;
 }
 
-static void qts_destroy_vm_info(struct qts_data *qts_data)
-{
-	kfree(qts_data->vm_info->iomem_sizes);
-	kfree(qts_data->vm_info->iomem_bases);
-	kfree(qts_data->vm_info);
-}
-
 static void qts_vm_deinit(struct qts_data *qts_data)
 {
 	if (qts_data->vm_info->mem_cookie)
 		gh_mem_notifier_unregister(qts_data->vm_info->mem_cookie);
-	qts_destroy_vm_info(qts_data);
 }
 
 static int qts_trusted_touch_get_vm_state(struct qts_data *qts_data)
@@ -1970,6 +1962,39 @@ void qts_client_unregister(void)
 	kfree(qts_data_entries);
 }
 EXPORT_SYMBOL_GPL(qts_client_unregister);
+
+#ifdef CONFIG_ARCH_QTI_VM
+int qts_trusted_touch_mem_release(void *vendor_data)
+{
+	struct qts_data *qts_data = NULL;
+	int i, ret;
+
+	if (!vendor_data || !qts_data_entries)
+		return -EINVAL;
+
+	for (i = QTS_CLIENT_PRIMARY_TOUCH; i < QTS_CLIENT_MAX; i++) {
+		if (qts_data_entries->info[i].vendor_data == vendor_data) {
+			qts_data = &qts_data_entries->info[i];
+			break;
+		}
+	}
+
+	if (!qts_data || !qts_data->tui_supported || !qts_data->vm_info)
+		return -ENODEV;
+
+	if (!qts_data->vm_info->vm_mem_handle)
+		return 0;
+
+	ret = qts_vm_mem_release(qts_data);
+	if (!ret && atomic_read(&qts_data->trusted_touch_mode) == TRUSTED_TOUCH_VM_MODE) {
+		qts_trusted_touch_set_vm_state(qts_data, TRUSTED_TOUCH_TVM_INIT);
+		atomic_set(&qts_data->trusted_touch_enabled, 0);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(qts_trusted_touch_mem_release);
+#endif
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Touchscreen driver");
 MODULE_LICENSE("GPL");
