@@ -825,28 +825,26 @@ static int syna_dev_set_up_input_device(struct syna_tcm *tcm)
 
 	syna_dev_free_input_events(tcm);
 
-	if (!syna_dev_check_input_params(tcm))
-		return 0;
+	if (syna_dev_check_input_params(tcm)) {
+		syna_pal_mutex_lock(&tcm->tp_event_mutex);
 
-	syna_pal_mutex_lock(&tcm->tp_event_mutex);
+		if (tcm->input_dev != NULL)
+			syna_dev_release_input_device(tcm);
 
-	if (tcm->input_dev != NULL)
-		syna_dev_release_input_device(tcm);
+		retval = syna_dev_create_input_device(tcm);
+		if (retval < 0) {
+			LOGE("Fail to create input device\n");
+			syna_pal_mutex_unlock(&tcm->tp_event_mutex);
+			return retval;
+		}
 
-	retval = syna_dev_create_input_device(tcm);
-	if (retval < 0) {
-		LOGE("Fail to create input device\n");
 		syna_pal_mutex_unlock(&tcm->tp_event_mutex);
-		return retval;
 	}
 
-	/* register the handling function for touch reports */
 	retval = syna_tcm_set_report_dispatcher(tcm->tcm_dev,
 			REPORT_TOUCH, syna_dev_process_touch_report, (void *)tcm);
 	if (retval < 0)
 		LOGE("Fail to register the touch report handling function\n");
-
-	syna_pal_mutex_unlock(&tcm->tp_event_mutex);
 
 	return 0;
 }
@@ -2277,16 +2275,27 @@ static int syna_dev_connect(struct syna_tcm *tcm)
 	}
 
 #ifdef CONFIG_ARCH_QTI_VM
-	/* TVM: Defer all hardware initialization to post_le_tui_enable callback
-	 * At probe time in TVM:
-	 * - No IC access, no SPI operations, no power control
-	 * - Hardware becomes accessible only after TVM receives IRQ/memory from PVM
-	 * - Do NOT call syna_dev_set_up_input_device() here (requires max_x/max_y from IC)
+	/* TVM: Defer hardware initialization to post_le_tui_enable callback.
+	 * However, pre-register the input device at probe time
+	 * so that udev processes the uevent early and
+	 * /dev/input/eventX has correct permissions before openTouchDeviceFd()
+	 * is called. This mirrors the ST FTS approach.
 	 */
 	LOGI("TVM mode: Defer hardware initialization to post_le_tui_enable\n");
 
 	tcm->is_connected = true;
 	tcm->pwr_state = PWR_OFF;
+
+	tcm->tcm_dev->max_x = TVM_PANEL_MAX_X;
+	tcm->tcm_dev->max_y = TVM_PANEL_MAX_Y;
+	tcm->tcm_dev->max_objects = MAX_NUM_OBJECTS;
+
+	syna_pal_mutex_lock(&tcm->tp_event_mutex);
+	if (syna_dev_create_input_device(tcm) < 0)
+		LOGW("TVM: Failed to pre-register input device, try later\n");
+	else
+		LOGI("TVM: Input device pre-registered successfully\n");
+	syna_pal_mutex_unlock(&tcm->tp_event_mutex);
 
 	LOGI("TVM: Driver probe completed, waiting for TUI session\n");
 	return 0;
@@ -2515,6 +2524,7 @@ static int syna_dev_probe(struct platform_device *pdev)
 	struct syna_hw_interface *hw_if = NULL;
 	struct qts_vendor_data qts_vendor_data;
 	struct device *dev;
+	static int tcm_alloc_retry;
 
 	hw_if = pdev->dev.platform_data;
 	if (!hw_if) {
@@ -2524,9 +2534,16 @@ static int syna_dev_probe(struct platform_device *pdev)
 
 	tcm = syna_pal_mem_alloc(1, sizeof(struct syna_tcm));
 	if (!tcm) {
-		LOGW("Fail to create the handle of syna_tcm, try it later\n");
+		if (++tcm_alloc_retry >= 3) {
+			LOGE("Fail to create the handle of syna_tcm, already retried %d times\n",
+				tcm_alloc_retry);
+			return -ENOMEM;
+		}
+		LOGW("Fail to create the handle of syna_tcm, try it later (%d/3)\n",
+			tcm_alloc_retry);
 		return -EPROBE_DEFER;
 	}
+	tcm_alloc_retry = 0;
 
 	dev = syna_request_managed_device();
 #if defined(CONFIG_DRM)
@@ -2779,6 +2796,9 @@ static int syna_dev_remove(struct platform_device *pdev)
 #endif
 	/* remove the cdev and sysfs nodes */
 	syna_cdev_remove(tcm);
+
+	if (tcm->hw_if)
+		tcm->hw_if->ops_power_on = NULL;
 
 	/* check the connection status, and do disconnection */
 	if (syna_dev_disconnect(tcm) < 0)
