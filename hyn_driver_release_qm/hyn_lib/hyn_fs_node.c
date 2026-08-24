@@ -6,7 +6,6 @@
 
 static struct hyn_ts_data *hyn_fs_data = NULL;
 
-//echo fd /sdcard/app.bin
 //echo rst
 #define DEBUG_BUF_SIZE (128)
 //host_cmd_save
@@ -24,6 +23,7 @@ static  ssize_t hyn_dbg_show(struct device *dev,struct device_attribute *attr,ch
 
 	if(hyn_fs_data->host_cmd_save[0] == READ_IIC){
 		u8 r_len = hyn_fs_data->host_cmd_save[1];
+		if(r_len > DEBUG_BUF_SIZE) r_len = DEBUG_BUF_SIZE; //protect kbuf
 		kbuf = kzalloc(DEBUG_BUF_SIZE, GFP_KERNEL);
 		if(IS_ERR_OR_NULL(kbuf)){
 			goto dbg_sh_end;
@@ -56,7 +56,7 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 	HYN_ENTER();
 	mutex_lock(&hyn_fs_data->mutex_fs);
 	
-	ret = get_word(&next_ptr,str);
+	ret = get_word(&next_ptr,str,sizeof(str)-1);
 	HYN_INFO("word:%s %d\n",str,ret);
 	if(0 == strcmp(str,"rst")){
 		hyn_fun->tp_rest();
@@ -66,7 +66,7 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 		u8 w_len=0, wr_flg=str[0];
 		if(wr_flg=='w'){
 			while(*(next_ptr-1) != 0x0A && *(next_ptr-1) != '\0'){
-				if(get_word(&next_ptr,str)==0) break;
+				if(get_word(&next_ptr,str,sizeof(str)-1)==0) break;
 				if(0 == strcmp(str,"r")){
 					wr_flg='r';
 					break;
@@ -81,7 +81,7 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 		if(wr_flg=='r'){
 			hyn_fs_data->host_cmd_save[0] = READ_IIC;
 			hyn_fs_data->host_cmd_save[1] = 1;
-			if(get_word(&next_ptr,str)){
+			if(get_word(&next_ptr,str,sizeof(str)-1)){
 				if(0== hyn_str_2_num(str,&tmp,16)){
 					hyn_fs_data->host_cmd_save[1] = tmp;
 				}
@@ -90,25 +90,16 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 		kfree(w_buf);
 	}
 	else if(0 == strcmp(str,"log")){
-		ret = get_word(&next_ptr,str);
+		ret = get_word(&next_ptr,str,sizeof(str)-1);
 		hyn_fs_data->log_level = str[0]-'0';
 	}
 	else if(0 == strcmp(str,"mode")){
-		ret = get_word(&next_ptr,str);
+		ret = get_word(&next_ptr,str,sizeof(str)-1);
 		if(ret){
 			char mode = str[0]-'0';
-			ret = get_word(&next_ptr,str);
+			ret = get_word(&next_ptr,str,sizeof(str)-1);
 			if(ret) hyn_fun->tp_set_workmode(mode,str[0]=='0'? 0:1);
 		}
-	}
-	else if(0 == strcmp(str,"fd")){
-		ret = get_word(&next_ptr,str);
-		if(strlen(str)<4){
-			strcpy(str,"/sdcard/app.bin");
-		}
-		HYN_INFO("filename = %s",str);
-		strcpy(hyn_fs_data->fw_file_name,str);
-		ret = hyn_fun->tp_updata_fw(hyn_fs_data->fw_updata_addr,hyn_fs_data->fw_updata_len);
 	}
 
 	mutex_unlock(&hyn_fs_data->mutex_fs);
@@ -146,6 +137,10 @@ static ssize_t hyn_selftest_show(struct device *dev,	struct device_attribute *at
 					+ (hyn_fs_data->hw_info.fw_sensor_rxnum + hyn_fs_data->hw_info.fw_sensor_txnum)*4;
     HYN_ENTER();
 	max_len = max_len*3;
+	if(max_len <= 0){
+		HYN_ERROR("sensor num is 0, tpinfo not ready\n");
+		return -ENOMEM;
+	}
 	rbuf = kzalloc(max_len, GFP_KERNEL);
     if(rbuf == NULL){
         HYN_ERROR("zalloc GFP_KERNEL memory[%d] failed.\n",max_len);
@@ -202,7 +197,7 @@ static ssize_t hyn_dumpfw_store(struct device *dev,struct device_attribute *attr
 	if((int)count<16){
 		u8 *next_ptr = (u8*)buf;
 		u8 str[16]={'\0'};
-		get_word(&next_ptr,str);
+		get_word(&next_ptr,str,sizeof(str)-1);
 		if(0 == strcmp(str,"fwstart")){
 			hyn_fs_data->fw_dump_state = 1;
 			hyn_dump_fw(hyn_fs_data,(u8*)buf,count);

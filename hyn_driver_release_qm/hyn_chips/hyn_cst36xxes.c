@@ -1,8 +1,5 @@
 #include "../hyn_core.h"
 
-
-#include "cst36xxes_fw.h"
-
 #define BOOT_I2C_ADDR       (0x5A)
 #define MAIN_I2C_ADDR       (0x58) //use 2 slave addr
 
@@ -35,9 +32,9 @@ static const u8 gest_map_tbl[] = {
 };
 
 static const struct hyn_chip_series hyn_36xxes_fw[] = {
-    {0xcaca2305,0xffffffff,"cst36xxes",(u8*)fw},
-    {0xcaca230a,0x00,"cst3140",(u8*)fw2},
-    {0xcaca230a,0x01,"cst3140",(u8*)fw},
+    {0xcaca2305,0xffffffff,"cst36xxes","cst36xxes_fw.bin"},
+    {0xcaca230a,0x00,"cst3140","cst36xxes_fw2.bin"},
+    {0xcaca230a,0x01,"cst3140","cst36xxes_fw.bin"},
     {0,0,"",NULL}
 };
 
@@ -58,7 +55,7 @@ static int cst36xxes_fread_gpio(u8 io ,u8 *lv);
 
 static int cst36xxes_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0,i;
+    int ret = 0,i,fw_idx = 0;
 
     u32 read_part_no=0,module_id=0,tmp_buf[3];
     HYN_ENTER();
@@ -110,7 +107,6 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
     hyn_36xxesdata->hw_info.fw_module_id = module_id;
     HYN_INFO("read_part_no:0x%08x module_id:0x%08x check_sum:0x%08x",read_part_no,module_id,hyn_36xxesdata->hw_info.ic_fw_checksum);
 
-    hyn_36xxesdata->fw_updata_addr = hyn_36xxes_fw[0].fw_bin;
     if(module_id > 10) module_id = 0xffffffff;
 
     for(i = 0; ;i++){
@@ -119,8 +115,8 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
 #else
         if( hyn_36xxes_fw[i].moudle_id == module_id)
 #endif
-        {   
-            hyn_36xxesdata->fw_updata_addr = hyn_36xxes_fw[i].fw_bin;
+        {
+            fw_idx = i;
             HYN_INFO("chip %s match fw success ,partNo check is [%s]",hyn_36xxes_fw[i].chip_name,PART_NO_EN ? "enable":"disable");
             break;
         }
@@ -129,8 +125,11 @@ static int cst36xxes_init(struct hyn_ts_data* ts_data)
             break;
         }
     }
-    cst36xxes_get_fwsize(hyn_36xxesdata->fw_updata_addr,&hyn_36xxesdata->fw_updata_len);
-    hyn_36xxesdata->need_updata_fw = cst36xxes_updata_judge(hyn_36xxesdata->fw_updata_addr,hyn_36xxesdata->fw_updata_len);
+    hyn_36xxesdata->need_updata_fw = 0;
+    if(0 == hyn_request_fw(hyn_36xxesdata, hyn_36xxes_fw[fw_idx].fw_name)){
+        cst36xxes_get_fwsize(hyn_36xxesdata->fw_updata_addr,&hyn_36xxesdata->fw_updata_len);
+        hyn_36xxesdata->need_updata_fw = cst36xxes_updata_judge(hyn_36xxesdata->fw_updata_addr,hyn_36xxesdata->fw_updata_len);
+    }
     if(hyn_36xxesdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
@@ -477,11 +476,7 @@ static int write_code(u8 *bin_addr,uint8_t pak_num)
 
         i2c_buf[0] = 0xA0;
         i2c_buf[1] = 0x30;
-        if(0 == hyn_36xxesdata->fw_file_name[0]){
-            memcpy(i2c_buf + 2, bin_addr+eep_len, PKG_SIZE);
-        }else{
-            ret |= copy_for_updata(hyn_36xxesdata,i2c_buf + 2,eep_len,PKG_SIZE);
-        }
+        memcpy(i2c_buf + 2, bin_addr+eep_len, PKG_SIZE);
         ret |= hyn_write_data(hyn_36xxesdata, i2c_buf,2, PKG_SIZE+2);
         ret |= hyn_wr_reg(hyn_36xxesdata, 0xA004E1, 3,0,0);
 
@@ -536,7 +531,7 @@ static int cst36xxes_fread_gpio(u8 io ,u8 *lv)
     int ret = 0;
     while(--retry){
         ret = hyn_wr_reg(hyn_36xxesdata,0xA001A7,3,0,0);       //boot mode
-        ret |= hyn_wr_reg(hyn_36xxesdata,0xA00A00+io,3,0,0);   //0¡êoDP00  1¡êoDP01
+        ret |= hyn_wr_reg(hyn_36xxesdata,0xA00A00+io,3,0,0);   //0ï¿½ï¿½oDP00  1ï¿½ï¿½oDP01
         ret |= hyn_wr_reg(hyn_36xxesdata,0xA00B01,3,0,0);      //set_mode hz:0  pull_up:1
         ret |= hyn_wr_reg(hyn_36xxesdata,0xA004D7,3,0,0);      //trig
         if(ret){
@@ -643,15 +638,8 @@ static int cst36xxes_updata_fw(u8 *bin_addr, u32 len)
         goto UPDATA_END;
     }
     len = hyn_36xxesdata->fw_updata_len-4;
-    if(0 == hyn_36xxesdata->fw_file_name[0]){
-        p_bin_addr = bin_addr + len;
-        fw_checksum = U8TO32(p_bin_addr[3],p_bin_addr[2],p_bin_addr[1],p_bin_addr[0]);
-    }
-    else{
-        ret = copy_for_updata(hyn_36xxesdata,i2c_buf,hyn_36xxesdata->fw_updata_len,4);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
+    p_bin_addr = bin_addr + len;
+    fw_checksum = U8TO32(p_bin_addr[3],p_bin_addr[2],p_bin_addr[1],p_bin_addr[0]);
     HYN_INFO("fw_checksum_all:%04x",fw_checksum);
     hyn_irq_set(hyn_36xxesdata,DISABLE);
     hyn_esdcheck_switch(hyn_36xxesdata,DISABLE);

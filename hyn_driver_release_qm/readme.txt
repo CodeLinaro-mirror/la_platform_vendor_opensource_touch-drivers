@@ -161,19 +161,45 @@ hynitron_touch-objs += hyn_chips/hyn_cst7xx.o
 hynitron_touch-objs += hyn_chips/hyn_cst840u.o
 
 
-4、sys节点操作
+
+4、开机升级固件(request_firmware 方式)
+
+    1、驱动开机不再使用内嵌固件数组，改为 request_firmware 从 /lib/firmware/ 加载，文件名如下：
+        cst3xx_fw.bin    cst226se_fw.bin  cst3240_fw.bin  cst8xxT_fw.bin  cst76xx_fw.bin
+        cst66xx_fw1.bin  cst66xx_fw2.bin  cst840u_fw.bin  cst36xxes_fw.bin cst36xxes_fw2.bin
+        cst7xx_fw.bin    cst7xx_fw2.bin   cst7xx_fw3.bin  cst7xx_read_id.bin
+        cst923xx_fw.bin  cst92xx_fw.bin
+
+    2、安装到目标板：
+        cp firmware/*.bin /lib/firmware/
+        无根文件系统(早期挂载)场景可以把固件编进内核：
+        CONFIG_EXTRA_FIRMWARE="cst3xx_fw.bin cst226se_fw.bin cst3240_fw.bin cst8xxT_fw.bin \
+            cst76xx_fw.bin cst66xx_fw1.bin cst66xx_fw2.bin cst840u_fw.bin cst36xxes_fw.bin \
+            cst36xxes_fw2.bin cst7xx_fw.bin cst7xx_fw2.bin cst7xx_fw3.bin cst7xx_read_id.bin \
+            cst923xx_fw.bin cst92xx_fw.bin"
+        CONFIG_EXTRA_FIRMWARE_DIR="firmware"
+
+    3、内核要求：
+        CONFIG_FW_LOADER=y
+        内核 < 4.18 时建议 CONFIG_FW_LOADER_USER_HELPER=n
+        (否则固件缺失会在 probe 中阻塞等待 userspace helper，默认 60s 超时)
+
+    4、注意事项：
+        - request_firmware 在 probe 中同步调用，probe 时固件必须已可用
+        - 固件缺失时 probe 不会失败，但打印 "[HYN][Error]request_firmware xxx failed"
+          且该芯片跳过开机升级判断，继续使用片内固件运行
+        - HYN_GKI_VER 默认使能，驱动不使用 VFS(filp_open/kernel_read/kernel_write)；
+          运行时升级请使用 hyndumpfw 的 fwstart/fwend dump 方式(见第 4 节)
+
+
+5、sys节点操作
 
 0、调试节点路径
     adb shell find /sys/devices/platform/soc/ -name  "hyn*"
 	
 1、升级
-    通过文件(需要kernel fs权限)升级
-    adb push xxx.bin /sdcard/app.bin
-    adb shell "cd /sys/devices/platform/xxxx/i2c-7/7-005a echo fd>./hyntpdbg && cat ./hyntpfwver"
-		如果是自定义路径 user_ph/app.bin
-			adb shell "cd /sys//sys/devices/platform/soc/xxx && echo "fd user_ph/app.bin">hyntpdbg && cat hyntpfwver"
-	
-    通过dump升级(GKI version)
+    通过dump升级(GKI version,默认方式)
+    (VFS 文件路径升级方式 echo fd ... 已删除，GKI 下不支持 VFS 文件操作)
     adb root
     adb push xxx.bin /sdcard/app.bin
     adb shell "cd /sys/devices/platform/soc/xxxx/i2c-7/7-005a && echo fwstart>./hyndumpfw && dd if=/sdcard/app.bin of=./hyndumpfw && echo fwend>./hyndumpfw"
@@ -214,7 +240,9 @@ hynitron_touch-objs += hyn_chips/hyn_cst840u.o
     echo g1>hynswitchmode
     exit：
     echo g0>hynswitchmode
-	
+
+
+
 
 
 

@@ -1,5 +1,4 @@
 #include "../hyn_core.h"
-#include "cst3240_fw.h"
 
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x5A)
@@ -29,15 +28,15 @@ static void cst3240_rst(void);
 
 
 static const struct hyn_chip_series hyn_3240_fw[] = {
-    {0x3240,0x00,"cst32401",(u8*)fw_bin},//default fw
-    {0x3240,0x01,"cst32402",(u8*)fw_bin},
-    {0x3240,0x02,"cst32403",(u8*)fw_bin},
+    {0x3240,0x00,"cst32401","cst3240_fw.bin"},//default fw
+    {0x3240,0x01,"cst32402","cst3240_fw.bin"},
+    {0x3240,0x02,"cst32403","cst3240_fw.bin"},
     {0,0,"",NULL}
 };
 
 static int cst3240_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0,i;
+    int ret = 0,i,fw_idx = 0;
     u32 module_id;
     HYN_ENTER();
     hyn_3240data = ts_data;
@@ -47,11 +46,10 @@ static int cst3240_init(struct hyn_ts_data* ts_data)
         return -1;
     }
     module_id = cst3240_fread_word(MODULE_ID_ADDR);
-    hyn_3240data->fw_updata_addr = hyn_3240_fw[0].fw_bin;
 
     for(i = 0; ;i++){
-        if( hyn_3240_fw[i].moudle_id == module_id){   
-            hyn_3240data->fw_updata_addr = hyn_3240_fw[i].fw_bin;
+        if( hyn_3240_fw[i].moudle_id == module_id){
+            fw_idx = i;
             HYN_INFO("chip %s match fw success",hyn_3240_fw[i].chip_name);
             break;
         }
@@ -68,7 +66,10 @@ static int cst3240_init(struct hyn_ts_data* ts_data)
     hyn_set_i2c_addr(hyn_3240data,MAIN_I2C_ADDR);
     cst3240_rst();
     msleep(50);
-    hyn_3240data->need_updata_fw = cst3240_updata_judge((u8*)fw_bin,CST3240_BIN_SIZE);
+    hyn_3240data->need_updata_fw = 0;
+    if(0 == hyn_request_fw(hyn_3240data, hyn_3240_fw[fw_idx].fw_name)){
+        hyn_3240data->need_updata_fw = cst3240_updata_judge(hyn_3240data->fw_updata_addr,CST3240_BIN_SIZE);
+    }
     return 0;
 }
 
@@ -409,14 +410,7 @@ static int cst3240_updata_fw(u8 *bin_addr, u32 len)
     }
     if(len > CST3240_BIN_SIZE) len = CST3240_BIN_SIZE;
 
-    if(0 == hyn_3240data->fw_file_name[0]){
-        fw_checksum = *(u32*)(bin_addr+CST3240_BIN_SIZE-4);
-    }
-    else{
-        ret = copy_for_updata(hyn_3240data,i2c_buf,CST3240_BIN_SIZE-4,4);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum = *(u32*)(bin_addr+CST3240_BIN_SIZE-4);
     hyn_irq_set(hyn_3240data,DISABLE);
     hyn_esdcheck_switch(hyn_3240data,DISABLE);
     retry = 4;
@@ -437,11 +431,7 @@ static int cst3240_updata_fw(u8 *bin_addr, u32 len)
             ret = hyn_wr_reg(hyn_3240data,0xA0140000+U16REV(eep_addr),4,0,0);
             i2c_buf[0] = 0xA0;
             i2c_buf[1] = 0x18;
-            if(0 == hyn_3240data->fw_file_name[0]){
-                memcpy(i2c_buf + 2, bin_addr + eep_addr, 512);
-            }else{
-                ret |= copy_for_updata(hyn_3240data,i2c_buf + 2,eep_addr,512);
-            }
+            memcpy(i2c_buf + 2, bin_addr + eep_addr, 512);
             ret |= hyn_write_data(hyn_3240data, i2c_buf,RW_REG_LEN, i<31 ? 514:482);
             if(ret){ //com erro
                 continue;

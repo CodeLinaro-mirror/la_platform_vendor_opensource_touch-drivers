@@ -149,14 +149,7 @@ static ssize_t hyn_proc_tool_write(struct file *file, const char __user *buffer,
 			hyn_tool_data->fw_dump_state = 1;
 			hyn_dump_fw(hyn_tool_data,cmd,count);
 			break;
-		case UPDATA_FW: // apk download bin
-			HYN_INFO("updata file_name =%s",&cmd[1]);
-			strcpy(hyn_tool_data->fw_file_name,&cmd[1]);
-			hyn_tool_data->fw_updata_process = 0;
-			hyn_tool_fun->tp_updata_fw(hyn_tool_data->fw_updata_addr,hyn_tool_data->fw_updata_len);
-			// if(0==queue_work(hyn_tool_data->hyn_workqueue,&hyn_tool_data->work_updata_fw)){
-			// 	HYN_ERROR("queue_work work_updata_fw failed");
-			// }
+		case UPDATA_FW: // apk download bin via file removed(GKI no VFS), use DUMP_FW instead
 			break;
 		case SET_WORK_MODE://
 			atomic_set(&hyn_tool_data->hyn_irq_flg,0);

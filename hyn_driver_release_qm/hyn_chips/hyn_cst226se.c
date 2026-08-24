@@ -1,5 +1,4 @@
 #include "../hyn_core.h"
-#include "cst226se_fw.h"
 
 
 #define BOOT_I2C_ADDR   (0x5A)
@@ -30,14 +29,16 @@ static int cst226se_init(struct hyn_ts_data* ts_data)
         HYN_ERROR("cst226se_enter_boot failed");
         return -1;
     }
-    hyn_226data->fw_updata_addr = (u8*)fw_bin;
     hyn_226data->fw_updata_len = CST226SE_BIN_SIZE;
     hyn_226data->hw_info.ic_fw_checksum = cst226se_read_checksum();
     hyn_wr_reg(hyn_226data,0xA006EE,3,buf,0); //exit boot
     cst226se_rst();
     mdelay(50);
     hyn_set_i2c_addr(hyn_226data,MAIN_I2C_ADDR);
-    hyn_226data->need_updata_fw = cst226se_updata_judge((u8*)fw_bin,CST226SE_BIN_SIZE);
+    hyn_226data->need_updata_fw = 0;
+    if(0 == hyn_request_fw(hyn_226data, "cst226se_fw.bin")){
+        hyn_226data->need_updata_fw = cst226se_updata_judge(hyn_226data->fw_updata_addr,CST226SE_BIN_SIZE);
+    }
     if(hyn_226data->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
@@ -339,15 +340,8 @@ static int cst226se_updata_fw(u8 *bin_addr, u32 len)
 	u16 eep_addr = 0, total_kbyte = len/512;
     u32 fw_checksum = 0;
     HYN_ENTER();
-    if(0 == hyn_226data->fw_file_name[0]){
-        fw_checksum = U8TO32(bin_addr[CHECKSUM_OFFECT+3],bin_addr[CHECKSUM_OFFECT+2],bin_addr[CHECKSUM_OFFECT+1],bin_addr[CHECKSUM_OFFECT]);
-    }
-    else{
-        ret = copy_for_updata(hyn_226data,i2c_buf,CHECKSUM_OFFECT,4);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
-    
+    fw_checksum = U8TO32(bin_addr[CHECKSUM_OFFECT+3],bin_addr[CHECKSUM_OFFECT+2],bin_addr[CHECKSUM_OFFECT+1],bin_addr[CHECKSUM_OFFECT]);
+
     hyn_irq_set(hyn_226data,DISABLE);
     while(--retry){
         ret = cst226se_enter_boot();
@@ -365,12 +359,7 @@ static int cst226se_updata_fw(u8 *bin_addr, u32 len)
             ret = hyn_write_data(hyn_226data, i2c_buf,RW_REG_LEN, 4);
             i2c_buf[0] = 0xA0;
             i2c_buf[1] = 0x18;
-            if(0 == hyn_226data->fw_file_name[0]){
-                memcpy(i2c_buf + 2, bin_addr + eep_addr, 512);
-            }
-            else{
-                ret |= copy_for_updata(hyn_226data,i2c_buf + 2,eep_addr,512);
-            }
+            memcpy(i2c_buf + 2, bin_addr + eep_addr, 512);
             ret |= hyn_write_data(hyn_226data, i2c_buf,RW_REG_LEN, 514);
             ret |= hyn_wr_reg(hyn_226data, 0xA004EE, 3,i2c_buf,0);
             msleep(300); //wait finsh

@@ -1,5 +1,4 @@
 #include "../hyn_core.h"
-#include "cst3xx_fw.h"
 
 #define BOOT_I2C_ADDR   (0x1A)
 #define MAIN_I2C_ADDR   (0x1A)
@@ -27,7 +26,6 @@ static int cst3xx_init(struct hyn_ts_data* ts_data)
         HYN_ERROR("cst3xx_enter_boot failed");
         return -1;
     }
-    hyn_3xxdata->fw_updata_addr = (u8*)fw_bin;
     hyn_3xxdata->fw_updata_len = CST3xx_BIN_SIZE;
     if(0 == cst3xx_read_checksum(&hyn_3xxdata->hw_info.ic_fw_checksum)){
         hyn_3xxdata->boot_is_pass = 1;
@@ -36,7 +34,10 @@ static int cst3xx_init(struct hyn_ts_data* ts_data)
     cst3xx_rst();
     mdelay(50);
 
-    hyn_3xxdata->need_updata_fw = cst3xx_updata_judge((u8*)fw_bin,CST3xx_BIN_SIZE);
+    hyn_3xxdata->need_updata_fw = 0;
+    if(0 == hyn_request_fw(hyn_3xxdata, "cst3xx_fw.bin")){
+        hyn_3xxdata->need_updata_fw = cst3xx_updata_judge(hyn_3xxdata->fw_updata_addr,CST3xx_BIN_SIZE);
+    }
     if(hyn_3xxdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
@@ -314,14 +315,7 @@ static int cst3xx_updata_fw(u8 *bin_addr, u32 len)
 	u16 eep_addr = 0, total_kbyte = 24;
     u32 fw_checksum= 0;
     HYN_ENTER();
-    if(0 == hyn_3xxdata->fw_file_name[0]){
-        fw_checksum = U8TO32(bin_addr[CHECKSUM_OFFECT+3],bin_addr[CHECKSUM_OFFECT+2],bin_addr[CHECKSUM_OFFECT+1],bin_addr[CHECKSUM_OFFECT]);
-    }
-    else{
-        ret = copy_for_updata(hyn_3xxdata,i2c_buf,CHECKSUM_OFFECT,4);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum = U8TO32(bin_addr[CHECKSUM_OFFECT+3],bin_addr[CHECKSUM_OFFECT+2],bin_addr[CHECKSUM_OFFECT+1],bin_addr[CHECKSUM_OFFECT]);
     hyn_irq_set(hyn_3xxdata,DISABLE);
     while(--retry){
         ret = cst3xx_enter_boot();
@@ -345,12 +339,7 @@ static int cst3xx_updata_fw(u8 *bin_addr, u32 len)
 
             i2c_buf[0] = 0xA0;
             i2c_buf[1] = 0x18;
-            if(0 == hyn_3xxdata->fw_file_name[0]){
-                memcpy(i2c_buf + 2, bin_addr + eep_addr, 1024);
-            }
-            else{
-                ret |= copy_for_updata(hyn_3xxdata,i2c_buf + 2,eep_addr,1024);
-            }
+            memcpy(i2c_buf + 2, bin_addr + eep_addr, 1024);
             ret |= hyn_write_data(hyn_3xxdata, i2c_buf,RW_REG_LEN, 1026);
 
             ret |= hyn_wr_reg(hyn_3xxdata, 0xA004EE, 3,i2c_buf,0);

@@ -19,7 +19,7 @@
 
 #define HYN_POWER_ON_UPDATA     (0) //updata
 
-#define HYN_GKI_VER           (0) //GKI version need enable
+#define HYN_GKI_VER           (1) //GKI version need enable
 #define HYN_APK_DEBUG_EN      (1)
 
 #define HYN_GESTURE_EN        (0) //gesture

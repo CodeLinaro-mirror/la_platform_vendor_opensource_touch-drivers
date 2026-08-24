@@ -1,8 +1,5 @@
 #include "../hyn_core.h"
 
-
-#include "cst76xx_fw.h"
-
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x5A) //use 2 slave addr
 
@@ -34,12 +31,12 @@ static const u8 gest_map_tbl[] = {
 };
 
 static const struct hyn_chip_series hyn_xx_fw[] = {
-    {0xCACA3800,0xffffffff,"cst76xx",(u8*)fw_module},//if PART_NO_EN==0 use default chip
-    {0xCACA3801,0xffffffff,"cst76xx",(u8*)fw_module},  //HYT7864BG
-    {0xCACA3806,0xffffffff,"cst76xx",(u8*)fw_module},  //HYT7964BG
-    {0xCACA3807,0xffffffff,"cst76xx",(u8*)fw_module},  //HYT7864JL 
-    {0xCACA3808,0xffffffff,"cst76xx",(u8*)fw_module},  //HYT7760BG || HYT7760TR
-    {0xCACA3809,0xffffffff,"cst76xx",(u8*)fw_module},  //CST6960BG
+    {0xCACA3800,0xffffffff,"cst76xx","cst76xx_fw.bin"},//if PART_NO_EN==0 use default chip
+    {0xCACA3801,0xffffffff,"cst76xx","cst76xx_fw.bin"},  //HYT7864BG
+    {0xCACA3806,0xffffffff,"cst76xx","cst76xx_fw.bin"},  //HYT7964BG
+    {0xCACA3807,0xffffffff,"cst76xx","cst76xx_fw.bin"},  //HYT7864JL
+    {0xCACA3808,0xffffffff,"cst76xx","cst76xx_fw.bin"},  //HYT7760BG || HYT7760TR
+    {0xCACA3809,0xffffffff,"cst76xx","cst76xx_fw.bin"},  //CST6960BG
     {0,0,"",NULL}
 };
 
@@ -56,7 +53,8 @@ static int cst76xx_judge_module(void);
 
 static int cst76xx_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0;
+    int ret = 0, fw_idx = 0;
+    u8 *p_data;
     u32 read_part_no,module_id;
     HYN_ENTER();
     hyn_76xxdata = ts_data;
@@ -83,8 +81,19 @@ static int cst76xx_init(struct hyn_ts_data* ts_data)
         mdelay(50);
     }
 
-    cst76xx_read_file_addr(hyn_76xxdata->hw_info.ic_part_no, hyn_76xxdata->hw_info.fw_module_id);
-    hyn_76xxdata->need_updata_fw = cst76xx_updata_judge(hyn_76xxdata->fw_updata_addr, hyn_76xxdata->fw_updata_len);
+    fw_idx = cst76xx_read_file_addr(hyn_76xxdata->hw_info.ic_part_no, hyn_76xxdata->hw_info.fw_module_id);
+    hyn_76xxdata->need_updata_fw = 0;
+    if(0 == hyn_request_fw(hyn_76xxdata, hyn_xx_fw[fw_idx].fw_name)){
+        p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
+        if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[0] > 114){
+            HYN_ERROR("get lens failed");
+        }
+
+        hyn_76xxdata->fw_block_cnt   = p_data[0] * 2 + 4;
+        hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
+        HYN_INFO("fw_block_cnt %d fw_updata_len %d", hyn_76xxdata->fw_block_cnt, hyn_76xxdata->fw_updata_len);
+        hyn_76xxdata->need_updata_fw = cst76xx_updata_judge(hyn_76xxdata->fw_updata_addr, hyn_76xxdata->fw_updata_len);
+    }
     // hyn_76xxdata->need_updata_fw = 0;
     if (hyn_76xxdata->need_updata_fw) {
         HYN_INFO("need updata FW !!!");
@@ -565,38 +574,27 @@ static u32 cst76xx_read_checksum(void)
 }
 
 static int cst76xx_read_file_addr(u32 partno, u32 moduleId) {
-    int ret = 0 ,i = 0;
-    u8 *p_data;
+    int fw_idx = 0 ,i = 0;
     HYN_ENTER();
-    hyn_76xxdata->fw_updata_addr = hyn_xx_fw[0].fw_bin;
     for (i = 0; ;i++) {
 #if PART_NO_EN
         if(hyn_xx_fw[i].part_no == partno && hyn_xx_fw[i].moudle_id == moduleId)
 #else
         if( hyn_xx_fw[i].moudle_id == moduleId)
 #endif
-        {   
-            hyn_76xxdata->fw_updata_addr = hyn_xx_fw[i].fw_bin;
+        {
+            fw_idx = i;
             HYN_INFO("chip %s match fw success ,partNo check is [%s]",hyn_xx_fw[i].chip_name,PART_NO_EN ? "enable":"disable");
             break;
         }
 
         if (hyn_xx_fw[i].part_no == 0 && hyn_xx_fw[i].moudle_id == 0) {
             HYN_INFO("unknown chip or unknown moudle_id use hyn_xx_fw[0]");
-            //ret = -1;
             break;
         }
     }
-    p_data = hyn_76xxdata->fw_updata_addr + 0x0A00;
-    if(p_data[3] != 0xCA || p_data[2] != 0xCA || p_data[0] > 114){
-        HYN_ERROR("get lens failed");
-    }
-    
-    hyn_76xxdata->fw_block_cnt   = p_data[0] * 2 + 4;
-    hyn_76xxdata->fw_updata_len  = hyn_76xxdata->fw_block_cnt * 512;
-    HYN_INFO("fw_block_cnt %d fw_updata_len %d", hyn_76xxdata->fw_block_cnt, hyn_76xxdata->fw_updata_len);
 
-    return ret;
+    return fw_idx;
 }
 
 static u32 cst76xx_read_file_checksum(u8 *p_fw, u32 len)
@@ -774,11 +772,7 @@ static int cst76xx_transfer_fw(u8 *bin_addr)
             i2c_buf[1] = 0x30;
         }
 
-        if(0 == hyn_76xxdata->fw_file_name[0]){
-            memcpy(i2c_buf + 2, bin_addr+send_idx, 512);
-        }else{
-            // ret |= copy_for_updata(hyn_76xxdata,i2c_buf + 2,send_idx,512);
-        }
+        memcpy(i2c_buf + 2, bin_addr+send_idx, 512);
         ret |= hyn_write_data(hyn_76xxdata, i2c_buf,2, 512+2);
         mdelay(2*25);
         send_idx += blk_len;
@@ -868,14 +862,7 @@ static int cst76xx_updata_fw(u8 *bin_addr, u32 len)
     len = hyn_76xxdata->fw_updata_len;
 
     hyn_76xxdata->fw_updata_process = 0;
-    if(0 == hyn_76xxdata->fw_file_name[0]){
-        fw_checksum = cst76xx_read_file_checksum(bin_addr, len);
-    }
-    else{
-        // ret = copy_for_updata(hyn_76xxdata,i2c_buf,cst76xx_BIN_SIZE,4);
-        // if(ret)  goto UPDATA_END;
-        // fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum = cst76xx_read_file_checksum(bin_addr, len);
 
     hyn_irq_set(hyn_76xxdata,DISABLE);
     hyn_esdcheck_switch(hyn_76xxdata,DISABLE);

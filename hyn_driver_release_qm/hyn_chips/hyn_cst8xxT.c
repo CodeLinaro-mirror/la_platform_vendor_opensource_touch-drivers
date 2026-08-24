@@ -1,5 +1,4 @@
 #include "../hyn_core.h"
-#include "cst8xxT_fw.h"
 
 
 #define CUSTOM_SENSOR_NUM  	(12)
@@ -23,10 +22,10 @@ static void cst8xxT_rst(void);
 
 
 static const struct hyn_chip_series cst8xx_fw_list[] = {
-    {0,0xFF,"cst8xx id0",(u8*)fw_bin}, //default bin
-    {1,0x01,"cst8xx id0",(u8*)fw_bin},  
-    {2,0x02,"cst8xx id1",(u8*)fw_bin},
-    {3,0x02,"cst8xx id0",(u8*)fw_bin},
+    {0,0xFF,"cst8xx id0","cst8xxT_fw.bin"}, //default bin
+    {1,0x01,"cst8xx id0","cst8xxT_fw.bin"},
+    {2,0x02,"cst8xx id1","cst8xxT_fw.bin"},
+    {3,0x02,"cst8xx id0","cst8xxT_fw.bin"},
     {0xFF,0,"null",NULL}
 };
 
@@ -34,7 +33,7 @@ static const struct hyn_chip_series cst8xx_fw_list[] = {
 
 static int cst8xxT_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0;
+    int ret = 0, fw_idx = 0;
     struct tp_info *ic = &ts_data->hw_info;
     u8 buf[4];
     HYN_ENTER();
@@ -45,7 +44,6 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         return FALSE;
     }
 
-    hyn_8xxTdata->fw_updata_addr = cst8xx_fw_list[0].fw_bin; //set default fw
     hyn_8xxTdata->fw_updata_len = CST8xxT_BIN_SIZE;
     hyn_8xxTdata->hw_info.ic_fw_checksum = cst8xxT_read_checksum();
     if(cst8xxT_get_module_id(&buf[0])==0){
@@ -55,11 +53,11 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
             u8 i = 0;
             ret=-1;
             for(i = 0; ;i++){
-                if(cst8xx_fw_list[i].fw_bin== NULL){
+                if(cst8xx_fw_list[i].fw_name == NULL){
                     break;
                 }
                 if(cst8xx_fw_list[i].moudle_id == ic->fw_module_id){
-                    hyn_8xxTdata->fw_updata_addr = cst8xx_fw_list[i].fw_bin;
+                    fw_idx = i;
                     ret = 0;
                     break;
                 }
@@ -75,7 +73,9 @@ static int cst8xxT_init(struct hyn_ts_data* ts_data)
         hyn_set_i2c_addr(hyn_8xxTdata,MAIN_I2C_ADDR);
         ret = cst8xxT_updata_tpinfo();
         cst8xxT_set_workmode(NOMAL_MODE,1);
-        hyn_8xxTdata->need_updata_fw = cst8xxT_updata_judge((u8*)hyn_8xxTdata->fw_updata_addr,CST8xxT_BIN_SIZE);
+        if(0 == hyn_request_fw(hyn_8xxTdata, cst8xx_fw_list[fw_idx].fw_name)){
+            hyn_8xxTdata->need_updata_fw = cst8xxT_updata_judge(hyn_8xxTdata->fw_updata_addr,CST8xxT_BIN_SIZE);
+        }
     }
     else{
         HYN_INFO("need updata FW !!!");
@@ -157,13 +157,7 @@ static int write_code(u8 *bin_addr,uint8_t retry)
 
         i2c_buf[0] = 0xA0;
         i2c_buf[1] = 0x18;
-		if(0 == hyn_8xxTdata->fw_file_name[0]){
-			memcpy(i2c_buf + 2, bin_addr + i, 512); 
-		}
-		else{
-			ok = copy_for_updata(hyn_8xxTdata,i2c_buf + 2,i+6,512);
-			if(ok)break;
-		}
+        memcpy(i2c_buf + 2, bin_addr + i, 512);
         ok = hyn_write_data(hyn_8xxTdata, i2c_buf,RW_REG_LEN, 514);
         if (ok == FALSE){
             break;
@@ -257,14 +251,7 @@ static int cst8xxT_updata_fw(u8 *bin_addr, u32 len)
     u32 fw_checksum = 0;
     // len = len;
     HYN_ENTER();
-    if(0 == hyn_8xxTdata->fw_file_name[0]){
-        fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
-    }
-    else{
-        ok = copy_for_updata(hyn_8xxTdata,i2c_buf,4,2);
-        if(ok)  goto UPDATA_END;
-        fw_checksum = U8TO16(i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
     hyn_irq_set(hyn_8xxTdata,DISABLE);
 
     for(retry = 1; retry<10; retry++){

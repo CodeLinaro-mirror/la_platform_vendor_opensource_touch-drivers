@@ -34,6 +34,33 @@ static int hyn_check_ic(struct hyn_ts_data *ts_data)
     return 0;
 }
 
+int hyn_request_fw(struct hyn_ts_data *ts_data, const char *fw_name)
+{
+    const struct firmware *fw = NULL;
+    int ret;
+
+    hyn_release_fw(ts_data); //release previously loaded image
+    ret = request_firmware(&fw, fw_name, ts_data->dev); //sync call, probe context
+    if (ret) {
+        HYN_ERROR("request_firmware %s failed ret:%d", fw_name, ret);
+        ts_data->fw_updata_addr = NULL;
+        return ret;
+    }
+    ts_data->fw_bin = fw;
+    ts_data->fw_updata_addr = (u8 *)fw->data;
+    HYN_INFO("request_firmware %s success size:%d", fw_name, (int)fw->size);
+    return 0;
+}
+
+void hyn_release_fw(struct hyn_ts_data *ts_data)
+{
+    if (!IS_ERR_OR_NULL(ts_data->fw_bin)) {
+        release_firmware(ts_data->fw_bin);
+        ts_data->fw_bin = NULL;
+    }
+    ts_data->fw_updata_addr = NULL;
+}
+
 static int hyn_parse_dt(struct hyn_ts_data *ts_data)
 {
     int ret = 0;
@@ -1006,6 +1033,7 @@ static int hyn_ts_remove(struct spi_device *client)
             dma_free_coherent(NULL, 2048, ts_data->dma_buff_va, ts_data->dma_buff_pa);
         }
 #endif
+        hyn_release_fw(ts_data);
         kfree(ts_data);
         hyn_data = NULL;
         HYN_INFO("ts_remove7");
