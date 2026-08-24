@@ -1,7 +1,37 @@
+
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_core.h
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: hynitron ts driver core header file
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #ifndef HYNITRON_CORE_H
 #define HYNITRON_CORE_H
 
-#include <linux/syscalls.h>
 #include <linux/gpio.h>
 #include <linux/version.h>
 #include <linux/types.h>
@@ -19,6 +49,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/interrupt.h>
@@ -68,10 +99,6 @@
 #define HYN_ERROR(fmt, args...)  printk(KERN_ERR "[HYN][Error]%s:"fmt"\n",__func__,##args)
 #define HYN_ENTER()              printk(KERN_ERR "[HYN][enter]%s\n",__func__)
 
-// #if HYN_GKI_VER
-//     MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
-// #endif
-
 // #define IS_ERR_OR_NULL(x)  (x <= 0)
 #define U8TO16(x1,x2) ((((x1)&0xFF)<<8)|((x2)&0xFF))
 #define U8TO32(x1,x2,x3,x4) ((((x1)&0xFF)<<24)|(((x2)&0xFF)<<16)|(((x3)&0xFF)<<8)|((x4)&0xFF))
@@ -94,14 +121,6 @@
 #define MULTI_OPEN_TEST     (0x80)
 #define MULTI_SHORT_TEST    (0x01)
 #define MULTI_SCAP_TEST  	(0x02)
-
-#if HYN_GKI_VER
-    #define hyn_fs_write(...)   
-    #define hyn_fs_read(...)
-#else
-    #define hyn_fs_write kernel_write
-    #define hyn_fs_read kernel_read
-#endif
 
 
 
@@ -188,7 +207,7 @@ struct hyn_chip_series{
     u32 part_no;
     u32 moudle_id;
     u8* chip_name;
-    u8* fw_bin;
+    const char* fw_name; //firmware file name under /lib/firmware, load by request_firmware
 };
 
 #define MAX_POINTS_REPORT     (10)
@@ -267,8 +286,8 @@ struct hyn_ts_data {
     struct work_struct  work_updata_fw;
     int boot_is_pass;
     int need_updata_fw;
-    u8 fw_file_name[128];
     u8 *fw_updata_addr;
+    const struct firmware *fw_bin; //request_firmware handle, released in hyn_ts_remove
     int fw_updata_len;
     int fw_dump_state;
     u8 *fw_dump_addr;
@@ -311,12 +330,13 @@ struct hyn_ts_fuc{
 int hyn_write_data(struct hyn_ts_data *ts_data, u8 *buf, u8 reg_len, u16 len);
 int hyn_read_data(struct hyn_ts_data *ts_data,u8 *buf, u16 len);
 int hyn_wr_reg(struct hyn_ts_data *ts_data, u32 reg_addr, u8 reg_len, u8 *rbuf, u16 rlen);
+int hyn_request_fw(struct hyn_ts_data *ts_data, const char *fw_name);
+void hyn_release_fw(struct hyn_ts_data *ts_data);
 
 void hyn_irq_set(struct hyn_ts_data *ts_data, u8 value);
 void hyn_esdcheck_switch(struct hyn_ts_data *ts_data, u8 enable);
-int copy_for_updata(struct hyn_ts_data *ts_data,u8 *buf,u32 offset,u16 len);
 int hyn_dump_fw(struct hyn_ts_data *ts_data,u8 *buf,size_t count);
-int get_word(u8 **sc_str, u8* ds_str);
+int get_word(u8 **sc_str, u8* ds_str, u8 max_len);
 void hyn_set_i2c_addr(struct hyn_ts_data *ts_data,u8 addr);
 
 int hyn_proc_fs_int(struct hyn_ts_data *ts_data);

@@ -1,8 +1,36 @@
+
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_cst66xx.c
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: HYNITRON CST66xx series touch controller driver
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #include "../hyn_core.h"
 
-
-#include "cst66xx_fw1.h"
-#include "cst66xx_fw2.h"
 
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x58) //use 2 slave addr
@@ -34,14 +62,14 @@ static const u8 gest_map_tbl[] = {
 };
 
 static const struct hyn_chip_series hyn_6xx_fw[] = {
-    {0xCACA220E,0xffffffff,"cst3530",(u8*)fw_module1},//if PART_NO_EN==0 use default chip
-    {0xCACA2202,0xffffffff,"cst3640",(u8*)fw_module1},
-    {0xCACA2201,0xffffffff,"cst6656",(u8*)fw_module1},
-    {0xCACA220C,0xffffffff,"cst3548",(u8*)fw_module1},
-    {0xCACA2209,0xffffffff,"cst3556",(u8*)fw_module1},
-    {0xCACA2203,0xffffffff,"cst6644",(u8*)fw_module1},
-    {0xCACA2204,0xffffffff,"cst6856",(u8*)fw_module1},
-    {0xCACA2204,0x00000002,"cst6856",(u8*)fw_module2},
+    {0xCACA220E,0xffffffff,"cst3530","cst66xx_fw1.bin"},//if PART_NO_EN==0 use default chip
+    {0xCACA2202,0xffffffff,"cst3640","cst66xx_fw1.bin"},
+    {0xCACA2201,0xffffffff,"cst6656","cst66xx_fw1.bin"},
+    {0xCACA220C,0xffffffff,"cst3548","cst66xx_fw1.bin"},
+    {0xCACA2209,0xffffffff,"cst3556","cst66xx_fw1.bin"},
+    {0xCACA2203,0xffffffff,"cst6644","cst66xx_fw1.bin"},
+    {0xCACA2204,0xffffffff,"cst6856","cst66xx_fw1.bin"},
+    {0xCACA2204,0x00000002,"cst6856","cst66xx_fw2.bin"},
     //0xCACA2205 //154
     //0xCACA2206 //148E
     {0,0,"",NULL}
@@ -55,17 +83,16 @@ static void cst66xx_rst(void);
 
 static int cst66xx_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0,i;
+    int ret = 0,i,fw_idx = 0;
     u32 read_part_no,module_id;
     HYN_ENTER();
     hyn_66xxdata = ts_data;
-    
+
     ret = cst66xx_enter_boot();
     if(ret){
         HYN_ERROR("cst66xx_enter_boot failed");
         return -1;
     }
-    hyn_66xxdata->fw_updata_addr = hyn_6xx_fw[0].fw_bin;
     hyn_66xxdata->fw_updata_len = cst66xx_BIN_SIZE;
     read_part_no = cst66xx_fread_word(PARTNUM_ADDR);
     module_id =  cst66xx_fread_word(MODULE_ID_ADDR);
@@ -78,7 +105,7 @@ static int cst66xx_init(struct hyn_ts_data* ts_data)
 #else
         if( hyn_6xx_fw[i].moudle_id == module_id)
 #endif
-        {   hyn_66xxdata->fw_updata_addr = hyn_6xx_fw[i].fw_bin;
+        {   fw_idx = i;
             HYN_INFO("chip %s match fw success ,partNo check is [%s]",hyn_6xx_fw[i].chip_name,PART_NO_EN ? "enable":"disable");
             break;
         }
@@ -94,7 +121,10 @@ static int cst66xx_init(struct hyn_ts_data* ts_data)
     cst66xx_rst(); //exit boot
     mdelay(50);
     
-    hyn_66xxdata->need_updata_fw = cst66xx_updata_judge(hyn_66xxdata->fw_updata_addr,cst66xx_BIN_SIZE);
+    hyn_66xxdata->need_updata_fw = 0;
+    if(0 == hyn_request_fw(hyn_66xxdata, hyn_6xx_fw[fw_idx].fw_name)){
+        hyn_66xxdata->need_updata_fw = cst66xx_updata_judge(hyn_66xxdata->fw_updata_addr,cst66xx_BIN_SIZE);
+    }
     if(hyn_66xxdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
     }
@@ -503,15 +533,8 @@ static int cst66xx_updata_fw(u8 *bin_addr, u32 len)
         goto UPDATA_END;
     }
     len = cst66xx_BIN_SIZE;
-    if(0 == hyn_66xxdata->fw_file_name[0]){
-        p_bin_addr = bin_addr + len;
-        fw_checksum = U8TO32(p_bin_addr[3],p_bin_addr[2],p_bin_addr[1],p_bin_addr[0]);
-    }
-    else{
-        ret = copy_for_updata(hyn_66xxdata,i2c_buf,cst66xx_BIN_SIZE,4);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
+    p_bin_addr = bin_addr + len;
+    fw_checksum = U8TO32(p_bin_addr[3],p_bin_addr[2],p_bin_addr[1],p_bin_addr[0]);
     HYN_INFO("fw_checksum_all:%04x",fw_checksum);
     hyn_irq_set(hyn_66xxdata,DISABLE);
     hyn_esdcheck_switch(hyn_66xxdata,DISABLE);
@@ -538,11 +561,7 @@ static int cst66xx_updata_fw(u8 *bin_addr, u32 len)
 
             i2c_buf[0] = 0xA0;
             i2c_buf[1] = 0x40;
-            if(0 == hyn_66xxdata->fw_file_name[0]){
-                memcpy(i2c_buf + 2, bin_addr+eep_len, PKG_SIZE);
-            }else{
-                ret |= copy_for_updata(hyn_66xxdata,i2c_buf + 2,eep_len,PKG_SIZE);
-            }
+            memcpy(i2c_buf + 2, bin_addr+eep_len, PKG_SIZE);
             ret |= hyn_write_data(hyn_66xxdata, i2c_buf,2, PKG_SIZE+2);
             msleep(5);
             ret |= hyn_wr_reg(hyn_66xxdata, 0xA004E1, 3,0,0);

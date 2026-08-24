@@ -424,14 +424,7 @@ static int cst3240_updata_fw(u8 *bin_addr, u32 len)
     }
     if(len > CST3240_BIN_SIZE) len = CST3240_BIN_SIZE;
 
-    if(0 == hyn_3240data->fw_file_name[0]){
-        fw_checksum = *(u32*)(bin_addr+CST3240_BIN_SIZE-4);
-    }
-    else{
-        ret = copy_for_updata(hyn_3240data,i2c_buf,CST3240_BIN_SIZE-4,4);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum = *(u32*)(bin_addr+CST3240_BIN_SIZE-4);
     hyn_irq_set(hyn_3240data,DISABLE);
     hyn_esdcheck_switch(hyn_3240data,DISABLE);
     retry = 4;
@@ -452,11 +445,7 @@ static int cst3240_updata_fw(u8 *bin_addr, u32 len)
             ret = hyn_wr_reg(hyn_3240data,0xA0140000+U16REV(eep_addr),4,0,0);
             i2c_buf[0] = 0xA0;
             i2c_buf[1] = 0x18;
-            if(0 == hyn_3240data->fw_file_name[0]){
-                memcpy(i2c_buf + 2, bin_addr + eep_addr, 512);
-            }else{
-                ret |= copy_for_updata(hyn_3240data,i2c_buf + 2,eep_addr,512);
-            }
+            memcpy(i2c_buf + 2, bin_addr + eep_addr, 512);
             ret |= hyn_write_data(hyn_3240data, i2c_buf,RW_REG_LEN, i<31 ? 514:482);
             if(ret){ //com erro
                 continue;

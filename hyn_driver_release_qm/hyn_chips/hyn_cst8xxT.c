@@ -1,3 +1,34 @@
+
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_cst8xxT.c
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: HYNITRON CST8xxT touch controller driver
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #include "../hyn_core.h"
 
 
@@ -222,6 +253,10 @@ static uint32_t cst8xxT_read_checksum(void)
         if (i2c_buf[0] == 1 || i2c_buf[0] == 2){
             chip_checksum_ok = i2c_buf[0] == 1  ? TRUE:FALSE;
             break;
+        }
+        else if (i2c_buf[0] == 2){
+            chip_checksum_ok = FALSE;
+            continue;
         }
     }
 

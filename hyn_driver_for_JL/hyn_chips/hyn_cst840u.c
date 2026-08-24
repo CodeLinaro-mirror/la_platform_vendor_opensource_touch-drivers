@@ -1,36 +1,7 @@
-
-/* SPDX-License-Identifier: GPL-2.0-or-later
- *
- * Hynitron TouchScreen driver.
- *
- * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
- *
- * This software is licensed under the terms of the GNU General Public
- * License version 2, as published by the Free Software Foundation, and
- * may be copied, distributed, and modified under those terms.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU General Public License for more details.
- *
- */
-/*******************************************************************************
-*
-* File Name: hyn_cst840u.c
-*
-* Author: Hynitron Driver Team
-*
-* Created: 2026-08-24
-*
-* Abstract: HYNITRON CST840U touch controller driver
-*
-* Version: == Hynitron V2.27 20260824 ==
-*
-*******************************************************************************/
-
 #include "../hyn_core.h"
 
+
+#include "cst840u_fw.h"
 
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x33) //use 2 slave addr
@@ -63,8 +34,10 @@ static const u8 gest_map_tbl[] = {
     IDX_Z,      //GESTURE_LABEL_Z
 };
 
+#if HYN_POWER_ON_UPDATA
+
 static const struct hyn_chip_series hyn_xx_fw[] = {
-    {0xCACA2213,0xffffffff,"cst840u","cst840u_fw.bin"},//if PART_NO_EN==0 use default chip
+    {0xCACA2213,0xffffffff,"cst840u",(u8*)fw_module},//if PART_NO_EN==0 use default chip
     {0,0,"",NULL}
 };
 
@@ -109,11 +82,8 @@ static int cst840u_init(struct hyn_ts_data* ts_data)
         mdelay(50);
     }
     
-    ret = cst840u_read_file_addr(hyn_840udata->hw_info.ic_part_no, hyn_840udata->hw_info.fw_module_id);
-    hyn_840udata->need_updata_fw = 0;
-    if(0 == hyn_request_fw(hyn_840udata, hyn_xx_fw[ret].fw_name)){
-        hyn_840udata->need_updata_fw = cst840u_updata_judge(hyn_840udata->fw_updata_addr, hyn_840udata->fw_updata_len);
-    }
+    cst840u_read_file_addr(hyn_840udata->hw_info.ic_part_no, hyn_840udata->hw_info.fw_module_id);
+    hyn_840udata->need_updata_fw = cst840u_updata_judge(hyn_840udata->fw_updata_addr, hyn_840udata->fw_updata_len);
     // hyn_840udata->need_updata_fw = 1;
     HYN_INFO("not need updata FW !!!");
     if (hyn_840udata->need_updata_fw) {
@@ -121,6 +91,22 @@ static int cst840u_init(struct hyn_ts_data* ts_data)
     }
     return 0;
 }
+#else
+static int cst840u_init(struct hyn_ts_data* ts_data)
+{
+    int ret = 0;
+    HYN_ENTER();
+    hyn_840udata = ts_data;
+    hyn_840udata->fw_updata_len = cst840u_BIN_SIZE;
+	hyn_set_i2c_addr(hyn_840udata,MAIN_I2C_ADDR);
+	cst840u_rst(); //exit boot
+	mdelay(50);
+    ret = cst840u_updata_tpinfo();
+    if(ret) HYN_ERROR("get tpinfo failed");
+    ret |= cst840u_set_workmode(NOMAL_MODE,0);
+    return ret;
+}
+#endif
 
 
 static int cst840u_report(void)
@@ -445,6 +431,7 @@ static int cst840u_enter_boot(void)
     return -1;
 }
 
+
 static int cst840u_updata_tpinfo(void)
 {
     u8 buf[60];
@@ -561,7 +548,7 @@ static u32 cst840u_read_checksum(void)
 }
 
 static int cst840u_read_file_addr(u32 partno, u32 moduleId) {
-    int fw_idx = 0, i = 0;
+    int ret = 0, i = 0;
     if(moduleId > 10) moduleId = 0xffffffff;
     for(i = 0; ;i++) {
 #if PART_NO_EN
@@ -569,17 +556,18 @@ static int cst840u_read_file_addr(u32 partno, u32 moduleId) {
 #else
         if(hyn_xx_fw[i].moudle_id == moduleId)
 #endif
-        {
-            fw_idx = i;
+        {  
+            hyn_840udata->fw_updata_addr = hyn_xx_fw[i].fw_bin;
             HYN_INFO("chip %s match fw success ,partNo check is [%s]", hyn_xx_fw[i].chip_name,PART_NO_EN ? "enable":"disable");
             break;
         }
         if(hyn_xx_fw[i].part_no == 0 && hyn_xx_fw[i].moudle_id == 0) {
             HYN_INFO("unknown chip or unknown moudle_id use hyn_xx_fw[0]");
+            ret = -1;
             break;
         }
     }
-    return fw_idx;
+    return ret;
 }
 
 // static u32 cst840u_read_file_checksum(u8 *p_fw, u32 len)

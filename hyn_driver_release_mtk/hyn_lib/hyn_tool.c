@@ -1,4 +1,34 @@
 
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_tool.c
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: hynitron utility functions
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #include "../hyn_core.h"
 
 #if HYN_APK_DEBUG_EN
@@ -148,14 +178,7 @@ static ssize_t hyn_proc_tool_write(struct file *file, const char __user *buffer,
 			hyn_tool_data->fw_dump_state = 1;
 			hyn_dump_fw(hyn_tool_data,cmd,count);
 			break;
-		case UPDATA_FW: // apk download bin
-			HYN_INFO("updata file_name =%s",&cmd[1]);
-			strcpy(hyn_tool_data->fw_file_name,&cmd[1]);
-			hyn_tool_data->fw_updata_process = 0;
-			hyn_tool_fun->tp_updata_fw(hyn_tool_data->fw_updata_addr,hyn_tool_data->fw_updata_len);
-			// if(0==queue_work(hyn_tool_data->hyn_workqueue,&hyn_tool_data->work_updata_fw)){
-			// 	HYN_ERROR("queue_work work_updata_fw failed");
-			// }
+		case UPDATA_FW: // apk download bin via file removed(GKI no VFS), use DUMP_FW instead
 			break;
 		case SET_WORK_MODE://
 			atomic_set(&hyn_tool_data->hyn_irq_flg,0);

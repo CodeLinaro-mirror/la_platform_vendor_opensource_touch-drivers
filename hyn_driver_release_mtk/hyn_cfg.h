@@ -1,4 +1,34 @@
 
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_cfg.h
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: hynitron ts driver config header file
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #ifndef _HYNITRON_CFG_H
 #define _HYNITRON_CFG_H
 
@@ -18,7 +48,7 @@
 
 #define HYN_POWER_ON_UPDATA     (0) //updata
 
-#define HYN_GKI_VER           (0) //GKI version need enable
+#define HYN_GKI_VER           (1) //GKI version need enable
 #define HYN_APK_DEBUG_EN      (1)
 
 #define HYN_GESTURE_EN        (0)
@@ -36,7 +66,7 @@
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
 
-#define HYN_DRIVER_VERSION      "== Hynitron V2.25 20260528 =="
+#define HYN_DRIVER_VERSION      "== Hynitron V2.27 20260824 =="
 #endif
 
 

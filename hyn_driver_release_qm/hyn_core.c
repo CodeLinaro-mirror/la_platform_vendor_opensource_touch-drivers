@@ -1,3 +1,34 @@
+
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_core.c
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: hynitron ts driver core implementation
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #include "hyn_core.h"
 #define HYN_DRIVER_NAME  "hyn_ts"
 
@@ -480,7 +511,7 @@ static void hyn_esdcheck_work(struct work_struct *work)
         hyn_data->esd_block_cnt--;
     }
     queue_delayed_work(hyn_data->hyn_workqueue, &hyn_data->esdcheck_work,
-                           msecs_to_jiffies(3000));
+                           msecs_to_jiffies(1000));
 #endif
 }
 

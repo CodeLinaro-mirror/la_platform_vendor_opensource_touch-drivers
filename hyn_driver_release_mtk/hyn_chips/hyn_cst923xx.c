@@ -1,11 +1,41 @@
+
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_cst923xx.c
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: HYNITRON CST923xx series touch controller driver
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #include "../hyn_core.h"
-#include "cst923xx_fw.h"
 
 #define BOOT_I2C_ADDR   (0x5A)
 #define MAIN_I2C_ADDR   (0x5A)
 #define RW_REG_LEN   (2)
 
-#define MAX_FINGER (2)
+#define MAX_FINGER (5)
 #define MODULE_ID_EN  (0)
 
 enum chip_group_t{
@@ -42,20 +72,20 @@ static int16_t read_word_from_mem(uint16_t type, uint32_t addr, uint32_t *value)
 static int cst923xx_set_workmode(enum work_mode mode,u8 enable);
 
 static const struct hyn_chip_series cst923xx_fw_list[] = {
-    {0x9fff,0x0000,"cst9xxx",(u8*)fw_bin0},//default bin
-    {0x9317,0x0000,"cst9317 id0",(u8*)fw_bin0},
-    {0x3217,0x0001,"cst3217 id1",(u8*)fw_bin0},
-    {0x92FF,0x0000,"cst92xx id0",(u8*)fw_bin1}, 
-    {0x9217,0x0001,"cst9217 id0",(u8*)fw_bin1},  
-    {0x9217,0x0002,"cst9217 id1",(u8*)fw_bin1},
-    {0x9220,0x0002,"cst9220 id0",(u8*)fw_bin1},
-    {0x916e,0x0003,"cst916e",(u8*)fw_bin1},
+    {0x9fff,0x0000,"cst9xxx","cst923xx_fw.bin"},//default bin
+    {0x9317,0x0000,"cst9317 id0","cst923xx_fw.bin"},
+    {0x3217,0x0001,"cst3217 id1","cst923xx_fw.bin"},
+    {0x92FF,0x0000,"cst92xx id0","cst92xx_fw.bin"},
+    {0x9217,0x0001,"cst9217 id0","cst92xx_fw.bin"},
+    {0x9217,0x0002,"cst9217 id1","cst92xx_fw.bin"},
+    {0x9220,0x0002,"cst9220 id0","cst92xx_fw.bin"},
+    {0x916e,0x0003,"cst916e","cst92xx_fw.bin"},
     {0xFF,0,"null",NULL}
 };
 
 static int cst923xx_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0;
+    int ret = 0, fw_idx = 0;
     struct tp_info *ic = &ts_data->hw_info;
     HYN_ENTER();
     hyn_92xxdata = ts_data;
@@ -83,18 +113,17 @@ static int cst923xx_init(struct hyn_ts_data* ts_data)
     }
     ret = 0;
     HYN_INFO("CHIP_GROUP:[%s]  MODULE_ID is %s\r\n",chip_group_id==CHIP_92xx ? "92xx":"93xx", MODULE_ID_EN ? "enable":"disable");
-    hyn_92xxdata->fw_updata_addr = cst923xx_fw_list[0].fw_bin;
     hyn_92xxdata->fw_updata_len = ct92xx_addr_tabl[chip_group_id].bin_size;
 #if MODULE_ID_EN
     {
         u8 i = 0;
         ret=-1;
         for(i = 0; ;i++){
-            if(cst923xx_fw_list[i].fw_bin== NULL){
+            if(cst923xx_fw_list[i].fw_name == NULL){
                 break;
             }
             if(cst923xx_fw_list[i].moudle_id == ic->fw_module_id){
-                hyn_92xxdata->fw_updata_addr = cst923xx_fw_list[i].fw_bin;
+                fw_idx = i;
                 ret = 0;
                 break;
             }
@@ -103,7 +132,10 @@ static int cst923xx_init(struct hyn_ts_data* ts_data)
     }
 #endif
     if(ret==0){
-        hyn_92xxdata->need_updata_fw = cst923xx_updata_judge(hyn_92xxdata->fw_updata_addr,hyn_92xxdata->fw_updata_len);
+        hyn_92xxdata->need_updata_fw = 0;
+        if(0 == hyn_request_fw(hyn_92xxdata, cst923xx_fw_list[fw_idx].fw_name)){
+            hyn_92xxdata->need_updata_fw = cst923xx_updata_judge(hyn_92xxdata->fw_updata_addr,hyn_92xxdata->fw_updata_len);
+        }
     }
     HYN_INFO("cst923xx_init done !!!");
     return TRUE;
@@ -294,14 +326,6 @@ static int write_code(u8 *bin_addr,uint8_t retry)
         if (cur_len > page_size) {
             cur_len = page_size;
         }
-        
-        if(hyn_92xxdata->fw_file_name[0]){
-            ret = copy_for_updata(hyn_92xxdata,data,addr,page_size);
-            if(ret == FALSE){
-                HYN_ERROR("copy_for_updata error");
-                goto wite_end;
-            }
-        }
 
         //HYN_INFO("write_code addr 0x%x 0x%x",addr,*data);
         if (write_mem_page(addr, data + addr, cur_len) ==  FALSE) {
@@ -367,23 +391,17 @@ static int cst923xx_updata_fw(u8 *bin_addr, u32 len)
     u32 fw_checksum=0;
     HYN_ENTER();
 
+    if(IS_ERR_OR_NULL(bin_addr)){ //firmware not loaded, nothing to update
+        HYN_ERROR("bin_addr is null");
+        goto UPDATA_END;
+    }
     if(len < ct92xx_addr_tabl[chip_group_id].bin_size){
         HYN_ERROR("len = %d",len);
         goto UPDATA_END;
     }
     if(len > ct92xx_addr_tabl[chip_group_id].bin_size) len = ct92xx_addr_tabl[chip_group_id].bin_size;
 
-    if(0 != hyn_92xxdata->fw_file_name[0]){
-        //node to update
-        ok = copy_for_updata(hyn_92xxdata,i2c_buf,checksum_addr,4);
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-        if(hyn_92xxdata->hw_info.ic_fw_checksum == fw_checksum || ok != 0){
-             HYN_INFO("no update,fw_checksum is same:0x%04x",fw_checksum);
-             goto UPDATA_END;
-        }
-    }else{
-        fw_checksum = U8TO32(bin_addr[checksum_addr+3],bin_addr[checksum_addr+2],bin_addr[checksum_addr+1],bin_addr[checksum_addr+0]);
-    }
+    fw_checksum = U8TO32(bin_addr[checksum_addr+3],bin_addr[checksum_addr+2],bin_addr[checksum_addr+1],bin_addr[checksum_addr+0]);
     HYN_INFO("updating fw checksum:0x%04x",fw_checksum);
 
     hyn_irq_set(hyn_92xxdata,DISABLE);

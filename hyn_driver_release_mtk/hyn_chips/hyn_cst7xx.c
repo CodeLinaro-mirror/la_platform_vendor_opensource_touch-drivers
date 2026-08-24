@@ -1,5 +1,35 @@
+
+/* SPDX-License-Identifier: GPL-2.0-or-later
+ *
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: hyn_cst7xx.c
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-08-24
+*
+* Abstract: HYNITRON CST7xx series touch controller driver
+*
+* Version: == Hynitron V2.27 20260824 ==
+*
+*******************************************************************************/
+
 #include "../hyn_core.h"
-#include "cst7xx_fw.h"
 
 #define CUSTOM_SENSOR_NUM  	(20)
 
@@ -24,16 +54,16 @@ static int cst7xx_get_id(u32 *result);
 
 static const struct hyn_chip_series cst7xx_fw_list[] = {
 //--null--id---name--------bin
-    {0,0xff,"module1",(u8*)fw_bin_1},  //default bin
-    {0,0x01,"module1",(u8*)fw_bin_1},
-    {0,0x02,"module2",(u8*)fw_bin_2},
-    {0,0x03,"module3",(u8*)fw_bin_3},
+    {0,0xff,"module1","cst7xx_fw.bin"},  //default bin
+    {0,0x01,"module1","cst7xx_fw.bin"},
+    {0,0x02,"module2","cst7xx_fw2.bin"},
+    {0,0x03,"module3","cst7xx_fw3.bin"},
     {0xFF,0,"null",NULL}
 };
 
 static int cst7xx_init(struct hyn_ts_data* ts_data)
 {
-    int ret = 0;
+    int ret = 0, fw_idx = 0;
     u8 buf[4];
     HYN_ENTER();
     hyn_7xxdata = ts_data;
@@ -42,7 +72,6 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
         HYN_ERROR("cst7xx_enter_boot failed");
         return FALSE;
     }
-    hyn_7xxdata->fw_updata_addr = cst7xx_fw_list[0].fw_bin; //default bin
     hyn_7xxdata->fw_updata_len = CST7XX_BIN_SIZE;
 
     hyn_7xxdata->hw_info.ic_fw_checksum = cst7xx_read_checksum();
@@ -62,11 +91,11 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
  	u8 i = 0;
     ret=-1;
     for(i = 0; ;i++){
-        if(cst7xx_fw_list[i].fw_bin== NULL){
+        if(cst7xx_fw_list[i].fw_name == NULL){
             break;
         }
         if(cst7xx_fw_list[i].moudle_id==hyn_7xxdata->hw_info.fw_module_id){
-            hyn_7xxdata->fw_updata_addr = cst7xx_fw_list[i].fw_bin;
+            fw_idx = i;
             ret = 0;
             break;
         }
@@ -77,7 +106,10 @@ static int cst7xx_init(struct hyn_ts_data* ts_data)
 #endif
 
     if(ret==0){
-        hyn_7xxdata->need_updata_fw = cst7xx_updata_judge((u8*)hyn_7xxdata->fw_updata_addr,CST7XX_BIN_SIZE);
+        hyn_7xxdata->need_updata_fw = 0;
+        if(0 == hyn_request_fw(hyn_7xxdata, cst7xx_fw_list[fw_idx].fw_name)){
+            hyn_7xxdata->need_updata_fw = cst7xx_updata_judge(hyn_7xxdata->fw_updata_addr,CST7XX_BIN_SIZE);
+        }
     }
     if(hyn_7xxdata->need_updata_fw){
         HYN_INFO("need updata FW !!!");
@@ -99,7 +131,16 @@ static int cst7xx_get_id(u32 *result)
             ret = -1;
             continue;
         } 
-        memcpy(&i2c_buf[2],(u8*)fw_read_id,512);
+        {
+            const struct firmware *id_fw = NULL;
+            ret = request_firmware(&id_fw, "cst7xx_read_id.bin", hyn_7xxdata->dev);
+            if (ret || IS_ERR_OR_NULL(id_fw)) {
+                ret = -3;
+                continue;
+            }
+            memcpy(&i2c_buf[2], id_fw->data, min(id_fw->size, (size_t)512));
+            release_firmware(id_fw);
+        }
         ret = write_flash_page(0,i2c_buf,retry);
         if(ret ==0){
             hyn_set_i2c_addr(hyn_7xxdata,MAIN_I2C_ADDR);
@@ -228,14 +269,7 @@ static int cst7xx_updata_fw(u8 *bin_addr, u32 len)
         goto UPDATA_END;
     }
     len = hyn_7xxdata->fw_updata_len;
-    if(0 == hyn_7xxdata->fw_file_name[0]){
-        fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
-    }
-    else{
-        ret = copy_for_updata(hyn_7xxdata,i2c_buf,4,2);
-        if(ret)  goto UPDATA_END;
-        fw_checksum = U8TO16(i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
 
     hyn_irq_set(hyn_7xxdata,DISABLE);
     hyn_esdcheck_switch(hyn_7xxdata,DISABLE);
@@ -248,13 +282,7 @@ static int cst7xx_updata_fw(u8 *bin_addr, u32 len)
         cnt = 0;
         for(addr = 0; addr<=hyn_7xxdata->fw_updata_len-512;){
             offset = addr+6;
-            if(0 == hyn_7xxdata->fw_file_name[0]){
-                memcpy(&i2c_buf[2], bin_addr + offset, 512); 
-            }
-            else{
-                ret = copy_for_updata(hyn_7xxdata,&i2c_buf[2],offset,512);
-                if(ret) goto UPDATA_END;
-            }
+            memcpy(&i2c_buf[2], bin_addr + offset, 512);
             ret = write_flash_page(addr,i2c_buf,retry);
             if(ret==0){
                 addr += 512;

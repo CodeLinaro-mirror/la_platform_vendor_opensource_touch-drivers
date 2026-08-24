@@ -187,8 +187,8 @@ static uint32_t cst8xxT_read_checksum(void)
             continue;
         }
 
-        if (i2c_buf[0] == 1){
-            chip_checksum_ok = TRUE;
+        if (i2c_buf[0] == 1 || i2c_buf[0] == 2){
+            chip_checksum_ok = i2c_buf[0] == 1  ? TRUE:FALSE;
             break;
         }
         else if (i2c_buf[0] == 2){
@@ -214,7 +214,7 @@ static uint32_t cst8xxT_read_checksum(void)
 }
 
 
-static int cst8xxT_updata_fw(u8 *bin_addr, u16 len)
+static int cst8xxT_updata_fw(u8 *bin_addr, u32 len)
 { 
     int retry = 0;
     int ok_copy = TRUE;
@@ -223,14 +223,7 @@ static int cst8xxT_updata_fw(u8 *bin_addr, u16 len)
     u32 fw_checksum = 0;
     // len = len;
     HYN_ENTER();
-    if(0 == hyn_8xxTdata->fw_file_name[0]){
-        fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
-    }
-    else{
-        ok = copy_for_updata(hyn_8xxTdata,i2c_buf,4,2);
-        if(ok)  goto UPDATA_END;
-        fw_checksum = U8TO16(i2c_buf[1],i2c_buf[0]);
-    }
+    fw_checksum =U8TO16(bin_addr[5],bin_addr[4]);
     hyn_irq_set(hyn_8xxTdata,DISABLE);
 
     for(retry = 1; retry<10; retry++){
@@ -290,8 +283,8 @@ static int cst8xxT_updata_tpinfo(void)
         return FALSE;
     }
 
-    ic->fw_sensor_txnum = 2;
-    ic->fw_sensor_rxnum = CUSTOM_SENSOR_NUM;
+    ic->fw_sensor_txnum = CUSTOM_SENSOR_NUM/2;
+    ic->fw_sensor_rxnum = 2;
     ic->fw_key_num = hyn_8xxTdata->plat_data.key_num;
     ic->fw_res_y = hyn_8xxTdata->plat_data.y_resolution;
     ic->fw_res_x = hyn_8xxTdata->plat_data.x_resolution;
@@ -329,45 +322,59 @@ static int cst8xxT_updata_judge(u8 *p_fw, u16 len)
 
 static int cst8xxT_set_workmode(enum work_mode mode,u8 enable)
 {
-    hyn_8xxTdata->work_mode = mode;
-    if(mode != NOMAL_MODE){
-        hyn_esdcheck_switch(hyn_8xxTdata,DISABLE);
-    }
+    int ret = 0;
     if(hyn_wr_reg(hyn_8xxTdata,0x00,1,NULL,0)){ //check_lp mode
         cst8xxT_rst();
         mdelay(80);
     }
+    msleep(1); //trig task switch
+    hyn_esdcheck_switch(hyn_8xxTdata,mode==NOMAL_MODE? enable : DISABLE);
     switch(mode){
         case NOMAL_MODE:
-			hyn_esdcheck_switch(hyn_8xxTdata,ENABLE);
-            hyn_irq_set(hyn_8xxTdata,ENABLE);
+            hyn_wr_reg(hyn_8xxTdata,0xFF00,2,NULL,0);
             break;
         case GESTURE_MODE:
-            hyn_wr_reg(hyn_8xxTdata,0xE501,2,NULL,0);
+            ret = hyn_wr_reg(hyn_8xxTdata,0xE501,2,NULL,0);
             break;
         case LP_MODE:
             break;
         case DIFF_MODE:
         case RAWDATA_MODE:
-            hyn_wr_reg(hyn_8xxTdata,0xFEF8,2,NULL,0);
+            ret = hyn_wr_reg(hyn_8xxTdata,0xFEF8,2,NULL,0);
             break;
         case FAC_TEST_MODE:
-            //hyn_wr_reg(hyn_8xxTdata,0xD119,2,NULL,0);
+            hyn_write_data(hyn_8xxTdata,(u8[]){0xc0,0x80,0x20,0x30,0x00},1,5);
+            hyn_wr_reg(hyn_8xxTdata,0xFF01,2,NULL,0);
+            msleep(50);
+            break;
+        case ENTER_BOOT_MODE:
+            ret = cst8xxT_enter_boot();
             break;
         case DEEPSLEEP:
-            hyn_irq_set(hyn_8xxTdata,DISABLE);
-            hyn_wr_reg(hyn_8xxTdata,0xE503,2,NULL,0);
+            ret = hyn_wr_reg(hyn_8xxTdata,0xE503,2,NULL,0);
+            break;
+        case CHARGE_EXIT:
+        case CHARGE_ENTER:
+            hyn_8xxTdata->charge_is_enable = mode&0x01;
+            ret = hyn_wr_reg(hyn_8xxTdata,(mode&0x01)? 0xE601:0xE600,2,0,0); //charg mode
+            mode = hyn_8xxTdata->work_mode; //not switch work mode
+            HYN_INFO("set_charge:%d",hyn_8xxTdata->charge_is_enable);
             break;
         default :
-            //hyn_esdcheck_switch(hyn_8xxTdata,ENABLE);
-            hyn_8xxTdata->work_mode = NOMAL_MODE;
+            ret = -2;
             break;
     }
-    return 0;
+    if(ret != -2){
+        hyn_8xxTdata->work_mode = mode;
+    }
+    return ret;
 }
 
 static void cst8xxT_rst(void)
 {
+    if(hyn_8xxTdata->work_mode==ENTER_BOOT_MODE){
+        hyn_set_i2c_addr(hyn_8xxTdata,MAIN_I2C_ADDR);
+    }
     gpio_set_value(hyn_8xxTdata->plat_data.reset_gpio,0);
     msleep(11);
     gpio_set_value(hyn_8xxTdata->plat_data.reset_gpio,1);
@@ -384,7 +391,7 @@ static int cst8xxT_resum(void)
 {
     cst8xxT_rst();
     msleep(50);
-    cst8xxT_set_workmode(NOMAL_MODE,0);
+    cst8xxT_set_workmode(NOMAL_MODE,1);
     return 0;
 }
 
@@ -402,7 +409,8 @@ static int cst8xxT_report(void)
 
     if(hyn_8xxTdata->work_mode == GESTURE_MODE){
         if(hyn_wr_reg(hyn_8xxTdata,0x00,1,i2c_buf,2)){
-            goto FAILD_END;
+            if(hyn_wr_reg(hyn_8xxTdata,0x00,1,i2c_buf,2))
+                goto FAILD_END;
         }
         hyn_8xxTdata->gesture_id  = IDX_NULL;
         if(i2c_buf[1] == 0x05){ //click
@@ -412,7 +420,8 @@ static int cst8xxT_report(void)
     }
     else{
         if(hyn_wr_reg(hyn_8xxTdata,0x00,1,i2c_buf,(3+6*2))){
-            goto FAILD_END;
+            if(hyn_wr_reg(hyn_8xxTdata,0x00,1,i2c_buf,3+6*2))
+                goto FAILD_END;
         }
         hyn_8xxTdata->rp_buf.rep_num  = i2c_buf[2];
         // HYN_INFO("rep_num = %d",hyn_8xxTdata->rp_buf.rep_num);
@@ -435,7 +444,8 @@ static int cst8xxT_report(void)
             hyn_8xxTdata->rp_buf.pos_info[index].pres_z = 3+(x&0x03); //press mast chang
             index++;
         }
-        if(index != 0) hyn_8xxTdata->rp_buf.report_need = REPORT_POS;
+        if(index != 0 || hyn_8xxTdata->rp_buf.rep_num==0) hyn_8xxTdata->rp_buf.report_need |= REPORT_POS;
+
         if(dt->key_num){
             i = dt->key_num;
             while(i){
@@ -443,9 +453,16 @@ static int cst8xxT_report(void)
                     if(dt->key_y_coords ==hyn_8xxTdata->rp_buf.pos_info[0].pos_y && dt->key_x_coords[i] == hyn_8xxTdata->rp_buf.pos_info[0].pos_x){
                         hyn_8xxTdata->rp_buf.key_id = i;
                         hyn_8xxTdata->rp_buf.key_state = hyn_8xxTdata->rp_buf.pos_info[0].event;
-                        hyn_8xxTdata->rp_buf.report_need = REPORT_KEY;
+                        hyn_8xxTdata->rp_buf.report_need |= REPORT_KEY;
                 }
             }
+        }
+
+        if(i2c_buf[1]== 0xAA){
+            hyn_8xxTdata->gesture_id = IDX_F11;// palm 
+            hyn_8xxTdata->rp_buf.rep_num = 0;
+            hyn_8xxTdata->rp_buf.key_state = 0;
+            hyn_8xxTdata->rp_buf.report_need |= REPORT_GES;
         }
     }
     return TRUE;
@@ -484,7 +501,27 @@ static int cst8xxT_get_dbg_data(u8 *buf, u16 len)
 
 static int cst8xxT_get_test_result(u8 *buf, u16 len)
 {
-    return 0;
+    int ret = -1;
+    u8 time_out = 200;
+    if(len > CUSTOM_SENSOR_NUM*2){
+        len = CUSTOM_SENSOR_NUM*2;
+    }
+    while(--time_out){
+        msleep(10);
+        ret = hyn_wr_reg(hyn_8xxTdata, 0xFF, 1,buf,1); 
+        if(ret == 0 && buf[0]==0){
+            break;
+        }
+        ret = FAC_GET_DATA_FAIL;
+    }
+    if(ret==0){
+        ret = hyn_wr_reg(hyn_8xxTdata, 0x40, 1,buf,len); 
+        if(ret==0){
+            exchange_byte(buf,len);
+        }
+    }
+    cst8xxT_resum();
+    return ret;
 }
 
 const struct hyn_ts_fuc cst8xxT_fuc = {

@@ -63,6 +63,10 @@ enum work_mode{
     BASELINE_MODE = 6,
     CALIBRATE_MODE = 7,
     FAC_TEST_MODE = 8,
+    GLOVE_EXIT = 0x10,
+    GLOVE_ENTER = 0x11,
+    CHARGE_EXIT = 0x12,
+    CHARGE_ENTER = 0x13,
     ENTER_BOOT_MODE = 0xCA,
 };
 
@@ -100,6 +104,7 @@ enum ges_idx{
     IDX_C,
     IDX_Z,
     IDX_POWER,
+    IDX_F11,
     IDX_NULL = 0xFF,
 };
 
@@ -155,6 +160,7 @@ struct tp_info{
     u32 fw_ver;
     u32 ic_fw_checksum;
     u32 fw_module_id;
+    u32 ic_part_no;
 };
 
 
@@ -187,6 +193,8 @@ struct hyn_ts_data {
     
     u8 gesture_is_enable;
     u8 gesture_id;
+    u8 charge_is_enable;
+    u8 glove_is_enable;
     const struct hyn_ts_fuc *hyn_fuc_used;
 };
 
@@ -196,7 +204,7 @@ struct hyn_ts_fuc{
     int (*tp_supend)(void);
     int (*tp_resum)(void);
     int (*tp_chip_init)(struct hyn_ts_data *ts_data);
-    int (*tp_updata_fw)(u8 *bin_addr, u16 len);
+    int (*tp_updata_fw)(u8 *bin_addr, u32 len);
     int (*tp_set_workmode)(enum work_mode mode,u8 enable);
     u32 (*tp_check_esd)(void);
     int (*tp_prox_handle)(u8 cmd);
@@ -225,13 +233,15 @@ u32 hyn_sum32(int val, u32* buf,u16 len);
 
 
 //ic type
-extern const struct hyn_ts_fuc cst1xx_fuc;
 extern const struct hyn_ts_fuc cst3xx_fuc;
 extern const struct hyn_ts_fuc cst66xx_fuc;
 extern const struct hyn_ts_fuc cst7xx_fuc;
 extern const struct hyn_ts_fuc cst8xxT_fuc;
-extern const struct hyn_ts_fuc cst92xx_fuc;
+extern const struct hyn_ts_fuc cst923xx_fuc;
 extern const struct hyn_ts_fuc cst3240_fuc;
 extern const struct hyn_ts_fuc cst226se_fuc;
+extern const struct hyn_ts_fuc cst36xxes_fuc;
+extern const struct hyn_ts_fuc cst76xx_fuc;
+extern const struct hyn_ts_fuc cst840u_fuc;
 
 #endif

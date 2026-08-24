@@ -249,7 +249,7 @@ static int write92xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 
 static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
 {
-    int ok = FALSE,t;
+    int ok = FALSE,t,i;
     uint8_t sram_buf[8+2] = {0};
 
     memcpy(sram_buf,(u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}, 6);
@@ -263,7 +263,7 @@ static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
         ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
     }
     
-	for (int i = 0; i < len; i+=8) {
+	for (i = 0; i < len; i+=8) {
 		uint16_t sram_addr = 0xA018 + i;
 		sram_buf[0] = sram_addr >> 8;
 		sram_buf[1] = sram_addr;
@@ -285,7 +285,7 @@ static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
         if (t >= 1000) {
             return FALSE;
         }
-        mdelay(10);
+        mdelay(5);
         ok =  hyn_wr_reg(hyn_92xxdata,0xA005,2,i2c_buf,1);      
         if (i2c_buf[0] == 0x55 && ok==0) {
             break; 
@@ -309,14 +309,6 @@ static int write_code(u8 *bin_addr,uint8_t retry)
         uint16_t cur_len = remain_len;
         if (cur_len > page_size) {
             cur_len = page_size;
-        }
-        
-        if(hyn_92xxdata->fw_file_name[0]){
-            ret = copy_for_updata(hyn_92xxdata,data,addr,page_size);
-            if(ret == FALSE){
-                HYN_ERROR("copy_for_updata error");
-                goto wite_end;
-            }
         }
 
         //HYN_INFO("write_code addr 0x%x 0x%x",addr,*data);
@@ -383,23 +375,17 @@ static int cst923xx_updata_fw(u8 *bin_addr, u32 len)
     u32 fw_checksum=0;
     HYN_ENTER();
 
+    if(IS_ERR_OR_NULL(bin_addr)){ //firmware not loaded, nothing to update
+        HYN_ERROR("bin_addr is null");
+        goto UPDATA_END;
+    }
     if(len < ct92xx_addr_tabl[chip_group_id].bin_size){
         HYN_ERROR("len = %d",len);
         goto UPDATA_END;
     }
     if(len > ct92xx_addr_tabl[chip_group_id].bin_size) len = ct92xx_addr_tabl[chip_group_id].bin_size;
 
-    if(0 != hyn_92xxdata->fw_file_name[0]){
-        //node to update
-        ok = copy_for_updata(hyn_92xxdata,i2c_buf,checksum_addr,4);
-        fw_checksum = U8TO32(i2c_buf[3],i2c_buf[2],i2c_buf[1],i2c_buf[0]);
-        if(hyn_92xxdata->hw_info.ic_fw_checksum == fw_checksum || ok != 0){
-             HYN_INFO("no update,fw_checksum is same:0x%04x",fw_checksum);
-             goto UPDATA_END;
-        }
-    }else{
-        fw_checksum = U8TO32(bin_addr[checksum_addr+3],bin_addr[checksum_addr+2],bin_addr[checksum_addr+1],bin_addr[checksum_addr+0]);
-    }
+    fw_checksum = U8TO32(bin_addr[checksum_addr+3],bin_addr[checksum_addr+2],bin_addr[checksum_addr+1],bin_addr[checksum_addr+0]);
     HYN_INFO("updating fw checksum:0x%04x",fw_checksum);
 
     hyn_irq_set(hyn_92xxdata,DISABLE);

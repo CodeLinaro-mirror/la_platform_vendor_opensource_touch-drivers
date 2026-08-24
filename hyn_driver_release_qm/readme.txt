@@ -189,7 +189,7 @@ hynitron_touch-objs += hyn_chips/hyn_cst840u.o
         - 固件缺失时 probe 不会失败，但打印 "[HYN][Error]request_firmware xxx failed"
           且该芯片跳过开机升级判断，继续使用片内固件运行
         - HYN_GKI_VER 默认使能，驱动不使用 VFS(filp_open/kernel_read/kernel_write)；
-          运行时升级请使用 hyndumpfw 的 fwstart/fwend dump 方式(见第 4 节)
+          运行时升级请使用 hyndumpfw 的 fwstart/fwend dump 方式(见第 5 节)
 
 
 5、sys节点操作

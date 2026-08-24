@@ -62,6 +62,7 @@ void touch_init()
 //&cst226se_fuc,}, /*suport 226se 8922*/
 //&cst840u_fuc,},   /*suport 840u*/
 //&cst76xx_fuc,},   /*suport 7864BG 7964BG HYT7864JL HYT7760BG HYT7760TR CST6960BG*/
+//&cst840u_fuc,},   /*suport 840u*/
 /*************************************************************/
     hyn_data->hyn_fuc_used = &cst226se_fuc;  //根据芯片型号赋值
     hyn_data->plat_data.max_touch_num = MAX_POINTS_REPORT;   //最大手指数
