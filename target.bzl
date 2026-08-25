@@ -398,7 +398,8 @@ def define_lahaina(t,v):
         modules = [
             "nt36xxx-i2c",
 	    "qts",
-	    "focaltech_fts"
+	    "focaltech_fts",
+	    "atmel_mxt_ts"
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
@@ -407,6 +408,7 @@ def define_lahaina(t,v):
 	    "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
 	    "CONFIG_TOUCH_FOCALTECH",
+	    "CONFIG_TOUCHSCREEN_ATMEL_MXT"
         ],
 )
 
