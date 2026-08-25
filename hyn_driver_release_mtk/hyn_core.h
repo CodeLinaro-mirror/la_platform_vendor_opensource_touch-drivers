@@ -25,7 +25,7 @@
 *
 * Abstract: hynitron ts driver core header file
 *
-* Version: == Hynitron V2.27 20260824 ==
+* Version: == Hynitron V2.28 20260824 ==
 *
 *******************************************************************************/
 

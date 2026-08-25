@@ -25,7 +25,7 @@
 *
 * Abstract: HYNITRON CST36xxES touch controller driver
 *
-* Version: == Hynitron V2.27 20260824 ==
+* Version: == Hynitron V2.28 20260824 ==
 *
 *******************************************************************************/
 
@@ -562,7 +562,7 @@ static int cst36xxes_fread_gpio(u8 io ,u8 *lv)
     int ret = 0;
     while(--retry){
         ret = hyn_wr_reg(hyn_36xxesdata,0xA001A7,3,0,0);       //boot mode
-        ret |= hyn_wr_reg(hyn_36xxesdata,0xA00A00+io,3,0,0);   //0?¨ºoDP00  1?¨ºoDP01
+        ret |= hyn_wr_reg(hyn_36xxesdata,0xA00A00+io,3,0,0);   //0?ï¿½ï¿½oDP00  1?ï¿½ï¿½oDP01
         ret |= hyn_wr_reg(hyn_36xxesdata,0xA00B01,3,0,0);      //set_mode hz:0  pull_up:1
         ret |= hyn_wr_reg(hyn_36xxesdata,0xA004D7,3,0,0);      //trig
         if(ret){

@@ -25,7 +25,7 @@
 *
 * Abstract: HYNITRON CST3240 touch controller driver
 *
-* Version: == Hynitron V2.27 20260824 ==
+* Version: == Hynitron V2.28 20260824 ==
 *
 *******************************************************************************/
 

@@ -1,4 +1,4 @@
-
+﻿
 /* SPDX-License-Identifier: GPL-2.0-or-later
  *
  * Hynitron TouchScreen driver.
@@ -414,5 +414,4 @@ extern const struct hyn_ts_fuc cst226se_fuc;
 extern const struct hyn_ts_fuc cst36xxes_fuc;
 extern const struct hyn_ts_fuc cst76xx_fuc;
 extern const struct hyn_ts_fuc cst840u_fuc;
-
 #endif

@@ -25,7 +25,7 @@
 *
 * Abstract: hynitron ts driver config header file
 *
-* Version: == Hynitron V2.27 20260824 ==
+* Version: == Hynitron V2.28 20260824 ==
 *
 *******************************************************************************/
 
@@ -66,7 +66,7 @@
 #define HYN_MT_PROTOCOL_B_EN  (1)
 
 
-#define HYN_DRIVER_VERSION      "== Hynitron V2.27 20260824 =="
+#define HYN_DRIVER_VERSION      "== Hynitron V2.28 20260824 =="
 #endif
 
 
