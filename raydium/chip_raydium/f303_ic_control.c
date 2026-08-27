@@ -3,7 +3,7 @@
  * Raydium TouchScreen driver.
  *
  * Copyright (c) 2021  Raydium tech Ltd.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -314,7 +314,8 @@ unsigned char wait_fw_state_3x(unsigned int u32_addr, unsigned int u32_state, un
 	return SUCCESS;
 }
 
-unsigned char wait_T2D_done_state_3x(unsigned int u32_addr, unsigned short u16_delay, unsigned short u16_retry)
+static unsigned char wait_T2D_done_state_3x(unsigned int u32_addr,
+		unsigned short u16_delay, unsigned short u16_retry)
 {
 	unsigned int u32_read_data = 0;
 
@@ -332,7 +333,7 @@ unsigned char wait_T2D_done_state_3x(unsigned int u32_addr, unsigned short u16_d
 	return SUCCESS;
 }
 
-unsigned char WriteToDriver_3x(unsigned char *p_u8_data, unsigned char u8_data_length)
+static unsigned char WriteToDriver_3x(unsigned char *p_u8_data, unsigned char u8_data_length)
 {
 	unsigned int u32_write = 0;
 
@@ -400,7 +401,8 @@ unsigned char WriteToDriver_3x(unsigned char *p_u8_data, unsigned char u8_data_l
 	return SUCCESS;
 }
 
-unsigned char ReadFromDriver_3x(unsigned char *p_u8_addr, unsigned char u8_read_len, unsigned char *p_u8_output_buf)
+static __maybe_unused unsigned char ReadFromDriver_3x(unsigned char *p_u8_addr,
+		unsigned char u8_read_len, unsigned char *p_u8_output_buf)
 {
 	unsigned int u32_write = 0;
 
