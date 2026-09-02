@@ -52,10 +52,11 @@ static int gtp_i2c_test(struct i2c_client *client);
 static int gtp_enter_doze(struct goodix_ts_data *ts);
 
 static int gtp_unregister_powermanager(struct goodix_ts_data *ts);
+#ifndef CONFIG_ARCH_QTI_VM
 static int gtp_register_powermanager(struct goodix_ts_data *ts);
-
 static int gtp_esd_init(struct goodix_ts_data *ts);
 static void gtp_esd_check_func(struct work_struct *);
+#endif
 static int gtp_init_ext_watchdog(struct i2c_client *client);
 
 #if defined(CONFIG_DRM) || defined(CONFIG_PANEL_NOTIFIER)
@@ -1515,6 +1516,7 @@ static s8 gtp_request_input_dev(struct goodix_ts_data *ts)
 	ts->input_dev->id.vendor = 0xDEAD;
 	ts->input_dev->id.product = 0xBEEF;
 	ts->input_dev->id.version = 10427;
+	ts->input_dev->dev.parent = &ts->client->dev;
 
 	ret = input_register_device(ts->input_dev);
 	if (ret) {
@@ -1640,6 +1642,7 @@ static int gtp_parse_dt(struct device *dev,
 	of_property_read_u32(np, "goodix,int-sync", &pdata->int_sync);
 
 	ret = gtp_check_dsi_panel_dt(np, &active_panel);
+#ifndef CONFIG_ARCH_QTI_VM
 	if (ret) {
 		pr_err("[touch]%s: Panel not selected, rc=%d\n", __func__, ret);
 		if (ret == -EPROBE_DEFER) {
@@ -1648,6 +1651,7 @@ static int gtp_parse_dt(struct device *dev,
 		}
 	}
 	//pdata->active_panel = active_panel;
+#endif
 
 	of_property_read_u32(np, "goodix,driver-send-cfg",
 			     &pdata->driver_send_cfg);
@@ -2264,13 +2268,13 @@ static int gtp_probe(struct i2c_client *client)
 #endif
 
 	gtp_reset_guitar(ts->client, 20);
-#endif
 
 	ret = gtp_i2c_test(client);
 	if (ret) {
 		dev_err(&client->dev, "Failed communicate with IC use I2C\n");
 		goto exit_free_io_port;
 	}
+#endif
 
 	dev_info(&client->dev, "I2C Addr is %x\n", client->addr);
 
@@ -2316,7 +2320,9 @@ static int gtp_probe(struct i2c_client *client)
 	}
 #endif
 
+#ifndef CONFIG_ARCH_QTI_VM
 	gtp_register_powermanager(ts);
+#endif
 
 	ret = gtp_create_file(ts);
 	if (ret) {
@@ -2327,12 +2333,16 @@ static int gtp_probe(struct i2c_client *client)
 	if (pdata->create_wr_node)
 		init_wr_node(client);/*TODO judge return value */
 
+#ifndef CONFIG_ARCH_QTI_VM
 	gtp_esd_init(ts);
 	if (pdata->esd_protect)
 		gtp_esd_on(ts);
+#endif
 	/* probe init finished */
 	ts->init_done = true;
+#ifndef CONFIG_ARCH_QTI_VM
 	gtp_work_control_enable(ts, true);
+#endif
 
 	return 0;
 
@@ -2602,6 +2612,7 @@ static void gtp_late_resume(struct early_suspend *h)
 }
 #endif
 
+#ifndef CONFIG_ARCH_QTI_VM
 static int gtp_register_powermanager(struct goodix_ts_data *ts)
 {
 	int ret = 0;
@@ -2621,6 +2632,7 @@ static int gtp_register_powermanager(struct goodix_ts_data *ts)
 
 	return ret;
 }
+#endif
 
 static int gtp_unregister_powermanager(struct goodix_ts_data *ts)
 {
@@ -2658,6 +2670,7 @@ static int gtp_init_ext_watchdog(struct i2c_client *client)
 	return -EINVAL;
 }
 
+#ifndef CONFIG_ARCH_QTI_VM
 static void gtp_esd_check_func(struct work_struct *work)
 {
 	s32 i;
@@ -2725,7 +2738,9 @@ static void gtp_esd_check_func(struct work_struct *work)
 		gtp_send_cfg(ts->client);
 	}
 }
+#endif
 
+#ifndef CONFIG_ARCH_QTI_VM
 static int gtp_esd_init(struct goodix_ts_data *ts)
 {
 	struct goodix_ts_esd *ts_esd = &ts->ts_esd;
@@ -2736,6 +2751,7 @@ static int gtp_esd_init(struct goodix_ts_data *ts)
 
 	return 0;
 }
+#endif
 
 void gtp_esd_on(struct goodix_ts_data *ts)
 {
@@ -2789,8 +2805,10 @@ static struct i2c_driver goodix_ts_driver = {
 #ifdef CONFIG_OF
 		.of_match_table = gtp_match_table,
 #endif
+#ifndef CONFIG_ARCH_QTI_VM
 #if !defined(CONFIG_FB) && defined(CONFIG_PM)
 		.pm		  = &gtp_pm_ops,
+#endif
 #endif
 	},
 };
