@@ -60,6 +60,25 @@
 #define GTP_CONFIG_MAX_LENGTH 240
 #define GTP_ADDR_LENGTH       2
 
+
+#ifndef CONFIG_DRM
+#define CONFIG_DRM
+#endif
+
+#if IS_ENABLED(CONFIG_QCOM_PANEL_EVENT_NOTIFIER)
+#define CONFIG_PANEL_NOTIFIER
+#endif
+
+#include <linux/device.h>
+#include <linux/fb.h>
+#include <linux/notifier.h>
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#elif defined(CONFIG_DRM) || defined(CONFIG_PANEL_NOTIFIER)
+#include <drm/drm_panel.h>
+#endif
+
+
 /***************************PART1:ON/OFF define*******************************/
 #define GTP_DEBUG_ON          1
 #define GTP_DEBUG_ARRAY_ON    0
@@ -103,6 +122,7 @@ struct goodix_ts_platform_data {
 	u32 resume_in_workqueue;
 	u32 pen_suppress_finger;
 	struct goodix_config_data config;
+	struct  drm_panel *active_panel;
 };
 
 struct goodix_ts_esd {
