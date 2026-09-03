@@ -35,7 +35,7 @@
 #define MAIN_I2C_ADDR   (0x5A)
 #define RW_REG_LEN   (2)
 
-#define MAX_FINGER (5)
+#define MAX_FINGER (2)
 #define MODULE_ID_EN  (0)
 
 enum chip_group_t{
@@ -549,9 +549,9 @@ static int cst923xx_updata_tpinfo(void)
         ret |= hyn_wr_reg(hyn_92xxdata,0xD228,2,buf+20,4); 
         // chipid
         ret |= hyn_wr_reg(hyn_92xxdata,0xD224,2,buf+24,4);
-        if(ret == 0 && buf[11]==buf[25] && buf[26]==0xCA && buf[27]==0xCA){
-            break;
-        }
+		/* chipid check (buf[25..27]) disabled, only match chip type */
+		if (ret == 0 && buf[11] == 0x92)
+			break;
         ret = -1;
     }
     if(ret){

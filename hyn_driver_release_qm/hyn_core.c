@@ -282,7 +282,6 @@ static void release_all_finger(struct hyn_ts_data *ts_data)
             if(ts_data->report_id_flg & (1UL<<i)){
                 // HYN_INFO("release %d",i);
                 input_mt_slot(ts_data->input_dev, i);
-                input_report_abs(ts_data->input_dev, ABS_MT_TRACKING_ID, -1);
                 input_mt_report_slot_state(ts_data->input_dev, MT_TOOL_FINGER, false);
             }	
         }
@@ -315,7 +314,6 @@ static void touch_updata(u8 idx,u8 event)
         input_report_key(dev, BTN_TOUCH, 1);
         input_mt_slot(dev, rep_frame->pos_info[idx].pos_id);
         input_mt_report_slot_state(dev, MT_TOOL_FINGER, 1);
-        input_report_abs(dev, ABS_MT_TRACKING_ID, rep_frame->pos_info[idx].pos_id);
         input_report_abs(dev, ABS_MT_POSITION_X, rep_frame->pos_info[idx].pos_x);
         input_report_abs(dev, ABS_MT_POSITION_Y, rep_frame->pos_info[idx].pos_y);
         input_report_abs(dev, ABS_MT_TOUCH_MAJOR, zpress>>3);
@@ -324,7 +322,6 @@ static void touch_updata(u8 idx,u8 event)
     }
     else{
         input_mt_slot(dev, rep_frame->pos_info[idx].pos_id);
-        input_report_abs(dev, ABS_MT_TRACKING_ID, -1);
         input_mt_report_slot_state(dev, MT_TOOL_FINGER, 0);
     }
 #else
@@ -830,6 +827,7 @@ static int hyn_ts_probe(struct spi_device *client)
     ret = hyn_check_ic(ts_data);
     if(ret){
         HYN_ERROR("hyn_check_ic failed");
+		ret = -EPROBE_DEFER;
         goto FREE_RESOURCE;
     }
 
@@ -974,10 +972,12 @@ static int hyn_ts_probe(struct spi_device *client)
         queue_work(ts_data->hyn_workqueue,&ts_data->work_updata_fw);
     }
 #endif
+	HYN_INFO("%s completed, work_mode=%#x!", __func__, hyn_data->work_mode);
     return 0;
 FREE_RESOURCE:
     hyn_ts_remove(client);
-    return -1;
+	HYN_INFO("%s exit failed ret=%d!!!", __func__, ret);
+	return ret;
 }
 
 
