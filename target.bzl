@@ -265,6 +265,7 @@ def define_bengal(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+            "focaltech_fts",
             "synaptics_tcm_ts",
             "nt36xxx-i2c",
             "qts"
@@ -275,6 +276,7 @@ def define_bengal(t,v):
             "TOUCH_DLKM_ENABLE",
             "CONFIG_MSM_TOUCH",
             "CONFIG_ARCH_BENGAL",
+            "CONFIG_TOUCH_FOCALTECH",
             "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
             "CONFIG_QTS_ENABLE",
@@ -398,7 +400,8 @@ def define_lahaina(t,v):
         modules = [
             "nt36xxx-i2c",
 	    "qts",
-	    "focaltech_fts"
+	    "focaltech_fts",
+	    "atmel_mxt_ts"
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
@@ -407,6 +410,7 @@ def define_lahaina(t,v):
 	    "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
 	    "CONFIG_TOUCH_FOCALTECH",
+	    "CONFIG_TOUCHSCREEN_ATMEL_MXT"
         ],
 )
 def define_waipio(t,v):
