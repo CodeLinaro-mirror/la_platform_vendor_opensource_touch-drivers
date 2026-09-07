@@ -1,3 +1,32 @@
+/*
+ * SPDx-License-Identifier: GPL-2.0-or-later
+ * Hynitron TouchScreen driver.
+ *
+ * Copyright (c) 2012-2026, Hynitron, Ltd., all rights reserved.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ */
+/*******************************************************************************
+*
+* File Name: cst923xx_fw.h
+*
+* Author: Hynitron Driver Team
+*
+* Created: 2026-07-23
+*
+* Abstract: hynitron cst923xx series ts driver
+*
+* Version: V1.0
+*
+*******************************************************************************/
 #ifndef HYNITRON_FIRMWARE_H
 #define HYNITRON_FIRMWARE_H
 
