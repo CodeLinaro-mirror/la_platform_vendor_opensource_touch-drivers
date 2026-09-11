@@ -61,7 +61,7 @@ static  ssize_t hyn_dbg_show(struct device *dev,struct device_attribute *attr,ch
 		ret = hyn_read_data(hyn_fs_data,kbuf,r_len); 
 		if(ret ==0){
 			for(i = 0; i< r_len; i++){
-				len += sprintf(buf+len,"0x%02x ",*(kbuf+i));
+				len += sysfs_emit_at(buf, len, "0x%02x ", *(kbuf+i));
 			}
 			buf[len] = '\n';
 			len++;
@@ -133,10 +133,10 @@ static  ssize_t hyn_dbg_store(struct device *dev,struct device_attribute *attr,c
 	else if(0 == strcmp(str,"fd")){
 		ret = get_word(&next_ptr,str);
 		if(strlen(str)<4){
-			strcpy(str,"/sdcard/app.bin");
+			strscpy(str, "/sdcard/app.bin", sizeof(str));
 		}
 		HYN_INFO("filename = %s",str);
-		strcpy(hyn_fs_data->fw_file_name,str);
+		strscpy(hyn_fs_data->fw_file_name, str, sizeof(hyn_fs_data->fw_file_name));
 		ret = hyn_fun->tp_updata_fw(hyn_fs_data->fw_updata_addr,hyn_fs_data->fw_updata_len);
 	}
 
@@ -297,4 +297,3 @@ void hyn_release_sysfs(struct hyn_ts_data *ts_data)
 		ts_data->sys_node = NULL;
 	}
 }
-

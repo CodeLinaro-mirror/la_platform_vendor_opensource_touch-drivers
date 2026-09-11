@@ -328,7 +328,9 @@ int hyn_proximity_exit(void)
 
 static ssize_t hyn_prox_show(struct device *dev,struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "proximity is %s value:%d\n",hyn_prox_data->prox_is_enable ? "enable":"disable" ,hyn_prox_data->prox_state);
+	return sysfs_emit(buf, "proximity is %s value:%d\n",
+			hyn_prox_data->prox_is_enable ? "enable" : "disable",
+			hyn_prox_data->prox_state);
 }
 
 /* Allow users to enable/disable prox */
@@ -408,7 +410,3 @@ int hyn_proximity_exit(void)
 }
 
 #endif
-
-
-
-
