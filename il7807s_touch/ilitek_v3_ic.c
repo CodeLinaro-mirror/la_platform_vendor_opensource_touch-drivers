@@ -128,7 +128,8 @@ int ili_tddi_ic_sram_test(void)
 	ili_ice_mode_read(0x046010, &bist_fail_bus, sizeof(bist_fail_bus));
 
 	if (check_failbus) {
-		if (((bist_done & BIT(0)) != 0x00) || ((bist_fail & BIT(0)) != 0x01) || (bist_fail_bus != 0xFFFFFFFF)) {
+		if (((bist_done & BIT(0)) != 0x00) || ((bist_fail & BIT(0)) != 0x01) ||
+			(bist_fail_bus != 0xFFFFFFFF)) {
 			ILI_DBG("SRAM TEST FAIL\n");
 			return -1;
 		}
@@ -143,12 +144,11 @@ int ili_tddi_ic_sram_test(void)
 	ili_ice_mode_write(0x046000, 0x00000101, 4);
 
 	while (retry > 0) {
-		mdelay(10);
+		usleep_range(100000, 110000);
 		ili_ice_mode_read(0x04600C, &bist_done, sizeof(bist_done));
 
-		if ((bist_done & BIT(0)) == 0x01) {
+		if ((bist_done & BIT(0)) == 0x01)
 			break;
-		}
 		retry--;
 	}
 	if (retry <= 0) {
@@ -175,7 +175,7 @@ int ili_config_knuckle_roi_ctrl(cmd_types cmd)
 	int ret = 0;
 	switch (cmd) {
 	case CMD_DISABLE:
-		ILI_DBG("knuckle roi disbale\n");
+		ILI_DBG("knuckle roi disable\n");
 		ret = ili_ic_func_ctrl("knuckle", cmd);
 		break;
 	case CMD_ENABLE:
@@ -208,7 +208,7 @@ int ili_config_get_knuckle_roi_status(void)
 		return ret;
 	}
 
-	msleep(1);
+	usleep_range(1000, 2000);
 	ret = ilits->wrapper(NULL, 0, &roi_status, sizeof(roi_status), OFF, OFF);
 	if (ret) {
 		ILI_ERR("read data failed\n");
@@ -230,11 +230,10 @@ static int ilitek_tddi_ic_check_support(u32 pid, u16 id)
 	ilits->chip->reset_key = TDDI_WHOLE_CHIP_RST_WITH_FLASH_KEY;
 	ilits->chip->wtd_key = 0x9881;
 
-	if (((pid & 0xFFFFFF00) == ILI9881N_AA) || ((pid & 0xFFFFFF00) == ILI9881O_AA)) {
-		ilits->chip->dma_reset = ENABLE;
-	} else {
-		ilits->chip->dma_reset = DISABLE;
-	}
+	if (((pid & 0xFFFFFF00) == ILI9881N_AA) || ((pid & 0xFFFFFF00) == ILI9881O_AA))
+		ilits->chip->dma_reset = true;
+	else
+		ilits->chip->dma_reset = false;
 
 	ilits->chip->no_bk_shift = RAWDATA_NO_BK_SHIFT;
 	ilits->chip->max_count = 0x1FFFF;
@@ -295,7 +294,7 @@ int ili_ice_mode_read(u32 addr, u32 *data, int len)
 	u8 txbuf[4] = {0};
 
 	if (len > sizeof(u32)) {
-		ILI_ERR("ice mode read lenght = %d, must less than or equal to 4 bytes\n", len);
+		ILI_ERR("ice mode read length = %d, must less than or equal to 4 bytes\n", len);
 		len = 4;
 	}
 
@@ -417,11 +416,11 @@ void ili_ic_edge_palm_para_init(void)
 	ilits->edge_palm_para[27] = ZONE_C_HEIGHT & 0xFF;
 	ilits->edge_palm_para[28] = (ZONE_C_HEIGHT_LITTLE & 0xFF00) >> 8;
 	ilits->edge_palm_para[29] = ZONE_C_HEIGHT_LITTLE & 0xFF;
-	ilits->edge_palm_para[30] = ili_calc_packet_checksum(ilits->edge_palm_para, P5_X_EDGE_PALM_PARA_LENGTH - 1);
+	ilits->edge_palm_para[30] = ili_calc_packet_checksum(ilits->edge_palm_para,
+		P5_X_EDGE_PALM_PARA_LENGTH - 1);
 
-	for (i = 0; i < P5_X_EDGE_PALM_PARA_LENGTH; i++) {
+	for (i = 0; i < P5_X_EDGE_PALM_PARA_LENGTH; i++)
 		ILI_DBG("edge_palm_para[%d] = 0x%2x\n", i, ilits->edge_palm_para[i]);
-	}
 #endif
 }
 void ili_ic_send_edge_palm_para(void)
@@ -472,8 +471,8 @@ int ili_ic_func_ctrl(const char *name, int ctrl)
 
 	func_ctrl[i].cmd[2] = ctrl;
 
-	ILI_INFO("func = %s, len = %d, cmd = 0x%x, 0x%x, 0x%x\n", func_ctrl[i].name, func_ctrl[i].len,
-		func_ctrl[i].cmd[0], func_ctrl[i].cmd[1], func_ctrl[i].cmd[2]);
+	ILI_INFO("func = %s, len = %d, cmd = 0x%x, 0x%x, 0x%x\n", func_ctrl[i].name,
+		func_ctrl[i].len, func_ctrl[i].cmd[0], func_ctrl[i].cmd[1], func_ctrl[i].cmd[2]);
 
 	ret = ilits->wrapper(func_ctrl[i].cmd, func_ctrl[i].len, NULL, 0, OFF, OFF);
 	if (ret < 0)
@@ -488,7 +487,8 @@ int ili_ic_func_ctrl(const char *name, int ctrl)
 		func_ctrl[i].rec_cmd = ctrl;
 	}
 
-	ILI_DBG("record %s func cmd %d, rec_state %d\n", func_ctrl[i].name, func_ctrl[i].rec_cmd, func_ctrl[i].rec_state);
+	ILI_DBG("record %s func cmd %d, rec_state %d\n", func_ctrl[i].name, func_ctrl[i].rec_cmd,
+		func_ctrl[i].rec_state);
 out:
 	return ret;
 }
@@ -501,8 +501,8 @@ void ili_ic_func_ctrl_reset(void)
 
 	for (i = 0; i < FUNC_CTRL_NUM; i++) {
 		if (func_ctrl[i].rec_state == ENABLE) {
-			ILI_DBG("reset func ctrl %s, record status = %d, cmd = %d\n", func_ctrl[i].name,
-				func_ctrl[i].rec_state, func_ctrl[i].rec_cmd);
+			ILI_DBG("reset func ctrl %s, record status = %d, cmd = %d\n",
+				func_ctrl[i].name, func_ctrl[i].rec_state, func_ctrl[i].rec_cmd);
 			if (ili_ic_func_ctrl(func_ctrl[i].name, func_ctrl[i].rec_cmd) < 0)
 				ILI_ERR("reset ic func ctrl %s failed\n", func_ctrl[i].name);
 		}
@@ -545,14 +545,16 @@ void ili_get_dma1_config(struct ilitek_dma_config *dma)
 	/* Block size */
 	if (ili_ice_mode_read(0x07211C, &dma->block_size, 4) < 0)
 		ILI_ERR("read block size (%d) failed\n", dma->block_size);
-	ILI_DBG("dma.src_addr=0x%x, dma.src_fmt=0x%x, dma.dest_addr=0x%x, dma.dest_fmt=0x%x, dma.block_size=0x%x\n"
-		, dma->src_addr, dma->src_fmt, dma->dest_addr, dma->dest_fmt, dma->block_size);
+	ILI_DBG("dma: srcaddr=0x%x, srcfmt=0x%x, destaddr=0x%x, destfmt=0x%x, blocksize=0x%x\n",
+		dma->src_addr, dma->src_fmt, dma->dest_addr,
+		dma->dest_fmt, dma->block_size);
 }
 
 void ili_set_dma1_config(struct ilitek_dma_config *dma)
 {
-	ILI_DBG("dma.src_addr=0x%x, dma.src_fmt=0x%x, dma.dest_addr=0x%x, dma.dest_fmt=0x%x, dma.block_size=0x%x\n"
-		, dma->src_addr, dma->src_fmt, dma->dest_addr, dma->dest_fmt, dma->block_size);
+	ILI_DBG("dma: srcaddr=0x%x, srcfmt=0x%x, destaddr=0x%x, destfmt=0x%x, blocksize=0x%x\n",
+		dma->src_addr, dma->src_fmt, dma->dest_addr,
+		dma->dest_fmt, dma->block_size);
 	/* dma1 src1 address */
 	if (ili_ice_mode_write(0x072104, dma->src_addr, 4) < 0)
 		ILI_ERR("Write dma1 src1 address failed\n");
@@ -606,7 +608,7 @@ int ili_ic_whole_reset(bool mcu, bool withflash)
 	}
 
 	/* Need accurate power sequence, do not change it to msleep */
-	mdelay(ilits->rst_edge_delay);
+	msleep(ilits->rst_edge_delay);
 
 out:
 	if (!ice)
@@ -629,7 +631,7 @@ static void ilitek_tddi_ic_wr_pack(int packet)
 			ILI_INFO("check ok 0x73010 read 0x%X retry = %d\n", reg_data, retry);
 			break;
 		}
-		mdelay(10);
+		usleep_range(10000, 11000);
 	}
 
 	if (retry <= 0)
@@ -654,7 +656,7 @@ static u32 ilitek_tddi_ic_rd_pack(int packet)
 			ILI_INFO("check  ok 0x4800A read 0x%X retry = %d\n", reg_data, retry);
 			break;
 		}
-		mdelay(10);
+		usleep_range(10000, 11000);
 	}
 	if (retry <= 0)
 		ILI_INFO("check 0x4800A error read 0x%X\n", reg_data);
@@ -775,9 +777,13 @@ void ili_ic_get_pc_counter(int stat)
 
 int ili_ic_int_trigger_ctrl(bool pulse)
 {
-	/* It's supported by fw, and the level will be kept at high until data was already prepared. */
+	/*
+	 * It's supported by fw, and the level will be kept at high until data was
+	 * already prepared.
+	 */
 	if (ili_ic_func_ctrl("int_trigger", pulse) < 0) {
-		ILI_ERR("Write CMD error, set back to <%s> trigger\n", ilits->int_pulse ? "Level" : "Pulse");
+		ILI_ERR("Write CMD error, set back to <%s> trigger\n", ilits->int_pulse ?
+			"Level" : "Pulse");
 		return -1;
 	}
 
@@ -804,11 +810,11 @@ int ili_ic_check_int_level(bool level)
 			}
 		} else {
 			if (!gpio_get_value(gpio)) {
-				ILI_DBG("INT low detected.\n");;
+				ILI_DBG("INT low detected.\n");
 				return 0;
 			}
 		}
-		mdelay(1);
+		usleep_range(1000, 2000);
 	}
 	ILI_ERR("Error! INT level no detected.\n");
 	return -1;
@@ -816,7 +822,8 @@ int ili_ic_check_int_level(bool level)
 
 int ili_ic_check_int_pulse(bool pulse)
 {
-	if (!wait_event_interruptible_timeout(ilits->inq, !atomic_read(&ilits->cmd_int_check), msecs_to_jiffies(ilits->wait_int_timeout))) {
+	if (!wait_event_interruptible_timeout(ilits->inq, !atomic_read(&ilits->cmd_int_check),
+		msecs_to_jiffies(ilits->wait_int_timeout))) {
 		ILI_ERR("Error! INT pulse no detected. Timeout = %d ms\n", ilits->wait_int_timeout);
 		atomic_set(&ilits->cmd_int_check, DISABLE);
 		return -1;
@@ -858,7 +865,7 @@ int ili_ic_check_busy(int count, int delay, bool irq)
 			return 0;
 		}
 
-		mdelay(delay);
+		msleep(delay);
 	} while (--count > 0);
 
 	ILI_ERR("Check busy (0x%x) timeout !\n", busy);
@@ -947,7 +954,8 @@ int ili_ic_get_core_ver(void)
 		if (ilits->wrapper(cmd, sizeof(cmd), NULL, 0, OFF, OFF) < 0)
 			ILI_ERR("Write core ver cmd failed\n");
 
-		if (ilits->wrapper(&cmd[1], sizeof(u8), buf, ilits->protocol->core_ver_len, ON, OFF) < 0)
+		if (ilits->wrapper(&cmd[1], sizeof(u8), buf, ilits->protocol->core_ver_len,
+			ON, OFF) < 0)
 			ILI_ERR("Write core ver (0x%x) failed\n", cmd[1]);
 
 		ILI_DBG("header = 0x%x\n", buf[0]);
@@ -1056,7 +1064,7 @@ int ili_ic_get_panel_info(void)
 		ilits->panel_wid = buf[2] << 8 | buf[1];
 		ilits->panel_hei = buf[4] << 8 | buf[3];
 		ilits->trans_xy = (ilits->chip->core_ver >= CORE_VER_1430
-			&& (ilits->rib.nReportByPixel > 0)) ? ON : OFF;
+			&& (ilits->rib.nReportByPixel > 0)) ? true : false;
 		goto out;
 	}
 
@@ -1070,11 +1078,11 @@ int ili_ic_get_panel_info(void)
 		ILI_INFO("Invalid panel info, use default resolution\n");
 		ilits->panel_wid = TOUCH_SCREEN_X_MAX;
 		ilits->panel_hei = TOUCH_SCREEN_Y_MAX;
-		ilits->trans_xy = OFF;
+		ilits->trans_xy = false;
 	} else {
 		ilits->panel_wid = buf[1] << 8 | buf[2];
 		ilits->panel_hei = buf[3] << 8 | buf[4];
-		ilits->trans_xy = (ilits->chip->core_ver >= CORE_VER_1430) ? buf[5] : OFF;
+		ilits->trans_xy = (ilits->chip->core_ver >= CORE_VER_1430) ? buf[5] : false;
 	}
 
 	if (ilits->chip->core_ver >= CORE_VER_1470) {
@@ -1084,7 +1092,7 @@ int ili_ic_get_panel_info(void)
 			ILI_ERR("Read report format info error\n");
 
 		if (buf[0] != cmd) {
-			ILI_INFO("Invalid report format info, use default report format resolution\n");
+			ILI_INFO("Invalid report info, use default report format resolution\n");
 			ilits->rib.nReportResolutionMode = POSITION_LOW_RESOLUTION;
 			ilits->rib.nCustomerType = POSITION_CUSTOMER_TYPE_OFF;
 		} else {
@@ -1156,8 +1164,10 @@ out:
 	ilits->stx = buf[11];
 	ilits->srx = buf[12];
 
-	ILI_INFO("TP Info: min_x = %d, min_y = %d, max_x = %d, max_y = %d\n", ilits->min_x, ilits->min_y, ilits->max_x, ilits->max_y);
-	ILI_INFO("TP Info: xch = %d, ych = %d, stx = %d, srx = %d\n", ilits->xch_num, ilits->ych_num, ilits->stx, ilits->srx);
+	ILI_INFO("TP Info: min_x = %d, min_y = %d, max_x = %d, max_y = %d\n", ilits->min_x,
+		ilits->min_y, ilits->max_x, ilits->max_y);
+	ILI_INFO("TP Info: xch = %d, ych = %d, stx = %d, srx = %d\n", ilits->xch_num,
+		ilits->ych_num, ilits->stx, ilits->srx);
 	return ret;
 }
 
@@ -1279,20 +1289,19 @@ int ili_ic_dummy_check(void)
 			ILI_ERR("Read dummy error\n");
 
 		if (rdata == wdata || rdata == (u32)-wdata) {
-			if (rdata == -wdata) {
+			if (rdata == -wdata)
 				ilits->eng_flow = true;
-			} else {
+			else
 				ilits->eng_flow = false;
-			}
 			break;
 		}
-		mdelay(30);
+		msleep(30);
 	}
 	if (i >= 3) {
-		ILI_ERR("Dummy check incorrect, rdata = %x wdata = %x \n", rdata, wdata);
+		ILI_ERR("Dummy check incorrect, rdata = %x wdata = %x\n", rdata, wdata);
 		return -1;
 	}
-	ILI_INFO("Ilitek IC check successe ilits->eng_flow = %d\n", ilits->eng_flow);
+	ILI_INFO("Ilitek IC check succeeded ilits->eng_flow = %d\n", ilits->eng_flow);
 #else
 	if (!atomic_read(&ilits->ice_stat)) {
 		ILI_ERR("ice mode doesn't enable\n");
@@ -1307,7 +1316,7 @@ int ili_ic_dummy_check(void)
 		ILI_ERR("Read dummy error\n");
 
 	if (rdata != wdata) {
-		ILI_ERR("Dummy check incorrect, rdata = %x wdata = %x \n", rdata, wdata);
+		ILI_ERR("Dummy check incorrect, rdata = %x wdata = %x\n", rdata, wdata);
 		return -1;
 	}
 	ILI_INFO("Ilitek IC check successe\n");
@@ -1322,7 +1331,8 @@ int ili_ic_report_rate_set(u8 mode)
 	ILI_INFO("current report rate mode = %x\n", ilits->current_report_rate_mode);
 
 	if (mode == ilits->current_report_rate_mode) {
-		ILI_INFO("set mode = %x, same as current mode = %x\n", mode, ilits->current_report_rate_mode);
+		ILI_INFO("set mode = %x, same as current mode = %x\n", mode,
+			ilits->current_report_rate_mode);
 		return ret;
 	}
 
@@ -1354,7 +1364,8 @@ int ili_ic_report_rate_get(void)
 		ILI_ERR("Write TP function failed\n");
 		return ret;
 	}
-	ILI_INFO("get report rate mode = %x, rxbuf = %x %x %x %x \n", rxbuf[3], rxbuf[0], rxbuf[1], rxbuf[2], rxbuf[3]);
+	ILI_INFO("get report rate mode = %x, rxbuf = %x %x %x %x\n", rxbuf[3], rxbuf[0],
+		rxbuf[1], rxbuf[2], rxbuf[3]);
 	ret = rxbuf[3];
 	return ret;
 }
@@ -1377,12 +1388,12 @@ static struct ilitek_ic_info chip;
 
 void ili_ic_init(void)
 {
-	chip.pid_addr =		   	TDDI_PID_ADDR;
-	chip.pc_counter_addr = 		TDDI_PC_COUNTER_ADDR;
+	chip.pid_addr =			TDDI_PID_ADDR;
+	chip.pc_counter_addr =		TDDI_PC_COUNTER_ADDR;
 	chip.pc_latch_addr =		TDDI_PC_LATCH_ADDR;
-	chip.otp_addr =		   	TDDI_OTP_ID_ADDR;
-	chip.ana_addr =		   	TDDI_ANA_ID_ADDR;
-	chip.reset_addr =	   	TDDI_CHIP_RESET_ADDR;
+	chip.otp_addr =			TDDI_OTP_ID_ADDR;
+	chip.ana_addr =			TDDI_ANA_ID_ADDR;
+	chip.reset_addr =		TDDI_CHIP_RESET_ADDR;
 
 	ilits->protocol = &protocol_info[PROTOCL_VER_NUM - 1];
 	ilits->chip = &chip;

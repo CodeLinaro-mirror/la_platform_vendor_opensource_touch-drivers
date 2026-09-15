@@ -70,6 +70,7 @@
 #include <linux/time.h>
 
 #include <linux/namei.h>
+#include <linux/kernel_read_file.h>
 #include <linux/vmalloc.h>
 #include <linux/timer.h>
 #include <linux/jiffies.h>
@@ -129,28 +130,28 @@ do {\
 #define IRQ_GPIO_NUM			66
 #define TR_BUF_SIZE			(2*K) /* Buffer size of touch report */
 #define TR_BUF_LIST_SIZE		(1*K) /* Buffer size of touch report for debug data */
-#define SPI_TX_BUF_SIZE  		4096
-#define SPI_RX_BUF_SIZE  		4096
+#define SPI_TX_BUF_SIZE			4096
+#define SPI_RX_BUF_SIZE			4096
 #define WQ_ESD_DELAY			4000
 #define WQ_BAT_DELAY			2000
 #define AP_INT_TIMEOUT			600 /*600ms*/
 #define MP_INT_TIMEOUT			5000 /*5s*/
-#define MT_B_TYPE			ENABLE
-#define TDDI_RST_BIND			DISABLE
-#define MT_PRESSURE			DISABLE
-#define ENABLE_WQ_ESD			DISABLE
-#define ENABLE_WQ_BAT			DISABLE
-#define ENABLE_GESTURE			ENABLE
-#define REGULATOR_POWER			DISABLE
-#define TP_SUSPEND_PRIO			ENABLE
-#define RESUME_BY_DDI			DISABLE
-#define BOOT_FW_UPDATE			DISABLE
-#define MP_INT_LEVEL			DISABLE
-#define PLL_CLK_WAKEUP_TP_RESUME	DISABLE
-#define CHARGER_NOTIFIER_CALLBACK	DISABLE
-#define ENABLE_EDGE_PALM_PARA		DISABLE
-#define MULTI_REPORT_RATE		DISABLE
-#define ENGINEER_FLOW			ENABLE
+#define MT_B_TYPE			1
+#define TDDI_RST_BIND			0
+#define MT_PRESSURE			0
+#define ENABLE_WQ_ESD			0
+#define ENABLE_WQ_BAT			0
+#define ENABLE_GESTURE			1
+#define REGULATOR_POWER			0
+#define TP_SUSPEND_PRIO			1
+#define RESUME_BY_DDI			0
+#define BOOT_FW_UPDATE			0
+#define MP_INT_LEVEL			0
+#define PLL_CLK_WAKEUP_TP_RESUME	0
+#define CHARGER_NOTIFIER_CALLBACK	0
+#define ENABLE_EDGE_PALM_PARA		0
+#define MULTI_REPORT_RATE		0
+#define ENGINEER_FLOW			1
 /*Proximity mode options*/
 #define PROXIMITY_NULL			0
 #define PROXIMITY_SUSPEND_RESUME	1
@@ -159,17 +160,17 @@ do {\
 
 /*if current interface is spi, must to hostdownload */
 #if (TDDI_INTERFACE == BUS_SPI)
-#define HOST_DOWN_LOAD			ENABLE
+#define HOST_DOWN_LOAD			1
 #else
-#define HOST_DOWN_LOAD			DISABLE
+#define HOST_DOWN_LOAD			0
 #endif
 
-/* Plaform compatibility */
-#define CONFIG_PLAT_SPRD		DISABLE
-#define I2C_DMA_TRANSFER		DISABLE
-#define SPI_DMA_TRANSFER_SPLIT		DISABLE
-#define SPI_DMA_TRANSFER_SPLIT_OLD  DISABLE
-#define SPRD_SYSFS_SUSPEND_RESUME	DISABLE
+/* Platform compatibility */
+#define CONFIG_PLAT_SPRD		0
+#define I2C_DMA_TRANSFER		0
+#define SPI_DMA_TRANSFER_SPLIT		0
+#define SPI_DMA_TRANSFER_SPLIT_OLD      0
+#define SPRD_SYSFS_SUSPEND_RESUME	0
 
 /* Path */
 #define DEBUG_DATA_FILE_SIZE		(10*K)
@@ -181,8 +182,8 @@ do {\
 #define DUMP_IRAM_PATH			"/sdcard/iram_dump"
 
 /* Debug messages */
-#define DEBUG_NONE	0
-#define DEBUG_ALL	1
+#define DEBUG_NONE	false
+#define DEBUG_ALL	true
 #define DEBUG_OUTPUT	DEBUG_NONE
 
 #define ILI_INFO(fmt, arg...)						\
@@ -199,20 +200,20 @@ extern bool debug_en;
 #define ILI_DBG(fmt, arg...)						\
 do {									\
 	if (debug_en)						\
-	pr_info("ILITEK: (%s, %d): " fmt, __func__, __LINE__, ##arg);	\
+		pr_info("ILITEK: (%s, %d): " fmt, __func__, __LINE__, ##arg);	\
 } while (0)
 
 #define ERR_ALLOC_MEM(X)	((IS_ERR(X) || X == NULL) ? 1 : 0)
 #define K			(1024)
 #define M			(K * K)
-#define ENABLE			1
+#define ENABLE			true
 #define START			1
-#define ON			1
+#define ON			true
 #define ILI_WRITE		1
 #define ILI_READ		0
-#define DISABLE			0
+#define DISABLE			false
 #define END			0
-#define OFF			0
+#define OFF			false
 #define NONE			-1
 #define DO_SPI_RECOVER		-2
 #define DO_I2C_RECOVER		-3
@@ -261,7 +262,6 @@ enum TP_FW_UPGRADE_STATUS {
 
 enum TP_FW_OPEN_METHOD {
 	REQUEST_FIRMWARE = 0,
-	FILP_OPEN
 };
 
 enum TP_SLEEP_STATUS {
@@ -417,12 +417,12 @@ enum MULTI_REPORT_RATE_TYPE {
 };
 #endif
 
-typedef enum cmd_types{
-    CMD_DISABLE = 0x00,
-    CMD_ENABLE = 0x01,
-    CMD_STATUS = 0x02,
-    CMD_ROI_DATA = 0x03,
-} cmd_types;
+enum cmd_types {
+	CMD_DISABLE = 0x00,
+	CMD_ENABLE = 0x01,
+	CMD_STATUS = 0x02,
+	CMD_ROI_DATA = 0x03,
+};
 
 struct gesture_symbol {
 	u8 double_tap                 :1;
@@ -443,8 +443,8 @@ struct gesture_symbol {
 	u8 alphabet_V_right           :1;
 	u8 alphabet_two_line_2_bottom :1;
 	u8 alphabet_F                 :1;
-	u8 alphabet_AT                :1;
-	u8 reserve0 		      :5;
+	u8 alphabet_AT		      :1;
+	u8 reserve0		      :5;
 };
 
 struct report_info_block {
@@ -548,7 +548,8 @@ struct report_info_block {
 
 #define DMA55_ADDR				(DMA_BASED_ADDR + 0xDC)
 #define DMA55_reg_dma_ch0_trafer_counts		DMA55_ADDR
-#define DMA55_reserved_0			(BIT(17)|BIT(18)|BIT(19)|BIT(20)|BIT(21)|BIT(22)|BIT(23))
+#define DMA55_reserved_0			\
+	(BIT(17)|BIT(18)|BIT(19)|BIT(20)|BIT(21)|BIT(22)|BIT(23))
 #define DMA55_reg_dma_ch0_trafer_mode		(BIT(24)|BIT(25)|BIT(26)|BIT(27))
 #define DMA55_reserved_1			(BIT(28)|BIT(29)|BIT(30)|BIT(31))
 
@@ -558,7 +559,8 @@ struct report_info_block {
 #define INTR1_reg_uart_tx_int_flag		INTR1_ADDR
 #define INTR1_reserved_0			(BIT(1)|BIT(2)|BIT(3)|BIT(4)|BIT(5)|BIT(6)|BIT(7))
 #define INTR1_reg_wdt_alarm_int_flag		BIT(8)
-#define INTR1_reserved_1			(BIT(9)|BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define INTR1_reserved_1			\
+	(BIT(9)|BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
 #define INTR1_reg_dma_ch1_int_flag		BIT(16)
 #define INTR1_reg_dma_ch0_int_flag		BIT(17)
 #define INTR1_reg_dma_frame_done_int_flag	BIT(18)
@@ -607,13 +609,16 @@ struct report_info_block {
 #define INTR32_reserved_2				BIT(23)
 #define INTR32_reg_t0_int_en				BIT(24)
 #define INTR32_reg_t1_int_en				BIT(25)
-#define INTR32_reserved_3				(BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
+#define INTR32_reserved_3				\
+	(BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
 
 #define INTR33_ADDR					(INTR_BASED_ADDR + 0x84)
 #define INTR33_reg_uart_tx_int_en			INTR33_ADDR
-#define INTR33_reserved_0				(BIT(1)|BIT(2)|BIT(3)|BIT(4)|BIT(5)|BIT(6)|BIT(7))
+#define INTR33_reserved_0				\
+	(BIT(1)|BIT(2)|BIT(3)|BIT(4)|BIT(5)|BIT(6)|BIT(7))
 #define INTR33_reg_wdt_alarm_int_en			BIT(8)
-#define INTR33_reserved_1				(BIT(9)|BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define INTR33_reserved_1				\
+	(BIT(9)|BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
 #define INTR33_reg_dma_ch1_int_en			BIT(16)
 #define INTR33_reg_dma_ch0_int_en			BIT(17)
 #define INTR33_reg_dma_frame_done_int_en		BIT(18)
@@ -621,17 +626,21 @@ struct report_info_block {
 #define INTR33_reserved_2				(BIT(20)|BIT(21)|BIT(22)|BIT(23))
 #define INTR33_reg_flash_error_en			BIT(24)
 #define INTR33_reg_flash_int_en				BIT(25)
-#define INTR33_reserved_3				(BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
+#define INTR33_reserved_3				\
+	(BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
 
 /* Flash */
 #define FLASH_BASED_ADDR				0x41000
 #define FLASH0_ADDR					(FLASH_BASED_ADDR + 0x0)
 #define FLASH0_reg_flash_csb				FLASH0_ADDR
-#define FLASH0_reserved_0				(BIT(8)|BIT(9)|BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
-#define FLASH0_reg_preclk_sel				(BIT(16)|BIT(17)|BIT(18)|BIT(19)|BIT(20)|BIT(21)|BIT(22)|BIT(23))
+#define FLASH0_reserved_0				\
+	(BIT(8)|BIT(9)|BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define FLASH0_reg_preclk_sel				\
+	(BIT(16)|BIT(17)|BIT(18)|BIT(19)|BIT(20)|BIT(21)|BIT(22)|BIT(23))
 #define FLASH0_reg_rx_dual				BIT(24)
 #define FLASH0_reg_tx_dual				BIT(25)
-#define FLASH0_reserved_26				(BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
+#define FLASH0_reserved_26				\
+	(BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
 #define FLASH1_ADDR					(FLASH_BASED_ADDR + 0x4)
 #define FLASH1_reg_flash_key1				FLASH1_ADDR
 #define FLASH1_reg_flash_key2				(FLASH1_ADDR + 0x01)
@@ -645,11 +654,14 @@ struct report_info_block {
 #define FLASH4_reg_rcv_data				FLASH4_ADDR
 #define FLASH4_reg_rcv_dly				BIT(8)
 #define FLASH4_reg_sutrg_en				BIT(9)
-#define FLASH4_reserved_1				(BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
+#define FLASH4_reserved_1				\
+	(BIT(10)|BIT(11)|BIT(12)|BIT(13)|BIT(14)|BIT(15))
 #define FLASH4_reg_rcv_data_valid_state			BIT(16)
 #define FLASH4_reg_flash_rd_finish_state		BIT(17)
-#define FLASH4_reserved_2				(BIT(18)|BIT(19)|BIT(20)|BIT(21)|BIT(22)|BIT(23))
-#define FLASH4_reg_flash_dma_trigger_en			(BIT(24)|BIT(25)|BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
+#define FLASH4_reserved_2				\
+	(BIT(18)|BIT(19)|BIT(20)|BIT(21)|BIT(22)|BIT(23))
+#define FLASH4_reg_flash_dma_trigger_en			\
+	(BIT(24)|BIT(25)|BIT(26)|BIT(27)|BIT(28)|BIT(29)|BIT(30)|BIT(31))
 
 /* Dummy Registers */
 #define WDT_DUMMY_BASED_ADDR				0x5101C
@@ -703,11 +715,11 @@ struct report_info_block {
 #define SPI_ESD_GESTURE_CORE146_PWD_ADDR		0x4005C
 #define I2C_ESD_GESTURE_CORE146_PWD_ADDR		0x4005C
 
-#define DOUBLE_TAP                                   	(ON)//BIT0
-#define ALPHABET_LINE_2_TOP                          	(ON)//BIT1
-#define ALPHABET_LINE_2_BOTTOM                   	(ON)//BIT2
-#define ALPHABET_LINE_2_LEFT                         	(ON)//BIT3
-#define ALPHABET_LINE_2_RIGHT                        	(ON)//BIT4
+#define DOUBLE_TAP					(ON)//BIT0
+#define ALPHABET_LINE_2_TOP				(ON)//BIT1
+#define ALPHABET_LINE_2_BOTTOM				(ON)//BIT2
+#define ALPHABET_LINE_2_LEFT				(ON)//BIT3
+#define ALPHABET_LINE_2_RIGHT				(ON)//BIT4
 #define ALPHABET_M					(ON)//BIT5
 #define ALPHABET_W					(ON)//BIT6
 #define ALPHABET_C					(ON)//BIT7
@@ -726,8 +738,8 @@ struct report_info_block {
 /* FW data format */
 #define DATA_FORMAT_DEMO_CMD				0x00
 #define DATA_FORMAT_DEBUG_CMD				0x02
-#define DATA_FORMAT_DEMO_DEBUG_INFO_CMD 		0x04
-#define DATA_FORMAT_GESTURE_NORMAL_CMD 			0x01
+#define DATA_FORMAT_DEMO_DEBUG_INFO_CMD			0x04
+#define DATA_FORMAT_GESTURE_NORMAL_CMD			0x01
 #define DATA_FORMAT_GESTURE_INFO_CMD			0x02
 #define DATA_FORMAT_DEBUG_LITE_CMD			0x05
 #define DATA_FORMAT_DEBUG_LITE_ROI_CMD			0x01
@@ -851,6 +863,8 @@ struct report_info_block {
 #define POSITION_CUSTOMER_TYPE_ON	0x00
 #define POSITION_CUSTOMER_TYPE_OFF	0x1F
 
+extern struct tpd_device *tpd;
+
 struct ilitek_ts_data {
 	struct i2c_client *i2c;
 	struct spi_device *spi;
@@ -870,15 +884,14 @@ struct ilitek_ts_data {
 #else
 	struct early_suspend early_suspend;
 #endif
+	struct drm_panel_follower panel_follower;
 #if CHARGER_NOTIFIER_CALLBACK
-#if KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE
 /* add_for_charger_start */
 	struct notifier_block notifier_charger;
 	struct workqueue_struct *charger_notify_wq;
 	struct work_struct	update_charger;
 	int usb_plug_status;
 /*  add_for_charger_end  */
-#endif
 #endif
 #ifdef ROI
 	struct ts_kit_device_data *ts_dev_data;
@@ -927,7 +940,7 @@ struct ilitek_ts_data {
 	int irq_gpio;
 	int irq_tirgger_type;
 	int tp_rst;
-	int tp_int;
+	struct gpio_desc *tp_int_desc;
 	int wait_int_timeout;
 
 	int finger;
@@ -937,7 +950,6 @@ struct ilitek_ts_data {
 
 	int fw_retry;
 	int fw_update_stat;
-	int fw_open;
 	u8  fw_info[75];
 	u8  fw_mp_ver[4];
 	u8  edge_palm_para[P5_X_EDGE_PALM_PARA_LENGTH];
@@ -1019,7 +1031,7 @@ struct ilitek_ts_data {
 	struct completion esd_done;
 
 	int (*spi_write_then_read)(struct spi_device *spi, const void *txbuf,
-				unsigned n_tx, void *rxbuf, unsigned n_rx);
+				unsigned int n_tx, void *rxbuf, unsigned int n_rx);
 	int  (*wrapper)(u8 *wdata, u32 wlen, u8 *rdata, u32 rlen, bool spi_irq, bool i2c_irq);
 	int  (*mp_move_code)(void);
 	int  (*gesture_move_code)(int mode);
@@ -1220,11 +1232,11 @@ extern int ili_core_spi_setup(int num);
 extern int ili_interface_dev_init(struct ilitek_hwif_info *hwif);
 extern void ili_interface_dev_exit(struct ilitek_ts_data *ts, bool flag);
 extern int ili_spi_write_then_read_split(struct spi_device *spi,
-				const void *txbuf, unsigned n_tx,
-				void *rxbuf, unsigned n_rx);
+				const void *txbuf, unsigned int n_tx,
+				void *rxbuf, unsigned int n_rx);
 extern int ili_spi_write_then_read_direct(struct spi_device *spi,
-				const void *txbuf, unsigned n_tx,
-				void *rxbuf, unsigned n_rx);
+				const void *txbuf, unsigned int n_tx,
+				void *rxbuf, unsigned int n_rx);
 
 /* Prototypes for platform level */
 extern void ili_plat_regulator_power_on(bool status);
@@ -1254,6 +1266,35 @@ extern void ili_demo_debug_info_id0(u8 *buf, size_t len);
 extern void ili_get_dma1_config(struct ilitek_dma_config *dma);
 extern void ili_set_dma1_config(struct ilitek_dma_config *dma);
 
+static inline int ilitek_write_file(const char *path, const void *buf, size_t len)
+{
+	struct file *f;
+	struct path file_path;
+	struct path new_path;
+	int ret;
+
+	/* Try to open existing file for writing */
+	ret = kern_path(path, LOOKUP_FOLLOW, &file_path);
+	if (ret == 0) {
+		f = dentry_open(&file_path, O_WRONLY | O_TRUNC, current_cred());
+		path_put(&file_path);
+		goto write;
+	}
+
+	if (ret < 0)
+		return ret;
+
+	new_path.mnt = file_path.mnt;
+	f = dentry_open(&new_path, O_WRONLY, current_cred());
+
+write:
+	if (IS_ERR(f))
+		return PTR_ERR(f);
+
+	fput(f);
+	return ret;
+}
+
 static inline void ipio_kfree(void **mem)
 {
 	if (*mem != NULL) {
@@ -1273,14 +1314,14 @@ static inline void ipio_vfree(void **mem)
 static inline void *ipio_memcpy(void *dest, const void *src, int n, int dest_size)
 {
 	if (n > dest_size)
-		 n = dest_size;
+		n = dest_size;
 
 	return memcpy(dest, src, n);
 }
 
 static inline int ipio_strcmp(const char *s1, const char *s2)
 {
-	return (strlen(s1) != strlen(s2)) ? -1 : strncmp(s1, s2, strlen(s1));
+	return (strlen(s1) != strlen(s2)) ? -1 : sysfs_streq(s1, s2);
 }
 
 #endif /* __ILI9881X_H */

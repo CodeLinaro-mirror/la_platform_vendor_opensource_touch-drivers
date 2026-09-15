@@ -248,3 +248,20 @@ module_entry(
     ],
     deps = ["qts"],
 )
+
+#define ddk_module() for ilitek
+module_entry(
+    name = "ilitek",
+    config_option = "CONFIG_TOUCHSCREEN_ILITEK_V3",
+
+    srcs = [
+            "il7807s_touch/ilitek_v3.c",
+            "il7807s_touch/ilitek_v3_i2c.c",
+            "il7807s_touch/ilitek_v3_qcom.c",
+            "il7807s_touch/ilitek_v3_ic.c",
+            "il7807s_touch/ilitek_v3_touch.c",
+            "il7807s_touch/ilitek_v3_mp.c",
+            "il7807s_touch/ilitek_v3_flash.c",
+            "il7807s_touch/ilitek_v3_node.c"
+    ],
+)

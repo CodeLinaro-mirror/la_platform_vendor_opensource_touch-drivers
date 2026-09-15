@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# Input misc drivers configuration
+#
+
+config TOUCHSCREEN_ILITEK_V3
+        tristate "ILITEK V3 touchscreen driver (tchip,ilitek)"
+        depends on I2C || SPI_MASTER
+        help
+          Say Y here if you have an ILITEK TDDI touchscreen connected
+          to your system via I2C or SPI bus.
+
+          The driver supports ILITEK touch ICs with DTS compatible
+          string "tchip,ilitek". It provides support for multi-touch,
+          gesture recognition, and firmware update.
+
+          If unsure, say N.
+

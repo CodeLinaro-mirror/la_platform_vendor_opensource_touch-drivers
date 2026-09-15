@@ -34,7 +34,6 @@
 #define MTK_RST_GPIO	GTP_RST_PORT
 #define MTK_INT_GPIO	GTP_INT_PORT
 
-extern struct tpd_device *tpd;
 
 void ili_tp_reset(void)
 {
@@ -42,11 +41,11 @@ void ili_tp_reset(void)
 
 	/* Need accurate power sequence, do not change it to msleep */
 	tpd_gpio_output(ilits->tp_rst, 1);
-	mdelay(1);
+	usleep_range(1000, 2000);
 	tpd_gpio_output(ilits->tp_rst, 0);
-	mdelay(5);
+	usleep_range(5000, 6000);
 	tpd_gpio_output(ilits->tp_rst, 1);
-	mdelay(ilits->rst_edge_delay);
+	msleep(ilits->rst_edge_delay);
 }
 
 void ili_input_register(void)
@@ -71,15 +70,10 @@ void ili_input_register(void)
 	if (MT_PRESSURE)
 		input_set_abs_params(ilits->input, ABS_MT_PRESSURE, 0, 255, 0, 0);
 
-	if (MT_B_TYPE) {
-#if KERNEL_VERSION(3, 7, 0) <= LINUX_VERSION_CODE
+	if (MT_B_TYPE)
 		input_mt_init_slots(ilits->input, MAX_TOUCH_NUM, INPUT_MT_DIRECT);
-#else
-		input_mt_init_slots(ilits->input, MAX_TOUCH_NUM);
-#endif /* LINUX_VERSION_CODE */
-	} else {
+	else
 		input_set_abs_params(ilits->input, ABS_MT_TRACKING_ID, 0, MAX_TOUCH_NUM, 0, 0);
-	}
 
 	/* Gesture keys register */
 	input_set_capability(ilits->input, EV_KEY, KEY_POWER);
@@ -138,7 +132,7 @@ void ili_plat_regulator_power_on(bool status)
 		}
 	}
 	atomic_set(&ilits->ice_stat, DISABLE);
-	mdelay(5);
+	usleep_range(5000, 6000);
 }
 
 static void ilitek_plat_regulator_power_init(void)
@@ -266,12 +260,12 @@ static irqreturn_t ilitek_plat_isr_top_half(int irq, void *dev_id)
 			atomic_read(&ilits->esd_stat),
 			atomic_read(&ilits->ignore_report));
 
-	if (!ilits->report || atomic_read(&ilits->tp_reset) ||  atomic_read(&ilits->ignore_report) ||
-		atomic_read(&ilits->fw_stat) || atomic_read(&ilits->tp_sw_mode) ||
+	if (!ilits->report || atomic_read(&ilits->tp_reset) ||  atomic_read(&ilits->ignore_report)
+		 || atomic_read(&ilits->fw_stat) || atomic_read(&ilits->tp_sw_mode) ||
 		atomic_read(&ilits->mp_stat) || atomic_read(&ilits->tp_sleep) ||
 		atomic_read(&ilits->esd_stat)) {
-			ILI_DBG("ignore interrupt !\n");
-			return IRQ_HANDLED;
+		ILI_DBG("ignore interrupt !\n");
+		return IRQ_HANDLED;
 	}
 
 	return IRQ_WAKE_THREAD;
@@ -291,7 +285,7 @@ static irqreturn_t ilitek_plat_isr_bottom_half(int irq, void *dev_id)
 
 void ili_irq_unregister(void)
 {
-	devm_free_irq(ilits->dev, ilits->irq_num, NULL);
+	free_irq(ilits->irq_num, NULL);
 }
 
 int ili_irq_register(int type)
@@ -302,7 +296,7 @@ int ili_irq_register(int type)
 
 	atomic_set(&ilits->irq_stat, DISABLE);
 
-	if (get_irq_pin == false) {
+	if (!(get_irq_pin)) {
 		node = of_find_matching_node(NULL, touch_of_match);
 		if (node)
 			ilits->irq_num = irq_of_parse_and_map(node, 0);
@@ -311,7 +305,7 @@ int ili_irq_register(int type)
 		get_irq_pin = true;
 	}
 
-	ret = devm_request_threaded_irq(ilits->dev, ilits->irq_num,
+	ret = request_threaded_irq(ilits->irq_num,
 				ilitek_plat_isr_top_half,
 				ilitek_plat_isr_bottom_half,
 				type | IRQF_ONESHOT, "ilitek", NULL);
@@ -322,7 +316,8 @@ int ili_irq_register(int type)
 		ILI_INFO("IRQ TYPE = IRQF_TRIGGER_RISING\n");
 
 	if (ret != 0)
-		ILI_ERR("Failed to register irq handler, irq = %d, ret = %d\n", ilits->irq_num, ret);
+		ILI_ERR("Failed to register irq handler, irq = %d, ret = %d\n",
+			ilits->irq_num, ret);
 
 	atomic_set(&ilits->irq_stat, ENABLE);
 
@@ -381,11 +376,9 @@ static int ilitek_plat_probe(void)
 	init_completion(&ilits->pm_completion);
 
 #if CHARGER_NOTIFIER_CALLBACK
-#if KERNEL_VERSION(4, 1, 0) <= LINUX_VERSION_CODE
 	/* add_for_charger_start */
 	ilitek_plat_charger_init();
 	/* add_for_charger_end */
-#endif
 #endif
 	ILI_INFO("ILITEK Driver loaded successfully!#");
 	return 0;
@@ -410,8 +403,8 @@ static const struct of_device_id tp_match_table[] = {
 
 #ifdef ROI
 struct ts_device_ops ilitek_ops = {
-    .chip_roi_rawdata = ili_knuckle_roi_rawdata,
-    .chip_roi_switch = ili_knuckle_roi_switch,
+	.chip_roi_rawdata = ili_knuckle_roi_rawdata,
+	.chip_roi_switch = ili_knuckle_roi_switch,
 };
 #endif
 
@@ -476,5 +469,4 @@ static void __exit ilitek_plat_dev_exit(void)
 
 module_init(ilitek_plat_dev_init);
 module_exit(ilitek_plat_dev_exit);
-MODULE_AUTHOR("ILITEK");
 MODULE_LICENSE("GPL");

@@ -40,8 +40,8 @@ struct ilitek_ts_data *ilits;
 #define DMA_TRANSFER_MAX_LEN		1024 // length of a chunk.
 
 int ili_spi_write_then_read_split(struct spi_device *spi,
-		const void *txbuf, unsigned n_tx,
-		void *rxbuf, unsigned n_rx)
+		const void *txbuf, unsigned int n_tx,
+		void *rxbuf, unsigned int n_rx)
 {
 	int status = -1, duplex_len = 0;
 	int xfercnt = 0, xferlen = 0, xferloop = 0;
@@ -50,7 +50,7 @@ int ili_spi_write_then_read_split(struct spi_device *spi,
 	struct spi_message message;
 	struct spi_transfer *xfer;
 
-	xfer = kzalloc(DMA_TRANSFER_MAX_CHUNK * sizeof(struct spi_transfer), GFP_KERNEL);
+	xfer = kcalloc(DMA_TRANSFER_MAX_CHUNK * sizeof(struct spi_transfer), GFP_KERNEL);
 
 	if (n_rx > SPI_RX_BUF_SIZE) {
 		ILI_ERR("Rx length is greater than spi local buf, abort\n");
@@ -90,7 +90,8 @@ int ili_spi_write_then_read_split(struct spi_device *spi,
 		break;
 	case SPI_READ:
 		if (n_tx > DMA_TRANSFER_MAX_LEN) {
-			ILI_ERR("Tx length must be lower than dma length (%d).\n", DMA_TRANSFER_MAX_LEN);
+			ILI_ERR("Tx length must be lower than dma length (%d).\n",
+				DMA_TRANSFER_MAX_LEN);
 			status = -EINVAL;
 			break;
 		}
@@ -122,7 +123,8 @@ int ili_spi_write_then_read_split(struct spi_device *spi,
 		if (status == 0) {
 			if (ilits->spi_rx[1] != SPI_ACK && !atomic_read(&ilits->ice_stat)) {
 				status = DO_SPI_RECOVER;
-				ILI_ERR("Do spi recovery: rxbuf[1] = 0x%x, ice = %d\n", ilits->spi_rx[1], atomic_read(&ilits->ice_stat));
+				ILI_ERR("Do spi recovery: rxbuf[1] = 0x%x, ice = %d\n",
+					ilits->spi_rx[1], atomic_read(&ilits->ice_stat));
 				break;
 			}
 
@@ -145,8 +147,8 @@ out:
 #define DMA_TRANSFER_MAX_LEN		4096 // length of a chunk.
 
 int ili_spi_write_then_read_split(struct spi_device *spi,
-		const void *txbuf, unsigned n_tx,
-		void *rxbuf, unsigned n_rx)
+		const void *txbuf, unsigned int n_tx,
+		void *rxbuf, unsigned int n_rx)
 {
 	int status = -1, duplex_len = 0;
 	int xfercnt = 0, xferlen = 0, xferloop = 0;
@@ -200,7 +202,8 @@ int ili_spi_write_then_read_split(struct spi_device *spi,
 		break;
 	case SPI_READ:
 		if (n_tx > DMA_TRANSFER_MAX_LEN) {
-			ILI_ERR("Tx length must be lower than dma length (%d).\n", DMA_TRANSFER_MAX_LEN);
+			ILI_ERR("Tx length must be lower than dma length (%d).\n",
+				DMA_TRANSFER_MAX_LEN);
 			status = -EINVAL;
 			break;
 		}
@@ -238,7 +241,8 @@ int ili_spi_write_then_read_split(struct spi_device *spi,
 		if (status == 0) {
 			if (ilits->spi_rx[1] != SPI_ACK && !atomic_read(&ilits->ice_stat)) {
 				status = DO_SPI_RECOVER;
-				ILI_ERR("Do spi recovery: rxbuf[1] = 0x%x, ice = %d\n", ilits->spi_rx[1], atomic_read(&ilits->ice_stat));
+				ILI_ERR("Do spi recovery: rxbuf[1] = 0x%x, ice = %d\n",
+					ilits->spi_rx[1], atomic_read(&ilits->ice_stat));
 				break;
 			}
 
@@ -258,8 +262,8 @@ out:
 #endif
 #else
 int ili_spi_write_then_read_direct(struct spi_device *spi,
-		const void *txbuf, unsigned n_tx,
-		void *rxbuf, unsigned n_rx)
+		const void *txbuf, unsigned int n_tx,
+		void *rxbuf, unsigned int n_rx)
 {
 	int status = -1, duplex_len = 0;
 	int offset = 0;
@@ -313,7 +317,8 @@ int ili_spi_write_then_read_direct(struct spi_device *spi,
 		if (status == 0) {
 			if (ilits->spi_rx[1] != SPI_ACK && !atomic_read(&ilits->ice_stat)) {
 				status = DO_SPI_RECOVER;
-				ILI_ERR("Do spi recovery: rxbuf[1] = 0x%x, ice = %d\n", ilits->spi_rx[1], atomic_read(&ilits->ice_stat));
+				ILI_ERR("Do spi recovery: rxbuf[1] = 0x%x, ice = %d\n",
+					ilits->spi_rx[1], atomic_read(&ilits->ice_stat));
 				break;
 			}
 
@@ -384,7 +389,7 @@ static int ili_spi_pll_clk_wakeup(void)
 		ILI_INFO("spi slave write error\n");
 		return -1;
 	}
-	mdelay(1);
+	usleep_range(1000, 2000);
 	return 0;
 }
 
@@ -404,7 +409,8 @@ static int ili_spi_wrapper(u8 *txbuf, u32 wlen, u8 *rxbuf, u32 rlen, bool spi_ir
 
 		/* 3 bytes data consist of length and header */
 		if ((wlen + 4) > sizeof(wdata)) {
-			ILI_ERR("WARNING! wlen(%d) > wdata(%d), using wdata length to transfer\n", wlen, (int)sizeof(wdata));
+			ILI_ERR("WARNING! wlen(%d) > wdata(%d), using wdata length to transfer\n",
+				wlen, (int)sizeof(wdata));
 			wlen = sizeof(wdata) - 4;
 		}
 	}
@@ -433,7 +439,7 @@ static int ili_spi_wrapper(u8 *txbuf, u32 wlen, u8 *rxbuf, u32 rlen, bool spi_ir
 	case SPI_WRITE:
 		atomic_set(&ilits->ignore_report, START);
 #if (PLL_CLK_WAKEUP_TP_RESUME == ENABLE)
-		if (ilits->pll_clk_wakeup == true) {
+		if (ilits->pll_clk_wakeup) {
 #else
 		if ((ilits->pll_clk_wakeup == true) && (ilits->tp_suspend == true)) {
 #endif
@@ -458,9 +464,9 @@ static int ili_spi_wrapper(u8 *txbuf, u32 wlen, u8 *rxbuf, u32 rlen, bool spi_ir
 		wlen += index;
 
 		/*
-		* NOTE: If TP driver is doing MP test and commanding 0xF1 to FW, we add a checksum
-		* to the last index and plus 1 with size.
-		*/
+		 * NOTE: If TP driver is doing MP test and commanding 0xF1 to FW, we add a checksum
+		 * to the last index and plus 1 with size.
+		 */
 		if (atomic_read(&ilits->mp_stat) && wdata[index] == P5_X_SET_CDC_INIT) {
 			checksum = ili_calc_packet_checksum(&wdata[index], wlen - index);
 			wdata[wlen] = checksum;
@@ -473,7 +479,7 @@ static int ili_spi_wrapper(u8 *txbuf, u32 wlen, u8 *rxbuf, u32 rlen, bool spi_ir
 		ret = ilits->spi_write_then_read(ilits->spi, wdata, wlen, txbuf, 0);
 		if (!ice) {
 			ILI_DBG("send cmd delay 1ms\n");
-			mdelay(1);
+			usleep_range(1000, 2000);
 		}
 
 		if (ret < 0) {
@@ -540,7 +546,7 @@ int ili_core_spi_setup(int num)
 	};
 
 	if (num >= ARRAY_SIZE(freq)) {
-		ILI_ERR("Invaild clk freq, set default clk freq\n");
+		ILI_ERR("Invalid clk freq, set default clk freq\n");
 		num = 7;
 	}
 
@@ -646,28 +652,27 @@ static int ilitek_spi_probe(struct spi_device *spi)
 		ilits->reset = TP_HW_RST_ONLY;
 
 	ilits->rst_edge_delay = 10;
-	ilits->fw_open = FILP_OPEN;
 	ilits->fw_upgrade_mode = UPGRADE_IRAM;
 	ilits->mp_move_code = ili_move_mp_code_iram;
 	ilits->gesture_move_code = ili_move_gesture_code_iram;
 	ilits->esd_recover = ili_wq_esd_spi_check;
-	ilits->esd_func_ctrl = ENABLE_WQ_ESD;
+	ilits->esd_func_ctrl = true;
 	ilits->ges_recover = ili_touch_esd_gesture_iram;
 	ilits->gesture_mode = DATA_FORMAT_GESTURE_INFO;
 	ilits->gesture_demo_ctrl = DISABLE;
-	ilits->wtd_ctrl = OFF;
-	ilits->report = ENABLE;
-	ilits->netlink = DISABLE;
-	ilits->dnp = DISABLE;
+	ilits->wtd_ctrl = false;
+	ilits->report = true;
+	ilits->netlink = false;
+	ilits->dnp = false;
 	ilits->irq_tirgger_type = IRQF_TRIGGER_FALLING;
-	ilits->info_from_hex = ENABLE;
+	ilits->info_from_hex = true;
 	ilits->wait_int_timeout = AP_INT_TIMEOUT;
 #if MULTI_REPORT_RATE
-	ilits->current_report_rate_mode = DDI60_TP120; 	/*Default report mode*/
+	ilits->current_report_rate_mode = DDI60_TP120;	/* Default report mode */
 #endif
 
 #if ENABLE_GESTURE
-	ilits->gesture = DISABLE;
+	ilits->gesture = false;
 	ilits->ges_sym.double_tap = DOUBLE_TAP;
 	ilits->ges_sym.alphabet_line_2_top = ALPHABET_LINE_2_TOP;
 	ilits->ges_sym.alphabet_line_2_bottom = ALPHABET_LINE_2_BOTTOM;
@@ -712,7 +717,7 @@ int ili_interface_dev_init(struct ilitek_hwif_info *hwif)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		ILI_ERR("faied to allocate spi_driver\n");
+		ILI_ERR("failed to allocate spi_driver\n");
 		return -ENOMEM;
 	}
 

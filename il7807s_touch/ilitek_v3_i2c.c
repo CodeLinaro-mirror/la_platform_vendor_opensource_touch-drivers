@@ -34,7 +34,7 @@ struct touch_bus_info {
 
 struct ilitek_ts_data *ilits;
 
-#define RW_SYNC 	0
+#define RW_SYNC		0
 #define R_ONLY		1
 #define W_ONLY		2
 
@@ -48,7 +48,8 @@ static int dma_i2c_alloc(struct i2c_client *client)
 {
 	if (client != NULL) {
 		client->dev.coherent_dma_mask = DMA_BIT_MASK(32);
-		ilitek_dma_va = (u8 *)dmam_alloc_coherent(client->dev, DMA_VA_BUFFER, &ilitek_dma_pa, GFP_KERNEL);
+		ilitek_dma_va = (u8 *)dmam_alloc_coherent(client->dev, DMA_VA_BUFFER,
+			&ilitek_dma_pa, GFP_KERNEL);
 		if (ERR_ALLOC_MEM(ilitek_dma_va)) {
 			ILI_ERR("Allocate DMA I2C Buffer failed\n");
 			return -ENOMEM;
@@ -112,7 +113,7 @@ static int core_i2c_write(void *buf, int len)
 		ret = -1;
 
 	if (!atomic_read(&ilits->ice_stat))
-		 mdelay(1);
+		usleep_range(1000, 2000);
 
 	ipio_kfree((void **)&mpbuf);
 	return ret;
@@ -206,8 +207,8 @@ static int ili_i2c_pll_clk_wakeup(void)
 {
 	int ret = 0;
 	u8 wakeup = 0xA3;
-#if (PLL_CLK_WAKEUP_TP_RESUME == ENABLE)
-	if (ilits->pll_clk_wakeup == true) {
+#if (PLL_CLK_WAKEUP_TP_RESUME == 0)
+	if (ilits->pll_clk_wakeup) {
 #else
 	if ((ilits->pll_clk_wakeup == true) && (ilits->tp_suspend == true)) {
 #endif
@@ -266,7 +267,7 @@ static int ili_i2c_wrapper(u8 *txbuf, u32 wlen, u8 *rxbuf, u32 rlen, bool spi_ir
 				break;
 			}
 		} else {
-			msleep(1);
+			usleep_range(1000, 2000);
 		}
 
 		ret = ilitek_i2c_read(rxbuf, rlen);
@@ -277,9 +278,8 @@ static int ili_i2c_wrapper(u8 *txbuf, u32 wlen, u8 *rxbuf, u32 rlen, bool spi_ir
 		break;
 	case W_ONLY:
 		ret = ili_i2c_pll_clk_wakeup();
-		if (ret < 0) {
+		if (ret < 0)
 			ILI_ERR("i2c-wrapper dummy cmd write error\n");
-		}
 		ret = ilitek_i2c_write(txbuf, wlen);
 		if (ret < 0) {
 			ILI_ERR("i2c-wrapper write error\n");
@@ -319,7 +319,7 @@ int ili_core_spi_setup(int num)
 	return 0;
 }
 
-static int ilitek_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static int ilitek_i2c_probe(struct i2c_client *i2c)
 {
 	struct touch_bus_info *info =
 		container_of(to_i2c_driver(i2c->dev.driver),
@@ -373,7 +373,7 @@ static int ilitek_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 
 #if I2C_DMA_TRANSFER
 	if (dma_i2c_alloc(ilits->i2c) < 0)
-		ILI_ERR("Failed to alllocate DMA mem %ld\n", PTR_ERR(ilits->i2c));
+		ILI_ERR("Failed to allocate DMA mem %ld\n", PTR_ERR(ilits->i2c));
 #endif
 
 	ilits->actual_tp_mode = P5_X_FW_AP_MODE;
@@ -385,28 +385,27 @@ static int ilitek_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 		ilits->reset = TP_HW_RST_ONLY;
 
 	ilits->rst_edge_delay = 40;
-	ilits->fw_open = FILP_OPEN;
 	ilits->fw_upgrade_mode = UPGRADE_FLASH;
 	ilits->mp_move_code = ili_move_mp_code_flash;
 	ilits->gesture_move_code = ili_move_gesture_code_flash;
 	ilits->esd_recover = ili_wq_esd_i2c_check;
-	ilits->esd_func_ctrl = ENABLE_WQ_ESD;
+	ilits->esd_func_ctrl = true;
 	ilits->ges_recover = ili_touch_esd_gesture_flash;
 	ilits->gesture_mode = DATA_FORMAT_GESTURE_INFO;
 	ilits->gesture_demo_ctrl = DISABLE;
-	ilits->wtd_ctrl = OFF;
-	ilits->report = ENABLE;
-	ilits->netlink = DISABLE;
-	ilits->dnp = DISABLE;
+	ilits->wtd_ctrl = false;
+	ilits->report = true;
+	ilits->netlink = false;
+	ilits->dnp = false;
 	ilits->irq_tirgger_type = IRQF_TRIGGER_RISING;//IRQF_TRIGGER_FALLING;
-	ilits->info_from_hex = DISABLE;
+	ilits->info_from_hex = false;
 	ilits->wait_int_timeout = AP_INT_TIMEOUT;
 #if MULTI_REPORT_RATE
 	ilits->current_report_rate_mode = DDI60_TP120; /*Default report mode*/
 #endif
 
 #if ENABLE_GESTURE
-	ilits->gesture = DISABLE;
+	ilits->gesture = false;
 	ilits->ges_sym.double_tap = DOUBLE_TAP;
 	ilits->ges_sym.alphabet_line_2_top = ALPHABET_LINE_2_TOP;
 	ilits->ges_sym.alphabet_line_2_bottom = ALPHABET_LINE_2_BOTTOM;
@@ -431,10 +430,9 @@ static int ilitek_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *
 	return info->hwif->plat_probe();
 }
 
-static int ilitek_i2c_remove(struct i2c_client *i2c)
+static void ilitek_i2c_remove(struct i2c_client *i2c)
 {
 	ILI_INFO();
-	return 0;
 }
 
 static const struct i2c_device_id tp_i2c_id[] = {
@@ -448,7 +446,7 @@ int ili_interface_dev_init(struct ilitek_hwif_info *hwif)
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info) {
-		ILI_ERR("faied to allocate i2c_driver\n");
+		ILI_ERR("failed to allocate i2c_driver\n");
 		return -ENOMEM;
 	}
 

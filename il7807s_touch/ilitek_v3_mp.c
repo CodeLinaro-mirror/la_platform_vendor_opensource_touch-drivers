@@ -102,22 +102,22 @@
 #define MP_DATA_PASS			0
 #define MP_DATA_FAIL			-1
 
-#define Mathabs(x) ({					\
-		long ret;				\
-		if (sizeof(x) == sizeof(long)) {	\
-		long __x = (x);				\
-		ret = (__x < 0) ? -__x : __x;		\
-		} else {				\
-		int __x = (x);				\
-		ret = (__x < 0) ? -__x : __x;		\
-		}					\
-		ret;					\
+#define Mathabs(x) ({						\
+		long ret;					\
+		if (sizeof(x) == sizeof(long)) {		\
+			long __x = (x);				\
+			ret = (__x < 0) ? -__x : __x;		\
+		} else {					\
+			int __x = (x);				\
+			ret = (__x < 0) ? -__x : __x;		\
+		}						\
+		ret;						\
 	})
 
-#define DUMP(fmt, arg...)		\
-	do {				\
-		if (debug_en)	\
-		pr_cont(fmt, ##arg);	\
+#define DUMP(fmt, arg...)			\
+	do {					\
+		if (debug_en)			\
+			pr_info("ILITEK: "fmt, ##arg);		\
 	} while (0)
 
 static struct ini_file_data {
@@ -132,7 +132,7 @@ static struct ini_file_data {
 enum open_test_node_type {
 	NO_COMPARE = 0x00,	/* Not A Area, No Compare */
 	AA_Area = 0x01,		/* AA Area, Compare using Charge_AA */
-	Border_Area = 0x02, 	/* Border Area, Compare using Charge_Border */
+	Border_Area = 0x02,	/* Border Area, Compare using Charge_Border */
 	Notch = 0x04,		/* Notch Area, Compare using Charge_Notch */
 	Round_Corner = 0x08,	/* Round Corner, No Compare */
 	Skip_Micro = 0x10	/* Skip_Micro, No Compare */
@@ -145,7 +145,7 @@ enum mp_test_catalog {
 	ST_TEST = 3,
 	TX_RX_DELTA = 4,
 	UNTOUCH_P2P = 5,
-	PIXEL = 6,
+	PIXEL_TEST = 6,
 	OPEN_TEST = 7,
 	PEAK_TO_PEAK_TEST = 8,
 	SHORT_TEST = 9,
@@ -296,14 +296,21 @@ struct mp_test_items {
 #define MP_TEST_ITEM	50
 static struct mp_test_items tItems[MP_TEST_ITEM] = {
 	{.desp = "baseline data(bg)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_BG, .lcm = ON},
-	{.desp = "untouch signal data(bg-raw-4096) - mutual", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_SIGNAL, .lcm = ON},
-	{.desp = "manual bk data(mutual)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_BK_DAC, .lcm = ON},
-	{.desp = "calibration data(dac) - self", .catalog = SELF_TEST, .cmd = CMD_SELF_DAC, .lcm = ON},
-	{.desp = "baselin data(bg,self_tx,self_r)", .catalog = SELF_TEST, .cmd = CMD_SELF_BG, .lcm = ON},
-	{.desp = "untouch signal data(bg-raw-4096) - self", .catalog = SELF_TEST, .cmd = CMD_SELF_SIGNAL, .lcm = ON},
+	{.desp = "untouch signal data(bg-raw-4096) - mutual", .catalog = MUTUAL_TEST,
+		.cmd = CMD_MUTUAL_SIGNAL, .lcm = ON},
+	{.desp = "manual bk data(mutual)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_BK_DAC,
+		.lcm = ON},
+	{.desp = "calibration data(dac) - self", .catalog = SELF_TEST, .cmd = CMD_SELF_DAC,
+		.lcm = ON},
+	{.desp = "baselin data(bg,self_tx,self_r)", .catalog = SELF_TEST, .cmd = CMD_SELF_BG,
+		.lcm = ON},
+	{.desp = "untouch signal data(bg-raw-4096) - self", .catalog = SELF_TEST, .cmd =
+		CMD_SELF_SIGNAL, .lcm = ON},
 	{.desp = "raw data(no bk) - self", .catalog = SELF_TEST, .cmd = CMD_SELF_NO_BK, .lcm = ON},
-	{.desp = "raw data(have bk) - self", .catalog = SELF_TEST, .cmd = CMD_SELF_HAVE_BK, .lcm = ON},
-	{.desp = "manual bk dac data(self_tx,self_rx)", .catalog = SELF_TEST, .cmd = CMD_SELF_BK_DAC, .lcm = ON},
+	{.desp = "raw data(have bk) - self", .catalog = SELF_TEST, .cmd = CMD_SELF_HAVE_BK,
+		.lcm = ON},
+	{.desp = "manual bk dac data(self_tx,self_rx)", .catalog = SELF_TEST, .cmd =
+		CMD_SELF_BK_DAC, .lcm = ON},
 	{.desp = "calibration data(dac/icon)", .catalog = KEY_TEST, .cmd = CMD_KEY_DAC, .lcm = ON},
 	{.desp = "key baseline data", .catalog = KEY_TEST, .cmd = CMD_KEY_BG, .lcm = ON},
 	{.desp = "key raw data", .catalog = KEY_TEST, .cmd = CMD_KEY_NO_BK, .lcm = ON},
@@ -320,20 +327,26 @@ static struct mp_test_items tItems[MP_TEST_ITEM] = {
 	{.desp = "untouch cm data", .catalog = MUTUAL_TEST, .cmd = CMD_CM_DATA, .lcm = ON},
 	{.desp = "untouch cs data", .catalog = MUTUAL_TEST, .cmd = CMD_CS_DATA, .lcm = ON},
 	{.desp = "tx/rx delta", .catalog = TX_RX_DELTA, .cmd = CMD_TX_RX_DELTA, .lcm = ON},
-	{.desp = "untouch peak to peak", .catalog = UNTOUCH_P2P, .cmd = CMD_MUTUAL_SIGNAL, .lcm = ON},
-	{.desp = "pixel raw (no bk)", .catalog = PIXEL, .cmd = CMD_MUTUAL_NO_BK, .lcm = ON},
-	{.desp = "pixel raw (have bk)", .catalog = PIXEL, .cmd = CMD_MUTUAL_HAVE_BK, .lcm = ON},
+	{.desp = "untouch peak to peak", .catalog = UNTOUCH_P2P, .cmd = CMD_MUTUAL_SIGNAL,
+		.lcm = ON},
+	{.desp = "pixel_test raw (no bk)", .catalog = PIXEL_TEST, .cmd = CMD_MUTUAL_NO_BK,
+		.lcm = ON},
+	{.desp = "pixel_test raw (have bk)", .catalog = PIXEL_TEST, .cmd = CMD_MUTUAL_HAVE_BK,
+		.lcm = ON},
 	{.desp = "noise peak to peak(cut panel)", .catalog = PEAK_TO_PEAK_TEST, .lcm = ON},
 	{.desp = "open test(integration)", .catalog = OPEN_TEST, .cmd = CMD_RX_SHORT, .lcm = ON},
 	{.desp = "open test(cap)", .catalog = OPEN_TEST, .cmd = CMD_RX_SHORT, .lcm = ON},
 	/* Following is the new test items for protocol 5.4.0 above */
 	{.desp = "pin test ( int and rst )", .catalog = PIN_TEST, .cmd = CMD_PIN_TEST, .lcm = ON},
 	{.desp = "noise peak to peak(with panel)", .catalog = PEAK_TO_PEAK_TEST, .lcm = ON},
-	{.desp = "noise peak to peak(ic only)", .catalog = PEAK_TO_PEAK_TEST, .cmd = CMD_PEAK_TO_PEAK, .lcm = ON},
+	{.desp = "noise peak to peak(ic only)", .catalog = PEAK_TO_PEAK_TEST, .cmd =
+		CMD_PEAK_TO_PEAK, .lcm = ON},
 	{.desp = "open test(integration)_sp", .catalog = OPEN_TEST, .lcm = ON},
 	{.desp = "raw data(no bk)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_NO_BK, .lcm = ON},
-	{.desp = "raw data(have bk)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_HAVE_BK, .lcm = ON},
-	{.desp = "calibration data(dac)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_DAC, .lcm = ON},
+	{.desp = "raw data(have bk)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_HAVE_BK,
+		.lcm = ON},
+	{.desp = "calibration data(dac)", .catalog = MUTUAL_TEST, .cmd = CMD_MUTUAL_DAC,
+		.lcm = ON},
 	{.desp = "short test -ili9881", .catalog = SHORT_TEST, .cmd = CMD_RX_SHORT, .lcm = ON},
 	{.desp = "short test", .catalog = SHORT_TEST, .lcm = ON},
 	{.desp = "doze raw data", .catalog = MUTUAL_TEST, .lcm = ON},
@@ -343,8 +356,10 @@ static struct mp_test_items tItems[MP_TEST_ITEM] = {
 	/* LCM OFF TEST */
 	{.desp = "raw data(have bk) (lcm off)", .catalog = MUTUAL_TEST, .lcm = OFF},
 	{.desp = "raw data(no bk) (lcm off)", .catalog = MUTUAL_TEST, .lcm = OFF},
-	{.desp = "noise peak to peak(with panel) (lcm off)", .catalog = PEAK_TO_PEAK_TEST, .lcm = OFF},
-	{.desp = "noise peak to peak(ic only) (lcm off)", .catalog = PEAK_TO_PEAK_TEST, .lcm = OFF},
+	{.desp = "noise peak to peak(with panel) (lcm off)", .catalog = PEAK_TO_PEAK_TEST,
+		.lcm = OFF},
+	{.desp = "noise peak to peak(ic only) (lcm off)", .catalog = PEAK_TO_PEAK_TEST,
+		.lcm = OFF},
 	{.desp = "raw data_td (lcm off)", .catalog = MUTUAL_TEST, .lcm = OFF},
 	{.desp = "peak to peak_td (lcm off)", .catalog = PEAK_TO_PEAK_TEST, .lcm = OFF},
 };
@@ -393,7 +408,8 @@ static int parser_get_ini_key_value(char *section, char *key, char *value)
 			continue;
 
 		if (ipio_strcmp(key, ini_info[i].key_name) == 0) {
-			ipio_memcpy(value, ini_info[i].key_value, ini_info[i].key_val_len, PARSER_MAX_KEY_VALUE_LEN);
+			ipio_memcpy(value, ini_info[i].key_value, ini_info[i].key_val_len,
+				PARSER_MAX_KEY_VALUE_LEN);
 			ILI_DBG("(key: %s, value:%s) => (ini key: %s, val: %s)\n",
 					key,
 					value,
@@ -412,7 +428,7 @@ static void parser_ini_nodetype(s32 *type_ptr, char *desp, int frame_len)
 	char str[512] = {0}, record = ',';
 
 	for (i = 0; i < g_ini_items; i++) {
-		if (!strstr(ini_info[i].section_name, desp) ||
+		if (!strnstr(ini_info[i].section_name, desp, PARSER_MAX_KEY_NAME_LEN) ||
 			ipio_strcmp(ini_info[i].key_name, NODE_TYPE_KEY_NAME) != 0) {
 			continue;
 		}
@@ -422,12 +438,14 @@ static void parser_ini_nodetype(s32 *type_ptr, char *desp, int frame_len)
 			if (ini_info[i].key_value[j] == ';' || j == ini_info[i].key_val_len) {
 				if (record != '.') {
 					memset(str, 0, sizeof(str));
-					ipio_memcpy(str, &ini_info[i].key_value[index1], (j - index1), sizeof(str));
+					ipio_memcpy(str, &ini_info[i].key_value[index1],
+						(j - index1), sizeof(str));
 					temp = ili_katoi(str);
 
 					/* Over boundary, end to calculate. */
 					if (count >= frame_len) {
-						ILI_ERR("count(%d) is larger than frame length, break\n", count);
+						ILI_ERR("count(%d) is larger than frame length\n",
+							count);
 						break;
 					}
 					type_ptr[count] = temp;
@@ -440,7 +458,8 @@ static void parser_ini_nodetype(s32 *type_ptr, char *desp, int frame_len)
 	}
 }
 
-static void parser_ini_benchmark(s32 *max_ptr, s32 *min_ptr, int8_t type, char *desp, int frame_len, char *bchmrk_name)
+static void parser_ini_benchmark(s32 *max_ptr, s32 *min_ptr, int8_t type, char *desp,
+	int frame_len, char *bchmrk_name)
 {
 	int i = 0, j = 0, index1 = 0, temp, count = 0;
 	char str[512] = {0}, record = ',';
@@ -461,29 +480,31 @@ static void parser_ini_benchmark(s32 *max_ptr, s32 *min_ptr, int8_t type, char *
 
 				if (record != '.') {
 					memset(str, 0, sizeof(str));
-					ipio_memcpy(str, &ini_info[i].key_value[index1], (j - index1), sizeof(str));
+					ipio_memcpy(str, &ini_info[i].key_value[index1],
+						(j - index1), sizeof(str));
 					temp = ili_katoi(str);
 					data[(count % 4)] = temp;
 
 					/* Over boundary, end to calculate. */
 					if ((count / 4) >= frame_len) {
-						ILI_ERR("count (%d) is larger than frame length, break\n", (count / 4));
+						ILI_ERR("count (%d) is larger than frame length\n",
+							(count / 4));
 						break;
 					}
 
-					if ((count % 4) == 3) {
-						if (data[0] == 1) {
-							if (type == VALUE) {
-								max_ptr[count/4] = data[1] + data[2];
-								min_ptr[count/4] = data[1] - data[3];
-							} else {
-								max_ptr[count/4] = data[1] + (data[1] * data[2]) / 100;
-								min_ptr[count/4] = data[1] - (data[1] * data[3]) / 100;
-							}
-						} else {
-							max_ptr[count/4] = INT_MAX;
-							min_ptr[count/4] = INT_MIN;
-						}
+					if (((count % 4) == 3) && (data[0] == 1) && type == VALUE) {
+						max_ptr[count/4] = data[1] + data[2];
+						min_ptr[count/4] = data[1] - data[3];
+					}
+					if (((count % 4) == 3) && (data[0] == 1) && type != VALUE) {
+						max_ptr[count/4] = data[1] + (data[1] *
+							data[2]) / 100;
+						min_ptr[count/4] = data[1] - (data[1] *
+							data[3]) / 100;
+					}
+					if ((count % 4) != 3) {
+						max_ptr[count/4] = INT_MAX;
+						min_ptr[count/4] = INT_MIN;
 					}
 					count++;
 				}
@@ -575,11 +596,11 @@ static int parser_get_int_data(char *section, char *keyname, char *rv, int rv_le
 
 	/* return a white-space string if get nothing */
 	if (parser_get_ini_key_value(section, keyname, value) < 0) {
-		snprintf(rv, rv_len, "%s", value);
+		scnprintf(rv, rv_len, "%s", value);
 		return 0;
 	}
 
-	len = snprintf(rv, rv_len, "%s", value);
+	len = scnprintf(rv, rv_len, "%s", value);
 	return len;
 }
 
@@ -640,9 +661,9 @@ copy:
 	}
 
 	if (i < len)
-		strncpy(tmp, (buf + i), (len - i));
+		strscpy(tmp, (buf + i), (len - i));
 
-	strncpy(buf, tmp, len);
+	strscpy(buf, tmp, len);
 	ipio_kfree((void **)&y);
 	return buf;
 }
@@ -720,24 +741,28 @@ static int parser_get_ini_phy_data(char *data, int fsize)
 				}
 
 				if (scount > MAX_SECTION_NUM) {
-					ILI_ERR("seq_item is over than its define (%d), abort\n", scount);
+					ILI_ERR("seq_item is over than its define (%d), abort\n",
+						scount);
 					ret = INI_ERR_OUT_OF_LINE;
 					goto out;
 				}
 
 				ini_buf[n - 1] = 0x00;
-				strncpy((char *)tmpSectionName, ini_buf + 1, (PARSER_MAX_CFG_BUF + 1) * sizeof(char));
+				strscpy((char *)tmpSectionName, ini_buf + 1,
+					(PARSER_MAX_CFG_BUF + 1) * sizeof(char));
 				banchmark_flag = 0;
 				nodetype_flag = 0;
-				strncpy(seq_item[scount], tmpSectionName, PARSER_MAX_KEY_NAME_LEN);
+				strscpy(seq_item[scount], tmpSectionName, PARSER_MAX_KEY_NAME_LEN);
 				scount++;
-				ILI_DBG("Section Name: %s, Len: %d, offset = %d\n", seq_item[scount], n - 2, offset);
+				ILI_DBG("Section Name: %s, Len: %d, offset = %d\n",
+					seq_item[scount], n - 2, offset);
 				continue;
 			}
 		}
 
 		/* copy section's name without square brackets to its real buffer */
-		strncpy(ini_info[g_ini_items].section_name, tmpSectionName, (PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
+		strscpy(ini_info[g_ini_items].section_name, tmpSectionName,
+			(PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
 		ini_info[g_ini_items].section_len = strlen(tmpSectionName);
 
 		isEqualSign = 0;
@@ -756,20 +781,30 @@ static int parser_get_ini_phy_data(char *data, int fsize)
 			if (empty_section)
 				continue;
 
-			if (strstr(ini_info[g_ini_items].section_name, BENCHMARK_KEY_NAME) != NULL) {
+			if (strnstr(ini_info[g_ini_items].section_name, BENCHMARK_KEY_NAME,
+				PARSER_MAX_KEY_NAME_LEN) != NULL) {
 				isEqualSign = -1;
-				ini_info[g_ini_items].key_name_len = strlen(ini_info[g_ini_items].section_name);
-				strncpy(ini_info[g_ini_items].key_name, ini_info[g_ini_items].section_name, (PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
+				ini_info[g_ini_items].key_name_len =
+					strlen(ini_info[g_ini_items].section_name);
+				strscpy(ini_info[g_ini_items].key_name,
+					ini_info[g_ini_items].section_name,
+					(PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
 				ini_info[g_ini_items].key_val_len = n;
-			} else if (strstr(ini_info[g_ini_items].section_name, NODE_TYPE_KEY_NAME) != NULL) {
+			} else if (strnstr(ini_info[g_ini_items].section_name, NODE_TYPE_KEY_NAME,
+				PARSER_MAX_KEY_NAME_LEN) != NULL) {
 				isEqualSign = -1;
 				ini_info[g_ini_items].key_name_len = strlen(NODE_TYPE_KEY_NAME);
-				strncpy(ini_info[g_ini_items].key_name, NODE_TYPE_KEY_NAME, (PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
+				strscpy(ini_info[g_ini_items].key_name, NODE_TYPE_KEY_NAME,
+					(PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
 				ini_info[g_ini_items].key_val_len = n;
-			} else if (strstr(ini_info[g_ini_items].section_name, PRECOMMAND_KEY_NAME) != NULL) {
+			} else if (strnstr(ini_info[g_ini_items].section_name, PRECOMMAND_KEY_NAME,
+				PARSER_MAX_KEY_NAME_LEN) != NULL) {
 				isEqualSign = -1;
-				ini_info[g_ini_items].key_name_len = strlen(ini_info[g_ini_items].section_name);
-				strncpy(ini_info[g_ini_items].key_name, ini_info[g_ini_items].section_name, (PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
+				ini_info[g_ini_items].key_name_len =
+					strlen(ini_info[g_ini_items].section_name);
+				strscpy(ini_info[g_ini_items].key_name,
+					ini_info[g_ini_items].section_name,
+					(PARSER_MAX_KEY_NAME_LEN * sizeof(char)));
 				ini_info[g_ini_items].key_val_len = n;
 			} else {
 				continue;
@@ -784,7 +819,7 @@ static int parser_get_ini_phy_data(char *data, int fsize)
 			}
 
 			ipio_memcpy(ini_info[g_ini_items].key_name, ini_buf,
-						ini_info[g_ini_items].key_name_len, PARSER_MAX_KEY_NAME_LEN);
+				ini_info[g_ini_items].key_name_len, PARSER_MAX_KEY_NAME_LEN);
 			ini_info[g_ini_items].key_val_len = n - isEqualSign - 1;
 		}
 
@@ -795,7 +830,8 @@ static int parser_get_ini_phy_data(char *data, int fsize)
 		}
 
 		ipio_memcpy(ini_info[g_ini_items].key_value,
-			   ini_buf + isEqualSign + 1, ini_info[g_ini_items].key_val_len, PARSER_MAX_KEY_VALUE_LEN);
+			ini_buf + isEqualSign + 1, ini_info[g_ini_items].key_val_len,
+			PARSER_MAX_KEY_VALUE_LEN);
 
 		ILI_DBG("%s = %s\n", ini_info[g_ini_items].key_name,
 			ini_info[g_ini_items].key_value);
@@ -813,43 +849,21 @@ static int ilitek_tddi_mp_ini_parser(const char *path)
 	int i, ret = 0, fsize = 0;
 	char *tmp = NULL;
 	const struct firmware *ini = NULL;
-	struct file *f = NULL;
-	mm_segment_t old_fs;
-	loff_t pos = 0;
+	void *file_buf = NULL;
 
 	ILI_INFO("ini file path = %s\n", path);
 
-	f = filp_open(path, O_RDONLY, 644);
-	if (ERR_ALLOC_MEM(f)) {
-		ILI_ERR("Failed to open ini file at %ld, try to request_firmware\n", PTR_ERR(f));
-		f = NULL;
-		path = ilits->md_ini_rq_path;
-		ILI_INFO("request path = %s\n", path);
-		if (request_firmware(&ini, path, ilits->dev) < 0) {
-			ILI_ERR("Request ini file failed\n");
-			return -EINVAL;
-		}
+	path = ilits->md_ini_rq_path;
+	ILI_INFO("request path = %s\n", path);
+	if (request_firmware(&ini, path, ilits->dev) < 0) {
+		ILI_ERR("Request ini file failed\n");
+		return -EINVAL;
 	}
-
-	if (f != NULL) {
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 19, 0))
-		fsize = f->f_inode->i_size;
-#else
-		struct inode *inode;
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 18, 0))
-		inode = f->f_dentry->d_inode;
-#else
-		inode = f->f_path.dentry->d_inode;
-#endif
-		fsize = inode->i_size;
-#endif
-	} else {
-		fsize = ini->size;
-	}
+	fsize = ini->size;
 
 	ILI_INFO("ini file size = %d\n", fsize);
 	if (fsize <= 0) {
-		ILI_ERR("The size of file is invaild\n");
+		ILI_ERR("The size of file is invalid\n");
 		ret = -EINVAL;
 		goto out;
 	}
@@ -861,11 +875,8 @@ static int ilitek_tddi_mp_ini_parser(const char *path)
 		goto out;
 	}
 
-	if (f != NULL) {
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		vfs_read(f, tmp, fsize, &pos);
-		set_fs(old_fs);
+	if (file_buf != NULL) {
+		memcpy(tmp, file_buf, fsize);
 		tmp[fsize] = 0x0;
 	} else {
 		memcpy(tmp, ini->data, fsize);
@@ -897,8 +908,8 @@ static int ilitek_tddi_mp_ini_parser(const char *path)
 out:
 	ipio_vfree((void **)&tmp);
 
-	if (f != NULL)
-		filp_close(f, NULL);
+	if (file_buf != NULL)
+		vfree(file_buf);
 	else
 		release_firmware(ini);
 
@@ -927,7 +938,7 @@ static int parser_ini_precmd(char *desp, u8 *buf)
 
 		buf[0] = CMD_FW_MP_PRE_SET_CMD;
 		buf[1] = cmdnum;
-		strncpy(buf + 2 + ((cmdnum - 1) * 11), cmd, 11);
+		strscpy(buf + 2 + ((cmdnum - 1) * 11), cmd, 11);
 
 	}
 	cmdlen = 2 + cmdnum * 11;
@@ -935,7 +946,8 @@ static int parser_ini_precmd(char *desp, u8 *buf)
 	return cmdlen;
 }
 
-static int precommd(u8 *cmd, int cmdlen, u8 *precmd, int precmdlen, u8 *rdata, u32 rlen, bool spi_irq, bool i2c_irq)
+static int precommd(u8 *cmd, int cmdlen, u8 *precmd, int precmdlen, u8 *rdata, u32 rlen,
+	bool spi_irq, bool i2c_irq)
 {
 	u8 buf[2] = {0};
 
@@ -947,14 +959,14 @@ static int precommd(u8 *cmd, int cmdlen, u8 *precmd, int precmdlen, u8 *rdata, u
 		return -EMP_CMD;
 	}
 
-	mdelay(1);
+	usleep_range(1000, 2000);
 
 	if (ilits->wrapper(cmd, cmdlen, NULL, 0, OFF, OFF) < 0) {
 		ILI_ERR("Failed to get cdc data\n");
 		return -EMP_GET_CDC;
 	}
 
-	mdelay(1);
+	usleep_range(1000, 2000);
 
 	if (ilits->wrapper(precmd, precmdlen, rdata, rlen, spi_irq, i2c_irq) < 0) {
 		ILI_ERR("Failed to get cdc data\n");
@@ -1062,8 +1074,9 @@ static int run_open_test(int index)
 			tItems[index].buf[i] = p_comb[i];
 	} else if (ipio_strcmp(tItems[index].desp, "open test(cap)") == 0) {
 		/*
-		 * Each result is getting from a 3 by 3 grid depending on where the centre location is.
-		 * So if the centre is at corner, the number of node grabbed from a grid will be different.
+		 * Each result is getting from a 3 by 3 grid depending on where the centre location
+		 * is. So if the centre is at corner, the number of node grabbed from a grid will
+		 * be different.
 		 */
 		for (y = 0; y < core_mp.ych_len; y++) {
 			for (x = 0; x < core_mp.xch_len; x++) {
@@ -1072,14 +1085,17 @@ static int run_open_test(int index)
 				int centre = p_comb[shift + x];
 
 				for (k = 0; k < 8; k++) {
-					if (((y + border_y[k] >= 0) && (y + border_y[k] < core_mp.ych_len)) &&
-								((x + border_x[k] >= 0) && (x + border_x[k] < core_mp.xch_len))) {
+					if (((y + border_y[k] >= 0) && (y + border_y[k] <
+						core_mp.ych_len)) && ((x + border_x[k] >= 0)
+						&& (x + border_x[k] < core_mp.xch_len))) {
 						count++;
-						sum += p_comb[(y + border_y[k]) * core_mp.xch_len + (x + border_x[k])];
+						sum += p_comb[(y + border_y[k]) * core_mp.xch_len
+							+ (x + border_x[k])];
 					}
 				}
 
-				avg = (sum + centre) / (count + 1);	/* plus 1 because of centre */
+				avg = (sum + centre) / (count + 1);
+				/* plus 1 because of centre */
 				tItems[index].buf[shift + x] = (centre * 100) / avg;
 			}
 		}
@@ -1098,23 +1114,25 @@ static void run_tx_rx_delta_test(int index)
 
 			/* Tx Delta */
 			if (y != (core_mp.ych_len - 1))
-				core_mp.tx_delta_buf[shift + x] = Mathabs(p_comb[shift + x] - p_comb[(shift + 1) + x]);
+				core_mp.tx_delta_buf[shift + x] = Mathabs(p_comb[shift + x]
+					- p_comb[(shift + 1) + x]);
 
 			/* Rx Delta */
 			if (x != (core_mp.xch_len - 1))
-				core_mp.rx_delta_buf[shift + x] = Mathabs(p_comb[shift + x] - p_comb[shift + (x + 1)]);
+				core_mp.rx_delta_buf[shift + x] = Mathabs(p_comb[shift + x]
+					- p_comb[shift + (x + 1)]);
 		}
 	}
 }
 
 static char *get_date_time_str(void)
 {
-	struct timespec now_time;
+	struct timespec64 now_time;
 	struct rtc_time rtc_now_time;
 	static char time_data_buf[128] = { 0 };
 
-	getnstimeofday(&now_time);
-	rtc_time_to_tm(now_time.tv_sec, &rtc_now_time);
+	ktime_get_real_ts64(&now_time);
+	rtc_time64_to_tm(now_time.tv_sec, &rtc_now_time);
 	snprintf(time_data_buf, sizeof(time_data_buf), "%04d%02d%02d-%02d%02d%02d",
 		(rtc_now_time.tm_year + 1900), rtc_now_time.tm_mon + 1,
 		rtc_now_time.tm_mday, rtc_now_time.tm_hour, rtc_now_time.tm_min,
@@ -1128,41 +1146,47 @@ static void mp_print_csv_header(char *csv, int *csv_len, int *csv_line, int file
 	int i, seq, tmp_len = *csv_len, tmp_line = *csv_line;
 
 	/* header must has 19 line*/
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "==============================================================================\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "===========================\n");
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "ILITek C-TP Utility V%s	%x : Driver Sensor Test\n", DRIVER_VERSION, core_mp.chip_pid);
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "ILITek C-TP V%s%x : Test\n",
+		DRIVER_VERSION, core_mp.chip_pid);
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Confidentiality Notice:\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "Confidentiality Notice:\n");
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Any information of this tool is confidential and privileged.\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "Any info is privileged.\n");
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "@ ILI TECHNOLOGY CORP. All Rights Reserved.\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "All Rights Reserved.\n");
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "==============================================================================\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "===========================\n");
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Firmware Version ,0x%x\n", core_mp.fw_ver);
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "Firmware Version ,0x%x\n",
+		core_mp.fw_ver);
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Panel information ,XCH=%d, YCH=%d\n", core_mp.xch_len, core_mp.ych_len);
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "INI Release Version ,%s\n", core_mp.ini_ver);
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "Panel info, XCH=%d, YCH=%d\n",
+		core_mp.xch_len, core_mp.ych_len);
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "INI Release Version ,%s\n",
+		core_mp.ini_ver);
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "INI Release Date ,%s\n", core_mp.ini_date);
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "INI Release Date ,%s\n",
+		core_mp.ini_date);
 	tmp_line++;
 	tmp_line++;
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Test Item:\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "Test Item:\n");
 	tmp_line++;
 
 	for (seq = 0; seq < ri.count; seq++) {
 		i = ri.index[seq];
-		tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "	  ---%s\n", tItems[i].desp);
+		tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "	  ---%s\n",
+			tItems[i].desp);
 		tmp_line++;
 	}
 
 	while (tmp_line < 19) {
-		tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "\n");
+		tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "\n");
 		tmp_line++;
 	}
 
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "==============================================================================\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "===========================\n");
 
 	*csv_len = tmp_len;
 	*csv_line = tmp_line;
@@ -1172,15 +1196,17 @@ static void mp_print_csv_tail(char *csv, int *csv_len, int file_size)
 {
 	int i, seq, tmp_len = *csv_len;
 
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "==============================================================================\n");
-	tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Result_Summary			\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "===========================\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "Result_Summary\n");
 
 	for (seq = 0; seq < ri.count; seq++) {
 		i = ri.index[seq];
 		if (tItems[i].item_result == MP_DATA_PASS)
-			tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "	  {%s}	   ,OK\n", tItems[i].desp);
+			tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "	{%s},OK\n",
+				tItems[i].desp);
 		else
-			tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "	  {%s}	   ,NG\n", tItems[i].desp);
+			tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len), "	{%s},NG\n",
+				tItems[i].desp);
 	}
 
 	*csv_len = tmp_len;
@@ -1190,44 +1216,53 @@ static void mp_print_csv_cdc_cmd(char *csv, int *csv_len, int index, int file_si
 {
 	int i, slen = 0, tmp_len = *csv_len, size;
 	char str[128] = {0};
-	char *open_sp_cmd[] = {"open dac", "open raw1", "open raw2", "open raw3"};
-	char *open_c_cmd[] = {"open cap1 dac", "open cap1 raw"};
+	static const char * const open_sp_cmd[] = {"open dac", "open raw1", "open raw2",
+		"open raw3"};
+	static const char * const open_c_cmd[] = {"open cap1 dac", "open cap1 raw"};
 	char *name = tItems[index].desp;
 
 	if (ipio_strcmp(name, "open test(integration)_sp") == 0) {
 		size = ARRAY_SIZE(open_sp_cmd);
 		for (i = 0; i < size; i++) {
-			slen = parser_get_int_data("pv5_4 command", open_sp_cmd[i], str, sizeof(str));
+			//slen = parser_get_int_data("pv5_4 command", open_sp_cmd[i], str,
+			//	sizeof(str));
 			if (slen < 0)
-				ILI_ERR("Failed to get CDC command %s from ini\n", open_sp_cmd[i]);
+				ILI_ERR("Failed to get CDC command %s from ini\n",
+					open_sp_cmd[i]);
 			else
-				tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "%s = ,%s\n", open_sp_cmd[i], str);
+				tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len),
+					"%s = %s\n", open_sp_cmd[i], str);
 		}
 	} else if (ipio_strcmp(name, "open test_c") == 0) {
 		size = ARRAY_SIZE(open_c_cmd);
 		for (i = 0; i < size; i++) {
-			slen = parser_get_int_data("pv5_4 command", open_c_cmd[i], str, sizeof(str));
+			//slen = parser_get_int_data("pv5_4 command", open_c_cmd[i], str,
+			//	sizeof(str));
 			if (slen < 0)
 				ILI_ERR("Failed to get CDC command %s from ini\n", open_sp_cmd[i]);
 			else
-				tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "%s = ,%s\n", open_c_cmd[i], str);
+				tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len),
+					"%s = %s\n", open_c_cmd[i], str);
 		}
 	} else {
 		slen = parser_get_int_data("pv5_4 command", name, str, sizeof(str));
 		if (slen < 0)
 			ILI_ERR("Failed to get CDC command %s from ini\n", name);
 		else
-			tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "CDC command = ,%s\n", str);
+			tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len),
+				"CDC command = %s\n", str);
 
 		/* Print short parameters */
 		if (ipio_strcmp(name, "short test") == 0)
-			tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "Variation = ,%d\n", short_para.variation);
+			tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len),
+				"Variation = %d\n", short_para.variation);
 
 		/* Print td second command */
 		if (core_mp.td_retry && (ipio_strcmp(name, "peak to peak_td (lcm off)") == 0)) {
 			name = "peak to peak_td (lcm off)_2";
 			parser_get_int_data("pv5_4 command", name, str, sizeof(str));
-			tmp_len += snprintf(csv + tmp_len, (file_size - tmp_len), "CDC command 2 = ,%s\n", str);
+			tmp_len += scnprintf(csv + tmp_len, (file_size - tmp_len),
+				"CDC command 2 = %s\n", str);
 		}
 	}
 	*csv_len = tmp_len;
@@ -1250,66 +1285,80 @@ static void mp_compare_cdc_show_result(int index, s32 *tmp, char *csv,
 	for (x = 0; x < core_mp.xch_len; x++) {
 		if (x == 0) {
 			DUMP("\n %s ", desp);
-			tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "\n	   %s ,", desp);
+			tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len), "\n"
+				   "%s ,", desp);
 		}
 		DUMP("  X_%d	,", (x+1));
-		tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "	 X_%d  ,", (x+1));
+		tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len), "	 X_%d  ,", (x+1));
 	}
 
 	DUMP("\n");
-	tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "\n");
+	tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len), "\n");
 
 	for (y = 0; y < core_mp.ych_len; y++) {
 		DUMP("  Y_%d	,", (y+1));
-		tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "	 Y_%d  ,", (y+1));
+		tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len), "	 Y_%d  ,", (y+1));
 
 		for (x = 0; x < core_mp.xch_len; x++) {
 			int shift = y * core_mp.xch_len + x;
 
-			/* In Short teset, we only identify if its value is low than min threshold. */
+			/*
+			 * In Short teset, we only identify if its value
+			 * is low than min threshold.
+			 */
 			if (tItems[index].catalog == SHORT_TEST) {
 				if (tmp[shift] < min_ts[shift]) {
 					DUMP(" #%7d ", tmp[shift]);
-					tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "#%7d,", tmp[shift]);
+					tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+						"#%7d,", tmp[shift]);
 					mp_result = MP_DATA_FAIL;
 				} else {
 					DUMP(" %7d ", tmp[shift]);
-					tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), " %7d, ", tmp[shift]);
+					tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+						" %7d, ", tmp[shift]);
 				}
 				continue;
 			}
 
-			if ((tmp[shift] <= max_ts[shift] && tmp[shift] >= min_ts[shift]) || (type != TYPE_JUGE)) {
-				if ((tmp[shift] == INT_MAX || tmp[shift] == INT_MIN) && (type == TYPE_BENCHMARK)) {
+			if ((tmp[shift] <= max_ts[shift] && tmp[shift] >= min_ts[shift]) ||
+				(type != TYPE_JUGE)) {
+				if ((tmp[shift] == INT_MAX || tmp[shift] == INT_MIN) &&
+					(type == TYPE_BENCHMARK)) {
 					DUMP("%s", "BYPASS,");
-					tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "BYPASS,");
+					tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+						"BYPASS,");
 				} else {
 					DUMP(" %7d ", tmp[shift]);
-					tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), " %7d, ", tmp[shift]);
+					tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+						" %7d, ", tmp[shift]);
 				}
 			} else {
 				if (tmp[shift] > max_ts[shift]) {
 					DUMP(" *%7d ", tmp[shift]);
-					tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "*%7d,", tmp[shift]);
+					tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+						"*%7d,", tmp[shift]);
 				} else {
 					DUMP(" #%7d ", tmp[shift]);
-					tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "#%7d,", tmp[shift]);
+					tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+						"#%7d,", tmp[shift]);
 				}
 				mp_result = MP_DATA_FAIL;
 			}
 		}
 		DUMP("\n");
-		tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "\n");
+		tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len), "\n");
 	}
 
 out:
 	if (type == TYPE_JUGE) {
 		if (mp_result == MP_DATA_PASS) {
 			pr_info("\n Result : PASS\n");
-			tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "Result : PASS\n");
+			tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+				"Result : PASS\n");
 		} else {
 			pr_info("\n Result : FAIL\n");
-			tmp_len += snprintf(csv + tmp_len, (file_zise - tmp_len), "Result : FAIL\n");
+			tmp_len += scnprintf(csv + tmp_len, (file_zise - tmp_len),
+				"Result : FAIL\n");
 		}
 	}
 	*csv_len = tmp_len;
@@ -1346,11 +1395,14 @@ static int compare_charge(s32 *charge_rate, int x, int y, s32 *inNodeType,
 		tempY = y + sy[k];
 
 		/*out of range */
-		if ((tempX < 0) || (tempX >= core_mp.xch_len) || (tempY < 0) || (tempY >= core_mp.ych_len))
+		if ((tempX < 0) || (tempX >= core_mp.xch_len) || (tempY < 0) ||
+			(tempY >= core_mp.ych_len))
 			continue;
 
-		if ((inNodeType[ADDR(tempX, tempY)] == NO_COMPARE) || ((inNodeType[ADDR(tempX, tempY)] & Round_Corner) == Round_Corner) ||
-		((inNodeType[ADDR(tempX, tempY)] & Skip_Micro) == Skip_Micro) || charge_rate[ADDR(tempX, tempY)] == 0)
+		if ((inNodeType[ADDR(tempX, tempY)] == NO_COMPARE) ||
+			((inNodeType[ADDR(tempX, tempY)] & Round_Corner) == Round_Corner) ||
+			((inNodeType[ADDR(tempX, tempY)] & Skip_Micro) == Skip_Micro) ||
+			charge_rate[ADDR(tempX, tempY)] == 0)
 			continue;
 
 		if ((charge_rate[ADDR(tempX, tempY)] - charge_rate[ADDR(x, y)]) > OpenThreadhold)
@@ -1359,7 +1411,8 @@ static int compare_charge(s32 *charge_rate, int x, int y, s32 *inNodeType,
 	return ret;
 }
 
-static int full_open_rate_compare(s32 *full_open, s32 *cbk, int x, int y, s32 inNodeType, int full_open_rate)
+static int full_open_rate_compare(s32 *full_open, s32 *cbk, int x, int y, s32 inNodeType,
+	int full_open_rate)
 {
 	int ret = true;
 
@@ -1377,11 +1430,12 @@ static s32 open_sp_formula(int dac, int raw, int tvch, int tvcl)
 	s32 ret = 0;
 	u16 id = core_mp.chip_id;
 
-	if (id == ILI9881_CHIP) {
-		ret = ((dac * 10000 * 161 / 100) - (16384 / 2 - raw) * 20000 * 7 / 16384 * 36 / 10) / (tvch - tvcl) / 2;
-	} else {
-		ret = ((dac * 10000 * 131 / 100) - (16384 / 2 - raw) * 20000 * 7 / 16384 * 36 / 10) / (tvch - tvcl) / 2;
-	}
+	if (id == ILI9881_CHIP)
+		ret = ((dac * 10000 * 161 / 100) - (16384 / 2 - raw) * 20000 * 7 / 16384 * 36 /
+			10) / (tvch - tvcl) / 2;
+	else
+		ret = ((dac * 10000 * 131 / 100) - (16384 / 2 - raw) * 20000 * 7 / 16384 * 36 /
+			10) / (tvch - tvcl) / 2;
 	return ret;
 }
 
@@ -1444,11 +1498,10 @@ static s32 open_c_formula(int inCap1DAC, int inCap1Raw, int accuracy)
 	inPartDac = (inCap1DAC * inCbk_step * inVbk / 2);
 	inPartRaw = ((inCap1Raw - inFoutRange_half) * inVadc_range * inCint * 10 / inFoutRange);
 
-	if (accuracy) {
+	if (accuracy)
 		inCap1Value = ((inPartDac + inPartRaw) * 10) / inVdrv / inMagnification / inGain;
-	} else {
+	else
 		inCap1Value = (inPartDac + inPartRaw) / inVdrv / inMagnification / inGain;
-	}
 
 	return inCap1Value;
 }
@@ -1496,9 +1549,8 @@ static int codeToOhm(s32 *ohm, s32 *Code, u16 *v_tdf, u16 *h_tdf)
 		inTDF2 = *(h_tdf + 1);
 	}
 
-	if (inVariation == 0) {
+	if (inVariation == 0)
 		inVariation = 100;
-	}
 
 	if ((inCint == 0) ||  (inRinternal == 0)) {
 		if (id == ILI9881_CHIP) {
@@ -1538,7 +1590,8 @@ static int codeToOhm(s32 *ohm, s32 *Code, u16 *v_tdf, u16 *h_tdf)
 		if (Code[j] == 0) {
 			ILI_ERR("code is invalid\n");
 		} else {
-			temp = ((inTVCH - inTVCL) * inVariation * (inTDF1 - inTDF2) * (1 << 12) / (9 * Code[j] * inCint)) * 1000;
+			temp = ((inTVCH - inTVCL) * inVariation * (inTDF1 - inTDF2) * (1 << 12) /
+				(9 * Code[j] * inCint)) * 1000;
 			temp = (temp - inRinternal) / 1000;
 		}
 		ohm[j] = temp;
@@ -1586,14 +1639,17 @@ static int short_test(int index, int frame_index)
 		}
 	}
 
-	ILI_INFO("TVCH = %d, TVCL = %d, Variation = %d, V_TDF1 = %d, V_TDF2 = %d, H_TDF1 = %d, H_TDF2 = %d, Cint = %d, Rinternal = %d\n"
-		, short_para.tvch, short_para.tvcl, short_para.variation, tItems[index].v_tdf_1, tItems[index].v_tdf_2, tItems[index].h_tdf_1, tItems[index].h_tdf_2, short_para.cint, short_para.rinternal);
+	ILI_INFO("TVCH = %d, TVCL = %d, Variation = %d, V_TDF1 = %d, V_TDF2 = %d, H_TDF1 = %d\n",
+		short_para.tvch, short_para.tvcl, short_para.variation, tItems[index].v_tdf_1,
+		tItems[index].v_tdf_2, tItems[index].h_tdf_1);
 
 	if (core_mp.protocol_ver >= PROTOCOL_VER_540) {
 		/* Calculate code to ohm and save to tItems[index].buf */
 		ili_dump_data(frame_buf, 10, core_mp.frame_len, core_mp.xch_len, "Short Raw 1");
-		codeToOhm(&tItems[index].buf[frame_index * core_mp.frame_len], frame_buf, v_tdf, h_tdf);
-		ili_dump_data(&tItems[index].buf[frame_index * core_mp.frame_len], 10, core_mp.frame_len, core_mp.xch_len, "Short Ohm 1");
+		codeToOhm(&tItems[index].buf[frame_index * core_mp.frame_len], frame_buf,
+			v_tdf, h_tdf);
+		ili_dump_data(&tItems[index].buf[frame_index * core_mp.frame_len], 10,
+			core_mp.frame_len, core_mp.xch_len, "Short Ohm 1");
 	} else {
 		for (j = 0; j < core_mp.frame_len; j++)
 			tItems[index].buf[frame_index * core_mp.frame_len + j] = frame_buf[j];
@@ -1742,8 +1798,6 @@ static int allnode_open_cdc_data(int mode, int *buf, int index)
 	u8 precmd[256] = {0};
 	u8 *ori = NULL;
 	char str[128] = {0};
-	char *key[] = {"open dac", "open raw1", "open raw2", "open raw3",
-			"open cap1 dac", "open cap1 raw"};
 
 	/* Multipling by 2 is due to the 16 bit in each node */
 	len = (core_mp.xch_len * core_mp.ych_len * 2) + 2;
@@ -1769,11 +1823,6 @@ static int allnode_open_cdc_data(int mode, int *buf, int index)
 	}
 
 	/* CDC init. Read command from ini file */
-	if (parser_get_int_data("pv5_4 command", key[mode], str, sizeof(str)) < 0) {
-		ILI_ERR("Failed to parse PV54 command, ret = %d\n", ret);
-		ret = -EMP_PARSE;
-		goto out;
-	}
 
 	parser_get_u8_array(str, cmd, 16, sizeof(cmd));
 
@@ -1791,7 +1840,8 @@ static int allnode_open_cdc_data(int mode, int *buf, int index)
 #if (ENGINEER_FLOW)
 	if (!ilits->eng_flow) {
 		if (tItems[index].pre_cmd_en) {
-			if (precommd(cmd, core_mp.cdc_len, precmd, precmd_len, ori, len, ON, ON) < 0)
+			if (precommd(cmd, core_mp.cdc_len, precmd, precmd_len, ori, len,
+				ON, ON) < 0)
 				goto out;
 		} else {
 			if (ilits->wrapper(cmd, core_mp.cdc_len, ori, len, ON, ON) < 0) {
@@ -1802,9 +1852,8 @@ static int allnode_open_cdc_data(int mode, int *buf, int index)
 		}
 	} else {
 		msleep(200);
-		if (ilits->wrapper(cmd, core_mp.cdc_len, ori, len, OFF, OFF) < 0) {
+		if (ilits->wrapper(cmd, core_mp.cdc_len, ori, len, OFF, OFF) < 0)
 			ILI_ERR("Failed to get cdc data\n");
-		}
 	}
 #else
 	if (tItems[index].pre_cmd_en) {
@@ -1886,21 +1935,21 @@ static int allnode_peak_to_peak_cdc_data(int index)
 		goto out;
 	}
 
-	if (tItems[index].bch_mrk_multi) {
+	if (tItems[index].bch_mrk_multi)
 		rd_frame_num = tItems[index].bch_mrk_frm_num - 1;
-	}
 
 	if (frm_buf == NULL) {
-		frm_buf = (s32 **)kzalloc(tItems[index].bch_mrk_frm_num * sizeof(s32 *), GFP_KERNEL);
+		frm_buf = kcalloc(tItems[index].bch_mrk_frm_num, sizeof(s32 *), GFP_KERNEL);
 		if (ERR_ALLOC_MEM(frm_buf)) {
 			ILI_ERR("Failed to allocate frm_buf mem (%ld)\n", PTR_ERR(frm_buf));
 			ret = -EMP_NOMEM;
 			goto out;
 		}
 		for (i = 0; i < tItems[index].bch_mrk_frm_num; i++) {
-			frm_buf[i] = (s32 *)kzalloc(core_mp.frame_len * sizeof(s32), GFP_KERNEL);
+			frm_buf[i] = kcalloc(core_mp.frame_len, sizeof(s32), GFP_KERNEL);
 			if (ERR_ALLOC_MEM(frm_buf)) {
-				ILI_ERR("Failed to allocate frm_buf[%d] mem (%ld)\n", i, PTR_ERR(frm_buf));
+				ILI_ERR("Failed to allocate frm_buf[%d] mem (%ld)\n", i,
+					PTR_ERR(frm_buf));
 				ret = -EMP_NOMEM;
 				goto out;
 			}
@@ -1938,9 +1987,9 @@ static int allnode_peak_to_peak_cdc_data(int index)
 #if (ENGINEER_FLOW)
 		if (!ilits->eng_flow) {
 			if (tItems[index].pre_cmd_en) {
-				if (precommd(cmd, cmd_len, precmd, precmd_len, ori, len, ON, ON) < 0) {
+				if (precommd(cmd, cmd_len, precmd, precmd_len, ori, len,
+					ON, ON) < 0)
 					goto out;
-				}
 			} else {
 				if (ilits->wrapper(cmd, cmd_len, ori, len, ON, ON) < 0) {
 					ILI_ERR("Failed to get cdc data\n");
@@ -1950,15 +1999,13 @@ static int allnode_peak_to_peak_cdc_data(int index)
 			}
 		} else {
 			msleep(200);
-			if (ilits->wrapper(cmd, cmd_len, ori, len, OFF, OFF) < 0) {
+			if (ilits->wrapper(cmd, cmd_len, ori, len, OFF, OFF) < 0)
 				ILI_ERR("Failed to get cdc data\n");
-			}
 		}
 #else
 		if (tItems[index].pre_cmd_en) {
-			if (precommd(cmd, cmd_len, precmd, precmd_len, ori, len, ON, ON) < 0) {
+			if (precommd(cmd, cmd_len, precmd, precmd_len, ori, len, ON, ON) < 0)
 				goto out;
-			}
 		} else {
 			if (ilits->wrapper(cmd, cmd_len, ori, len, ON, ON) < 0) {
 				ILI_ERR("Failed to get cdc data\n");
@@ -1987,11 +2034,15 @@ static int allnode_peak_to_peak_cdc_data(int index)
 	}
 
 	if (tItems[index].bch_mrk_multi) {
-		ili_dump_data(frm_buf[0], 32, core_mp.frame_len, core_mp.xch_len, "Mutual CDC combined[0]/frame1");
-		ili_dump_data(frm_buf[1], 32, core_mp.frame_len, core_mp.xch_len, "Mutual CDC combined[1]/frame2");
-		ili_dump_data(frm_buf[2], 32, core_mp.frame_len, core_mp.xch_len, "Mutual CDC combined[2]/frame3");
+		ili_dump_data(frm_buf[0], 32, core_mp.frame_len, core_mp.xch_len,
+			"Mutual CDC combined[0]/frame1");
+		ili_dump_data(frm_buf[1], 32, core_mp.frame_len, core_mp.xch_len,
+			"Mutual CDC combined[1]/frame2");
+		ili_dump_data(frm_buf[2], 32, core_mp.frame_len, core_mp.xch_len,
+			"Mutual CDC combined[2]/frame3");
 	} else {
-		ili_dump_data(frm_buf[0], 32, core_mp.frame_len, core_mp.xch_len, "Mutual CDC combined[0]/frame1");
+		ili_dump_data(frm_buf[0], 32, core_mp.frame_len, core_mp.xch_len,
+			"Mutual CDC combined[0]/frame1");
 	}
 
 out:
@@ -2053,7 +2104,8 @@ static int allnode_mutual_cdc_data(int index)
 #if (ENGINEER_FLOW)
 	if (!ilits->eng_flow) {
 		if (tItems[index].pre_cmd_en) {
-			if (precommd(cmd, core_mp.cdc_len, precmd, precmd_len, ori, len, ON, ON) < 0)
+			if (precommd(cmd, core_mp.cdc_len, precmd, precmd_len, ori, len,
+				ON, ON) < 0)
 				goto out;
 		} else {
 			if (ilits->wrapper(cmd, core_mp.cdc_len, ori, len, ON, ON) < 0) {
@@ -2064,9 +2116,8 @@ static int allnode_mutual_cdc_data(int index)
 		}
 	} else {
 		msleep(200);
-		if (ilits->wrapper(cmd, core_mp.cdc_len, ori, len, OFF, OFF) < 0) {
+		if (ilits->wrapper(cmd, core_mp.cdc_len, ori, len, OFF, OFF) < 0)
 			ILI_ERR("Failed to get cdc data\n");
-		}
 	}
 #else
 	if (tItems[index].pre_cmd_en) {
@@ -2124,8 +2175,8 @@ static int allnode_mutual_cdc_data(int index)
 				frame_buf[i] = tmp;
 
 			if (ipio_strcmp(tItems[index].desp, "raw data(no bk)") == 0 ||
-				ipio_strcmp(tItems[index].desp, "raw data(no bk) (lcm off)") == 0) {
-					frame_buf[i] -= core_mp.no_bk_shift;
+			    ipio_strcmp(tItems[index].desp, "raw data(no bk) (lcm off)") == 0) {
+				frame_buf[i] -= core_mp.no_bk_shift;
 			}
 		}
 	}
@@ -2244,7 +2295,8 @@ static int create_mp_test_frame_buffer(int index, int frame_count)
 		}
 
 		if (tItems[index].result_buf == NULL) {
-			tItems[index].result_buf = kcalloc(core_mp.frame_len, sizeof(s32), GFP_KERNEL);
+			tItems[index].result_buf = kcalloc(core_mp.frame_len, sizeof(s32),
+				GFP_KERNEL);
 			if (ERR_ALLOC_MEM(tItems[index].result_buf)) {
 				ILI_ERR("Failed to allocate result_buf mem\n");
 				ipio_kfree((void **)&tItems[index].result_buf);
@@ -2272,7 +2324,8 @@ static int create_mp_test_frame_buffer(int index, int frame_count)
 
 		if (tItems[index].spec_option == BENCHMARK) {
 			if (tItems[index].bch_mrk_max == NULL) {
-				tItems[index].bch_mrk_max = (s32 **)kzalloc(tItems[index].bch_mrk_frm_num * sizeof(s32 *), GFP_KERNEL);
+				tItems[index].bch_mrk_max = kcalloc(tItems[index].bch_mrk_frm_num
+					, sizeof(s32 *), GFP_KERNEL);
 				if (ERR_ALLOC_MEM(tItems[index].bch_mrk_max)) {
 					ILI_ERR("Failed to allocate bch_mrk_max mem\n");
 					ipio_kfree((void **)&tItems[index].bch_mrk_max);
@@ -2280,9 +2333,11 @@ static int create_mp_test_frame_buffer(int index, int frame_count)
 				}
 
 				for (i = 0; i < tItems[index].bch_mrk_frm_num; i++) {
-					tItems[index].bch_mrk_max[i] = (s32 *)kzalloc(core_mp.frame_len * sizeof(s32), GFP_KERNEL);
+					tItems[index].bch_mrk_max[i] = kcalloc(core_mp.frame_len
+						, sizeof(s32), GFP_KERNEL);
 					if (ERR_ALLOC_MEM(tItems[index].bch_mrk_max[i])) {
-						ILI_ERR("Failed to allocate bch_mrk_max[%d] mem\n", i);
+						ILI_ERR("Failed to allocate bch_mrk_max[%d] mem\n",
+							 i);
 						ipio_kfree((void **)&tItems[index].bch_mrk_max[i]);
 						return -ENOMEM;
 					}
@@ -2290,16 +2345,18 @@ static int create_mp_test_frame_buffer(int index, int frame_count)
 			}
 
 			if (tItems[index].bch_mrk_min == NULL) {
-				tItems[index].bch_mrk_min = (s32 **)kzalloc(tItems[index].bch_mrk_frm_num * sizeof(s32 *), GFP_KERNEL);
+				tItems[index].bch_mrk_min = kcalloc(tItems[index].bch_mrk_frm_num
+					, sizeof(s32 *), GFP_KERNEL);
 				if (ERR_ALLOC_MEM(tItems[index].bch_mrk_min)) {
 					ILI_ERR("Failed to allocate bch_mrk_min mem\n");
 					ipio_kfree((void **)&tItems[index].bch_mrk_min);
 					return -ENOMEM;
 				}
 				for (i = 0; i < tItems[index].bch_mrk_frm_num; i++) {
-					tItems[index].bch_mrk_min[i] = (s32 *)kzalloc(core_mp.frame_len * sizeof(s32), GFP_KERNEL);
+					tItems[index].bch_mrk_min[i] = kcalloc(core_mp.frame_len
+						, sizeof(s32), GFP_KERNEL);
 					if (ERR_ALLOC_MEM(tItems[index].bch_mrk_min[i])) {
-						ILI_ERR("Failed to allocate bch_mrk_min[%d] mem\n", i);
+						ILI_ERR("Failed to allocate mrk min[%d] mem\n", i);
 						ipio_kfree((void **)&tItems[index].bch_mrk_min[i]);
 						return -ENOMEM;
 					}
@@ -2307,7 +2364,8 @@ static int create_mp_test_frame_buffer(int index, int frame_count)
 			}
 
 			if (tItems[index].bench_mark_max == NULL) {
-				tItems[index].bench_mark_max = kcalloc(core_mp.frame_len, sizeof(s32), GFP_KERNEL);
+				tItems[index].bench_mark_max = kcalloc(core_mp.frame_len,
+					sizeof(s32), GFP_KERNEL);
 				if (ERR_ALLOC_MEM(tItems[index].bench_mark_max)) {
 					ILI_ERR("Failed to allocate bench_mark_max mem\n");
 					ipio_kfree((void **)&tItems[index].bench_mark_max);
@@ -2315,7 +2373,8 @@ static int create_mp_test_frame_buffer(int index, int frame_count)
 				}
 			}
 			if (tItems[index].bench_mark_min == NULL) {
-				tItems[index].bench_mark_min = kcalloc(core_mp.frame_len, sizeof(s32), GFP_KERNEL);
+				tItems[index].bench_mark_min = kcalloc(core_mp.frame_len,
+					sizeof(s32), GFP_KERNEL);
 				if (ERR_ALLOC_MEM(tItems[index].bench_mark_min)) {
 					ILI_ERR("Failed to allocate bench_mark_min mem\n");
 					ipio_kfree((void **)&tItems[index].bench_mark_min);
@@ -2427,7 +2486,7 @@ out:
 	if (ret < 0)
 		tItems[index].item_result = MP_DATA_FAIL;
 
-	ILI_INFO("Change to defualt IRQ trigger type\n");
+	ILI_INFO("Change to default IRQ trigger type\n");
 	ili_irq_unregister();
 	ili_irq_register(ilits->irq_tirgger_type);
 	atomic_set(&ilits->cmd_int_check, DISABLE);
@@ -2477,7 +2536,8 @@ static int mutual_test(int index)
 
 	if (tItems[index].spec_option == BENCHMARK) {
 		parser_ini_benchmark(tItems[index].bench_mark_max, tItems[index].bench_mark_min,
-			tItems[index].type_option, tItems[index].desp, core_mp.frame_len, BENCHMARK_KEY_NAME);
+			tItems[index].type_option, tItems[index].desp, core_mp.frame_len,
+			BENCHMARK_KEY_NAME);
 		dump_benchmark_data(tItems[index].bench_mark_max, tItems[index].bench_mark_min);
 	}
 
@@ -2488,7 +2548,7 @@ static int mutual_test(int index)
 			goto out;
 		}
 		switch (tItems[index].catalog) {
-		case PIXEL:
+		case PIXEL_TEST:
 			run_pixel_test(index);
 			break;
 		case UNTOUCH_P2P:
@@ -2536,13 +2596,17 @@ static int  peak_to_peak_test(int index)
 	if (tItems[index].spec_option == BENCHMARK) {
 		for (i = 0; i < tItems[index].bch_mrk_frm_num; i++) {
 			if (tItems[index].bch_mrk_multi)
-				snprintf(benchmark_str, sizeof(benchmark_str), "%s%d", BENCHMARK_KEY_NAME, i+1);
+				snprintf(benchmark_str, sizeof(benchmark_str), "%s%d",
+					BENCHMARK_KEY_NAME, i+1);
 			else
-				snprintf(benchmark_str, sizeof(benchmark_str), "%s", BENCHMARK_KEY_NAME);
-			parser_ini_benchmark(tItems[index].bch_mrk_max[i], tItems[index].bch_mrk_min[i],
-				tItems[index].type_option, tItems[index].desp, core_mp.frame_len, benchmark_str);
+				snprintf(benchmark_str, sizeof(benchmark_str), "%s",
+					BENCHMARK_KEY_NAME);
+			parser_ini_benchmark(tItems[index].bch_mrk_max[i],
+				tItems[index].bch_mrk_min[i], tItems[index].type_option,
+				tItems[index].desp, core_mp.frame_len, benchmark_str);
 
-			dump_benchmark_data(tItems[index].bch_mrk_max[i], tItems[index].bch_mrk_min[i]);
+			dump_benchmark_data(tItems[index].bch_mrk_max[i],
+				tItems[index].bch_mrk_min[i]);
 		}
 	}
 
@@ -2651,7 +2715,8 @@ static int open_test_sp(int index)
 
 	if (tItems[index].spec_option == BENCHMARK) {
 		parser_ini_benchmark(tItems[index].bench_mark_max, tItems[index].bench_mark_min,
-			tItems[index].type_option, tItems[index].desp, core_mp.frame_len, BENCHMARK_KEY_NAME);
+			tItems[index].type_option, tItems[index].desp, core_mp.frame_len,
+			BENCHMARK_KEY_NAME);
 		dump_benchmark_data(tItems[index].bench_mark_max, tItems[index].bench_mark_min);
 	}
 
@@ -2721,9 +2786,12 @@ static int open_test_sp(int index)
 
 		/* record fist frame for debug */
 		if (i == 0) {
-			ipio_memcpy(frame1_cbk700, open[i].cbk_700, core_mp.frame_len * sizeof(s32), core_mp.frame_len * sizeof(s32));
-			ipio_memcpy(frame1_cbk250, open[i].cbk_250, core_mp.frame_len * sizeof(s32), core_mp.frame_len * sizeof(s32));
-			ipio_memcpy(frame1_cbk200, open[i].cbk_200, core_mp.frame_len * sizeof(s32), core_mp.frame_len * sizeof(s32));
+			ipio_memcpy(frame1_cbk700, open[i].cbk_700, core_mp.frame_len *
+				sizeof(s32), core_mp.frame_len * sizeof(s32));
+			ipio_memcpy(frame1_cbk250, open[i].cbk_250, core_mp.frame_len *
+				sizeof(s32), core_mp.frame_len * sizeof(s32));
+			ipio_memcpy(frame1_cbk200, open[i].cbk_200, core_mp.frame_len *
+				sizeof(s32), core_mp.frame_len * sizeof(s32));
 		}
 
 		ili_dump_data(open[i].cbk_700, 10, core_mp.frame_len, core_mp.xch_len, "cbk 700");
@@ -2732,19 +2800,25 @@ static int open_test_sp(int index)
 
 		for (y = 0; y < core_mp.ych_len; y++) {
 			for (x = 0; x < core_mp.xch_len; x++) {
-				open[i].charg_rate[addr] = open[i].cbk_250[addr] * 100 / open[i].cbk_700[addr];
-				open[i].full_Open[addr] = open[i].cbk_700[addr] - open[i].cbk_200[addr];
+				open[i].charg_rate[addr] = open[i].cbk_250[addr] * 100 /
+					open[i].cbk_700[addr];
+				open[i].full_Open[addr] = open[i].cbk_700[addr] -
+					open[i].cbk_200[addr];
 				addr++;
 			}
 		}
 
-		ili_dump_data(open[i].charg_rate, 10, core_mp.frame_len, core_mp.xch_len, "origin charge rate");
-		ili_dump_data(open[i].full_Open, 10, core_mp.frame_len, core_mp.xch_len, "origin full open");
+		ili_dump_data(open[i].charg_rate, 10, core_mp.frame_len, core_mp.xch_len,
+			"origin charge rate");
+		ili_dump_data(open[i].full_Open, 10, core_mp.frame_len, core_mp.xch_len,
+			"origin full open");
 
 		addr = 0;
 		for (y = 0; y < core_mp.ych_len; y++) {
 			for (x = 0; x < core_mp.xch_len; x++) {
-				if (full_open_rate_compare(open[i].full_Open, open[i].cbk_700, x, y, tItems[index].node_type[addr], full_open_rate) == false) {
+				if (full_open_rate_compare(open[i].full_Open, open[i].cbk_700,
+					x, y, tItems[index].node_type[addr], full_open_rate)
+					== false) {
 					tItems[index].buf[(i * core_mp.frame_len) + addr] = 0;
 					open[i].charg_rate[addr] = 0;
 				}
@@ -2752,17 +2826,22 @@ static int open_test_sp(int index)
 			}
 		}
 
-		ili_dump_data(&tItems[index].buf[(i * core_mp.frame_len)], 10, core_mp.frame_len, core_mp.xch_len, "after full_open_rate_compare");
+		ili_dump_data(&tItems[index].buf[(i * core_mp.frame_len)], 10, core_mp.frame_len,
+			core_mp.xch_len, "after full_open_rate_compare");
 
 		addr = 0;
 		for (y = 0; y < core_mp.ych_len; y++) {
 			for (x = 0; x < core_mp.xch_len; x++) {
-				tItems[index].buf[(i * core_mp.frame_len) + addr] = compare_charge(open[i].charg_rate, x, y, tItems[index].node_type, Charge_AA, Charge_Border, Charge_Notch);
+				tItems[index].buf[(i * core_mp.frame_len) + addr] =
+					compare_charge(open[i].charg_rate, x, y,
+					tItems[index].node_type, Charge_AA, Charge_Border,
+					Charge_Notch);
 				addr++;
 			}
 		}
 
-		ili_dump_data(&tItems[index].buf[(i * core_mp.frame_len)], 10, core_mp.frame_len, core_mp.xch_len, "after compare charge rate");
+		ili_dump_data(&tItems[index].buf[(i * core_mp.frame_len)], 10, core_mp.frame_len,
+			core_mp.xch_len, "after compare charge rate");
 
 		compare_MaxMin_result(index, &tItems[index].buf[(i * core_mp.frame_len)]);
 	}
@@ -2847,7 +2926,8 @@ static int open_test_cap(int index)
 
 	if (tItems[index].spec_option == BENCHMARK) {
 		parser_ini_benchmark(tItems[index].bench_mark_max, tItems[index].bench_mark_min,
-				tItems[index].type_option, tItems[index].desp, core_mp.frame_len, BENCHMARK_KEY_NAME);
+			tItems[index].type_option, tItems[index].desp, core_mp.frame_len,
+			BENCHMARK_KEY_NAME);
 		dump_benchmark_data(tItems[index].bench_mark_max, tItems[index].bench_mark_min);
 	}
 
@@ -2876,7 +2956,8 @@ static int open_test_cap(int index)
 		}
 	}
 
-	ILI_INFO("gain = %d, tvch = %d, tvcl = %d, cbk_step = %d, cint = %d\n", open_para.gain, open_para.tvch, open_para.tvcl, open_para.cbk_step, open_para.cint);
+	ILI_INFO("gain = %d, tvch = %d, tvcl = %d, cbk_step = %d, cint = %d\n", open_para.gain,
+		open_para.tvch, open_para.tvcl, open_para.cbk_step, open_para.cint);
 	for (i = 0; i < tItems[index].frame_count; i++) {
 		open[i].cap_dac = kcalloc(core_mp.frame_len, sizeof(s32), GFP_KERNEL);
 		open[i].cap_raw = kcalloc(core_mp.frame_len, sizeof(s32), GFP_KERNEL);
@@ -2899,8 +2980,10 @@ static int open_test_cap(int index)
 
 		/* record fist frame for debug */
 		if (i == 0) {
-			ipio_memcpy(cap_dac, open[i].cap_dac, core_mp.frame_len * sizeof(s32), core_mp.frame_len * sizeof(s32));
-			ipio_memcpy(cap_raw, open[i].cap_raw, core_mp.frame_len * sizeof(s32), core_mp.frame_len * sizeof(s32));
+			ipio_memcpy(cap_dac, open[i].cap_dac, core_mp.frame_len * sizeof(s32),
+				core_mp.frame_len * sizeof(s32));
+			ipio_memcpy(cap_raw, open[i].cap_raw, core_mp.frame_len * sizeof(s32),
+				core_mp.frame_len * sizeof(s32));
 		}
 
 		ili_dump_data(open[i].dcl_cap, 10, core_mp.frame_len, core_mp.xch_len, "DCL_Cap");
@@ -2908,7 +2991,8 @@ static int open_test_cap(int index)
 		addr = 0;
 		for (y = 0; y < core_mp.ych_len; y++) {
 			for (x = 0; x < core_mp.xch_len; x++) {
-				tItems[index].buf[(i * core_mp.frame_len) + addr] = open[i].dcl_cap[addr];
+				tItems[index].buf[(i * core_mp.frame_len) + addr] =
+					open[i].dcl_cap[addr];
 				addr++;
 			}
 		}
@@ -2982,8 +3066,6 @@ static int mp_get_timing_info(void)
 	u8 info[64] = {0};
 	char *key = "timing_info_raw";
 
-	core_mp.isLongV = 0;
-
 	slen = parser_get_int_data("pv5_4 command", key, str, sizeof(str));
 	if (slen < 0)
 		return -1;
@@ -3018,7 +3100,8 @@ static int mp_test_data_sort_average(s32 *oringin_data, int index, s32 *avg_resu
 		goto out;
 	}
 
-	u32data_buff = kcalloc(core_mp.frame_len * tItems[index].frame_count, sizeof(s32), GFP_KERNEL);
+	u32data_buff = kcalloc(core_mp.frame_len * tItems[index].frame_count, sizeof(s32),
+		GFP_KERNEL);
 	if (ERR_ALLOC_MEM(u32data_buff)) {
 		ILI_ERR("Failed to allocate u32data_buff FRAME buffer\n");
 		ret = -ENOMEM;
@@ -3033,23 +3116,23 @@ static int mp_test_data_sort_average(s32 *oringin_data, int index, s32 *avg_resu
 	}
 
 	size = core_mp.frame_len * tItems[index].frame_count;
-	for (i = 0; i < size; i++) {
+	for (i = 0; i < size; i++)
 		u32data_buff[i] = oringin_data[i];
-	}
 
 	u32up_frame = tItems[index].frame_count * tItems[index].highest_percentage / 100;
 	u32down_frame = tItems[index].frame_count * tItems[index].lowest_percentage / 100;
 	ILI_DBG("Up=%d, Down=%d -%s\n", u32up_frame, u32down_frame, tItems[index].desp);
 
 	if (debug_en) {
-		pr_cont("\n[Show Original frist%d and last%d node data]\n", len, len);
+		pr_info("\nILITEK: [Show Original frist%d and last%d node data]\n", len, len);
 		for (i = 0; i < core_mp.frame_len; i++) {
 			for (j = 0 ; j < tItems[index].frame_count ; j++) {
 				if ((i < len) || (i >= (core_mp.frame_len-len)))
-					pr_cont("%d,", u32data_buff[j * core_mp.frame_len + i]);
+					pr_info("\n%d,\n", u32data_buff[j * core_mp.frame_len
+						+ i]);
 			}
 			if ((i < len) || (i >= (core_mp.frame_len-len)))
-				pr_cont("\n");
+				pr_info("\n");
 		}
 	}
 
@@ -3068,14 +3151,15 @@ static int mp_test_data_sort_average(s32 *oringin_data, int index, s32 *avg_resu
 	}
 
 	if (debug_en) {
-		pr_cont("\n[After sorting frist%d and last%d node data]\n", len, len);
+		pr_info("\nILITEK: [After sorting frist%d and last%d node data]\n", len, len);
 		for (i = 0; i < core_mp.frame_len; i++) {
 			for (j = u32down_frame; j < tItems[index].frame_count - u32up_frame; j++) {
 				if ((i < len) || (i >= (core_mp.frame_len - len)))
-					pr_cont("%d,", u32data_buff[i + j * core_mp.frame_len]);
+					pr_info("\n%d,\n", u32data_buff[i + j *
+						core_mp.frame_len]);
 			}
 			if ((i < len) || (i >= (core_mp.frame_len-len)))
-				pr_cont("\n");
+				pr_info("\n");
 		}
 	}
 
@@ -3084,17 +3168,18 @@ static int mp_test_data_sort_average(s32 *oringin_data, int index, s32 *avg_resu
 		for (j = u32down_frame; j < tItems[index].frame_count - u32up_frame; j++)
 			u32sum_raw_data[i] += u32data_buff[i + j * core_mp.frame_len];
 
-		avg_result[i] = u32sum_raw_data[i] / (tItems[index].frame_count - u32down_frame - u32up_frame);
+		avg_result[i] = u32sum_raw_data[i] / (tItems[index].frame_count - u32down_frame -
+			u32up_frame);
 	}
 
 	if (debug_en) {
-		pr_cont("\n[Average result frist%d and last%d node data]\n", len, len);
+		pr_info("\nILITEK: [Average result frist%d and last%d node data]\n", len, len);
 		for (i = 0; i < core_mp.frame_len; i++) {
 			if ((i < len) || (i >= (core_mp.frame_len-len)))
-				pr_cont("%d,", avg_result[i]);
+				pr_info("\n%d,\n", avg_result[i]);
 		}
 		if ((i < len) || (i >= (core_mp.frame_len-len)))
-			pr_cont("\n");
+			pr_info("\n");
 	}
 
 out:
@@ -3123,7 +3208,8 @@ static void mp_compare_cdc_result(int index, s32 *tmp, s32 *max_ts, s32 *min_ts,
 	} else {
 		for (i = 0; i < core_mp.frame_len; i++) {
 			if (tmp[i] > max_ts[i] || tmp[i] < min_ts[i]) {
-				ILI_DBG("Fail No.%d: max=%d, val=%d, min=%d\n", i, max_ts[i], tmp[i], min_ts[i]);
+				ILI_DBG("Fail No.%d: max=%d, val=%d, min=%d\n", i, max_ts[i],
+					tmp[i], min_ts[i]);
 				*result = MP_DATA_FAIL;
 				return;
 			}
@@ -3156,7 +3242,8 @@ static int mp_compare_test_result(int index)
 	/* Show test result as below */
 	if (tItems[index].catalog == TX_RX_DELTA) {
 		if (ERR_ALLOC_MEM(core_mp.rx_delta_buf) || ERR_ALLOC_MEM(core_mp.tx_delta_buf)) {
-			ILI_ERR("This test item (%s) has no data inside its buffer\n", tItems[index].desp);
+			ILI_ERR("This test item (%s) has no data inside its buffer\n",
+				tItems[index].desp);
 			test_result = MP_DATA_FAIL;
 			goto out;
 		}
@@ -3165,20 +3252,26 @@ static int mp_compare_test_result(int index)
 			max_threshold[i] = core_mp.TxDeltaMax;
 			min_threshold[i] = core_mp.TxDeltaMin;
 		}
-		mp_compare_cdc_result(index, core_mp.tx_max_buf, max_threshold, min_threshold, &test_result);
-		mp_compare_cdc_result(index, core_mp.tx_min_buf, max_threshold, min_threshold, &test_result);
+		mp_compare_cdc_result(index, core_mp.tx_max_buf, max_threshold, min_threshold,
+			&test_result);
+		mp_compare_cdc_result(index, core_mp.tx_min_buf, max_threshold, min_threshold,
+			&test_result);
 
 		for (i = 0; i < core_mp.frame_len; i++) {
 			max_threshold[i] = core_mp.RxDeltaMax;
 			min_threshold[i] = core_mp.RxDeltaMin;
 		}
 
-		mp_compare_cdc_result(index, core_mp.rx_max_buf, max_threshold, min_threshold, &test_result);
-		mp_compare_cdc_result(index, core_mp.rx_min_buf, max_threshold, min_threshold, &test_result);
+		mp_compare_cdc_result(index, core_mp.rx_max_buf, max_threshold, min_threshold,
+			&test_result);
+		mp_compare_cdc_result(index, core_mp.rx_min_buf, max_threshold, min_threshold,
+			&test_result);
 	} else {
 		if (ERR_ALLOC_MEM(tItems[index].buf) || ERR_ALLOC_MEM(tItems[index].max_buf) ||
-				ERR_ALLOC_MEM(tItems[index].min_buf) || ERR_ALLOC_MEM(tItems[index].result_buf)) {
-			ILI_ERR("This test item (%s) has no data inside its buffer\n", tItems[index].desp);
+			ERR_ALLOC_MEM(tItems[index].min_buf) ||
+			ERR_ALLOC_MEM(tItems[index].result_buf)) {
+			ILI_ERR("This test item (%s) has no data inside its buffer\n",
+				tItems[index].desp);
 			test_result = MP_DATA_FAIL;
 			goto out;
 		}
@@ -3204,16 +3297,21 @@ static int mp_compare_test_result(int index)
 
 		/* general result */
 		if (tItems[index].trimmed_mean && tItems[index].catalog != PEAK_TO_PEAK_TEST) {
-			mp_test_data_sort_average(tItems[index].buf, index, tItems[index].result_buf);
-			mp_compare_cdc_result(index, tItems[index].result_buf, max_threshold, min_threshold, &test_result);
+			mp_test_data_sort_average(tItems[index].buf, index,
+				tItems[index].result_buf);
+			mp_compare_cdc_result(index, tItems[index].result_buf, max_threshold,
+				min_threshold, &test_result);
 		} else {
 			if (tItems[index].bch_mrk_multi) {
-				for (i = 0; i < tItems[index].bch_mrk_frm_num; i++) {
-					mp_compare_cdc_result(index, frm_buf[i], tItems[index].bch_mrk_max[i], tItems[index].bch_mrk_min[i], &test_result);
-				}
+				for (i = 0; i < tItems[index].bch_mrk_frm_num; i++)
+					mp_compare_cdc_result(index, frm_buf[i],
+					tItems[index].bch_mrk_max[i],
+					tItems[index].bch_mrk_min[i], &test_result);
 			} else {
-				mp_compare_cdc_result(index, tItems[index].max_buf, max_threshold, min_threshold, &test_result);
-				mp_compare_cdc_result(index, tItems[index].min_buf, max_threshold, min_threshold, &test_result);
+				mp_compare_cdc_result(index, tItems[index].max_buf, max_threshold,
+					min_threshold, &test_result);
+				mp_compare_cdc_result(index, tItems[index].min_buf, max_threshold,
+					min_threshold, &test_result);
 			}
 		}
 	}
@@ -3230,9 +3328,8 @@ out:
 		kfree(frm_buf);
 		frm_buf = NULL;
 	}
-	if (ilits->eng_flow == true) {
+	if (ilits->eng_flow)
 		test_result = MP_DATA_PASS;
-	}
 	tItems[index].item_result = test_result;
 	return test_result;
 }
@@ -3259,9 +3356,6 @@ static int mp_show_result(bool lcm_on)
 	s32 *max_threshold = NULL, *min_threshold = NULL;
 	char *csv = NULL;
 	char *ret_pass_name = NULL, *ret_fail_name = NULL;
-	struct file *f = NULL;
-	mm_segment_t fs;
-	loff_t pos;
 
 	csv = vmalloc(CSV_FILE_SIZE);
 	if (ERR_ALLOC_MEM(csv)) {
@@ -3290,34 +3384,42 @@ static int mp_show_result(bool lcm_on)
 		get_frame_cont = 1;
 
 		if (tItems[i].item_result == MP_DATA_PASS) {
-			pr_info("\n[%s],OK \n\n", tItems[i].desp);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "\n[%s],OK\n\n", tItems[i].desp);
+			pr_info("\n[%s],OK\n\n", tItems[i].desp);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"\n[%s],OK\n\n", tItems[i].desp);
 		} else {
-			pr_info("\n[%s],NG \n\n", tItems[i].desp);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "\n[%s],NG\n\n", tItems[i].desp);
+			pr_info("\n[%s],NG\n\n", tItems[i].desp);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"\n[%s],NG\n\n", tItems[i].desp);
 		}
 
 		if (tItems[i].catalog == PIN_TEST) {
 			pr_info("Test INT Pin = %d\n", tItems[i].test_int_pin);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "Test INT Pin = %d\n", tItems[i].test_int_pin);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"Test INT Pin = %d\n", tItems[i].test_int_pin);
 			pr_info("Pulse Test = %d\n", tItems[i].int_pulse_test);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "Pulse Test = %d\n", tItems[i].int_pulse_test);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"Pulse Test = %d\n", tItems[i].int_pulse_test);
 			pr_info("Delay Time = %d\n", tItems[i].delay_time);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "Delay Time = %d\n", tItems[i].delay_time);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"Delay Time = %d\n", tItems[i].delay_time);
 			continue;
 		}
 
 		mp_print_csv_cdc_cmd(csv, &csv_len, i, CSV_FILE_SIZE);
 
 		pr_info("Frame count = %d\n", tItems[i].frame_count);
-		csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "Frame count = %d\n", tItems[i].frame_count);
+		csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+			"Frame count = %d\n", tItems[i].frame_count);
 
 		if (tItems[i].trimmed_mean && tItems[i].catalog != PEAK_TO_PEAK_TEST) {
 			pr_info("lowest percentage = %d\n", tItems[i].lowest_percentage);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "lowest percentage = %d\n", tItems[i].lowest_percentage);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"lowest percentage = %d\n", tItems[i].lowest_percentage);
 
 			pr_info("highest percentage = %d\n", tItems[i].highest_percentage);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "highest percentage = %d\n", tItems[i].highest_percentage);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"highest percentage = %d\n", tItems[i].highest_percentage);
 		}
 
 		/* Show result of benchmark max and min */
@@ -3330,18 +3432,29 @@ static int mp_show_result(bool lcm_on)
 
 				for (j = 0; j < tItems[i].bch_mrk_frm_num; j++) {
 					char bench_name[128] = {0};
-					snprintf(bench_name, (CSV_FILE_SIZE - csv_len), "Max_Bench%d", (j+1));
-					mp_compare_cdc_show_result(i, tItems[i].bch_mrk_max[j], csv, &csv_len, TYPE_BENCHMARK, max_threshold, min_threshold, bench_name, CSV_FILE_SIZE);
-					snprintf(bench_name, (CSV_FILE_SIZE - csv_len), "Min_Bench%d", (j+1));
-					mp_compare_cdc_show_result(i, tItems[i].bch_mrk_min[j], csv, &csv_len, TYPE_BENCHMARK, max_threshold, min_threshold, bench_name, CSV_FILE_SIZE);
+
+					snprintf(bench_name, (CSV_FILE_SIZE - csv_len),
+						"Max_Bench%d", (j+1));
+					mp_compare_cdc_show_result(i, tItems[i].bch_mrk_max[j],
+						csv, &csv_len, TYPE_BENCHMARK, max_threshold,
+						min_threshold, bench_name, CSV_FILE_SIZE);
+					snprintf(bench_name, (CSV_FILE_SIZE - csv_len),
+						"Min_Bench%d", (j+1));
+					mp_compare_cdc_show_result(i, tItems[i].bch_mrk_min[j],
+						csv, &csv_len, TYPE_BENCHMARK, max_threshold,
+						min_threshold, bench_name, CSV_FILE_SIZE);
 				}
 			} else {
 				for (j = 0; j < core_mp.frame_len; j++) {
 					max_threshold[j] = tItems[i].bench_mark_max[j];
 					min_threshold[j] = tItems[i].bench_mark_min[j];
 				}
-				mp_compare_cdc_show_result(i, tItems[i].bench_mark_max, csv, &csv_len, TYPE_BENCHMARK, max_threshold, min_threshold, "Max_Bench", CSV_FILE_SIZE);
-				mp_compare_cdc_show_result(i, tItems[i].bench_mark_min, csv, &csv_len, TYPE_BENCHMARK, max_threshold, min_threshold, "Min_Bench", CSV_FILE_SIZE);
+				mp_compare_cdc_show_result(i, tItems[i].bench_mark_max, csv,
+					&csv_len, TYPE_BENCHMARK, max_threshold, min_threshold,
+					"Max_Bench", CSV_FILE_SIZE);
+				mp_compare_cdc_show_result(i, tItems[i].bench_mark_min, csv,
+					&csv_len, TYPE_BENCHMARK, max_threshold, min_threshold,
+					"Min_Bench", CSV_FILE_SIZE);
 			}
 
 		} else {
@@ -3351,32 +3464,42 @@ static int mp_show_result(bool lcm_on)
 			}
 
 			pr_info("Max = %d\n", tItems[i].max);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "Max = %d\n", tItems[i].max);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"Max = %d\n", tItems[i].max);
 
 			pr_info("Min = %d\n", tItems[i].min);
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "Min = %d\n", tItems[i].min);
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+				"Min = %d\n", tItems[i].min);
 		}
 
 		if (ipio_strcmp(tItems[i].desp, "open test(integration)_sp") == 0) {
-			mp_compare_cdc_show_result(i, frame1_cbk700, csv, &csv_len, TYPE_NO_JUGE, max_threshold, min_threshold, "frame1 cbk700", CSV_FILE_SIZE);
-			mp_compare_cdc_show_result(i, frame1_cbk250, csv, &csv_len, TYPE_NO_JUGE, max_threshold, min_threshold, "frame1 cbk250", CSV_FILE_SIZE);
-			mp_compare_cdc_show_result(i, frame1_cbk200, csv, &csv_len, TYPE_NO_JUGE, max_threshold, min_threshold, "frame1 cbk200", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, frame1_cbk700, csv, &csv_len, TYPE_NO_JUGE,
+				max_threshold, min_threshold, "frame1 cbk700", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, frame1_cbk250, csv, &csv_len, TYPE_NO_JUGE,
+				max_threshold, min_threshold, "frame1 cbk250", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, frame1_cbk200, csv, &csv_len, TYPE_NO_JUGE,
+				max_threshold, min_threshold, "frame1 cbk200", CSV_FILE_SIZE);
 		}
 
 		if (ipio_strcmp(tItems[i].desp, "open test_c") == 0) {
-			mp_compare_cdc_show_result(i, cap_dac, csv, &csv_len, TYPE_NO_JUGE, max_threshold, min_threshold, "CAP_DAC", CSV_FILE_SIZE);
-			mp_compare_cdc_show_result(i, cap_raw, csv, &csv_len, TYPE_NO_JUGE, max_threshold, min_threshold, "CAP_RAW", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, cap_dac, csv, &csv_len, TYPE_NO_JUGE,
+				max_threshold, min_threshold, "CAP_DAC", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, cap_raw, csv, &csv_len, TYPE_NO_JUGE,
+				max_threshold, min_threshold, "CAP_RAW", CSV_FILE_SIZE);
 		}
 
 		if (tItems[i].catalog == TX_RX_DELTA) {
-			if (ERR_ALLOC_MEM(core_mp.rx_delta_buf) || ERR_ALLOC_MEM(core_mp.tx_delta_buf)) {
-				ILI_ERR("This test item (%s) has no data inside its buffer\n", tItems[i].desp);
+			if (ERR_ALLOC_MEM(core_mp.rx_delta_buf) ||
+				ERR_ALLOC_MEM(core_mp.tx_delta_buf)) {
+				ILI_ERR("This test item (%s) has no data inside its buffer\n",
+					tItems[i].desp);
 				continue;
 			}
 		} else {
 			if (ERR_ALLOC_MEM(tItems[i].buf) || ERR_ALLOC_MEM(tItems[i].max_buf) ||
 					ERR_ALLOC_MEM(tItems[i].min_buf)) {
-				ILI_ERR("This test item (%s) has no data inside its buffer\n", tItems[i].desp);
+				ILI_ERR("This test item (%s) has no data inside its buffer\n",
+					tItems[i].desp);
 				continue;
 			}
 		}
@@ -3385,41 +3508,57 @@ static int mp_show_result(bool lcm_on)
 		if (tItems[i].catalog == KEY_TEST) {
 			for (x = 0; x < core_mp.key_len; x++) {
 				DUMP("KEY_%02d ", x);
-				csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "KEY_%02d,", x);
+				csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+					"KEY_%02d,", x);
 			}
 
 			DUMP("\n");
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "\n");
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "\n");
 
 			for (y = 0; y < core_mp.key_len; y++) {
 				DUMP(" %3d   ", tItems[i].buf[y]);
-				csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), " %3d, ", tItems[i].buf[y]);
+				csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len),
+					" %3d, ", tItems[i].buf[y]);
 			}
 
 			DUMP("\n");
-			csv_len += snprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "\n");
+			csv_len += scnprintf(csv + csv_len, (CSV_FILE_SIZE - csv_len), "\n");
 		} else if (tItems[i].catalog == TX_RX_DELTA) {
 			for (j = 0; j < core_mp.frame_len; j++) {
 				max_threshold[j] = core_mp.TxDeltaMax;
 				min_threshold[j] = core_mp.TxDeltaMin;
 			}
-			mp_compare_cdc_show_result(i, core_mp.tx_max_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "TX Max Hold", CSV_FILE_SIZE);
-			mp_compare_cdc_show_result(i, core_mp.tx_min_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "TX Min Hold", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, core_mp.tx_max_buf, csv, &csv_len,
+				TYPE_JUGE, max_threshold, min_threshold, "TX Max Hold",
+				CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, core_mp.tx_min_buf, csv, &csv_len,
+				TYPE_JUGE, max_threshold, min_threshold, "TX Min Hold",
+				CSV_FILE_SIZE);
 
 			for (j = 0; j < core_mp.frame_len; j++) {
 				max_threshold[j] = core_mp.RxDeltaMax;
 				min_threshold[j] = core_mp.RxDeltaMin;
 			}
-			mp_compare_cdc_show_result(i, core_mp.rx_max_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "RX Max Hold", CSV_FILE_SIZE);
-			mp_compare_cdc_show_result(i, core_mp.rx_min_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "RX Min Hold", CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, core_mp.rx_max_buf, csv, &csv_len,
+				TYPE_JUGE, max_threshold, min_threshold, "RX Max Hold",
+				CSV_FILE_SIZE);
+			mp_compare_cdc_show_result(i, core_mp.rx_min_buf, csv, &csv_len,
+				TYPE_JUGE, max_threshold, min_threshold, "RX Min Hold",
+				CSV_FILE_SIZE);
 		} else {
 			/* general result */
 			if (tItems[i].trimmed_mean && tItems[i].catalog != PEAK_TO_PEAK_TEST) {
-				mp_compare_cdc_show_result(i, tItems[i].result_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "Mean result", CSV_FILE_SIZE);
+				mp_compare_cdc_show_result(i, tItems[i].result_buf, csv, &csv_len,
+					TYPE_JUGE, max_threshold, min_threshold, "Mean result",
+					CSV_FILE_SIZE);
 			} else {
 				if (!tItems[i].bch_mrk_multi) {
-					mp_compare_cdc_show_result(i, tItems[i].max_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "Max Hold", CSV_FILE_SIZE);
-					mp_compare_cdc_show_result(i, tItems[i].min_buf, csv, &csv_len, TYPE_JUGE, max_threshold, min_threshold, "Min Hold", CSV_FILE_SIZE);
+					mp_compare_cdc_show_result(i, tItems[i].max_buf, csv,
+						&csv_len, TYPE_JUGE, max_threshold, min_threshold,
+						"Max Hold", CSV_FILE_SIZE);
+					mp_compare_cdc_show_result(i, tItems[i].min_buf, csv,
+						&csv_len, TYPE_JUGE, max_threshold, min_threshold,
+						"Min Hold", CSV_FILE_SIZE);
 				}
 
 			}
@@ -3433,7 +3572,9 @@ static int mp_show_result(bool lcm_on)
 			for (j = 0; j < get_frame_cont; j++) {
 				char frame_name[128] = {0};
 				snprintf(frame_name, (CSV_FILE_SIZE - csv_len), "Frame %d", (j+1));
-				mp_compare_cdc_show_result(i, &tItems[i].buf[(j*core_mp.frame_len)], csv, &csv_len, TYPE_NO_JUGE, max_threshold, min_threshold, frame_name, CSV_FILE_SIZE);
+				mp_compare_cdc_show_result(i, &tItems[i].buf[(j*core_mp.frame_len)]
+					, csv, &csv_len, TYPE_NO_JUGE, max_threshold,
+					min_threshold, frame_name, CSV_FILE_SIZE);
 			}
 		}
 	}
@@ -3467,9 +3608,11 @@ static int mp_show_result(bool lcm_on)
 		}
 
 		if (lcm_on)
-			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv", CSV_LCM_ON_PATH, get_date_time_str(), ret_fail_name);
+			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv",
+				CSV_LCM_ON_PATH, get_date_time_str(), ret_fail_name);
 		else
-			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv", CSV_LCM_OFF_PATH, get_date_time_str(), ret_fail_name);
+			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv",
+				CSV_LCM_OFF_PATH, get_date_time_str(), ret_fail_name);
 	} else {
 		core_mp.final_result = MP_DATA_PASS;
 		ret = MP_DATA_PASS;
@@ -3481,21 +3624,14 @@ static int mp_show_result(bool lcm_on)
 		}
 
 		if (lcm_on)
-			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv", CSV_LCM_ON_PATH, get_date_time_str(), ret_pass_name);
+			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv",
+			CSV_LCM_ON_PATH, get_date_time_str(), ret_pass_name);
 		else
-			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv", CSV_LCM_OFF_PATH, get_date_time_str(), ret_pass_name);
+			snprintf(csv_name, (CSV_FILE_SIZE - csv_len), "%s/%s_%s.csv",
+			CSV_LCM_OFF_PATH, get_date_time_str(), ret_pass_name);
 	}
 
 	ILI_INFO("Open CSV : %s\n", csv_name);
-
-	if (f == NULL)
-		f = filp_open(csv_name, O_WRONLY | O_CREAT | O_TRUNC, 644);
-
-	if (ERR_ALLOC_MEM(f)) {
-		ILI_ERR("Failed to open CSV file");
-		ret = -EMP_NOMEM;
-		goto fail_open;
-	}
 
 	ILI_INFO("Open CSV succeed, its length = %d\n ", csv_len);
 
@@ -3505,12 +3641,11 @@ static int mp_show_result(bool lcm_on)
 		goto fail_open;
 	}
 
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-	pos = 0;
-	vfs_write(f, csv, csv_len, &pos);
-	set_fs(fs);
-	filp_close(f, NULL);
+	ret = ilitek_write_file(csv_name, csv, csv_len);
+	if (ret < 0) {
+		ILI_ERR("Failed to write CSV file, ret = %d\n", ret);
+		goto fail_open;
+	}
 
 	ILI_INFO("Writing Data into CSV succeed\n");
 
@@ -3609,7 +3744,7 @@ static void ilitek_tddi_mp_init_item(void)
 			tItems[i].do_test = mutual_test;
 		} else if (tItems[i].catalog == UNTOUCH_P2P) {
 			tItems[i].do_test = mutual_test;
-		} else if (tItems[i].catalog == PIXEL) {
+		} else if (tItems[i].catalog == PIXEL_TEST) {
 			tItems[i].do_test = mutual_test;
 		} else if (tItems[i].catalog == OPEN_TEST) {
 			if (ipio_strcmp(tItems[i].desp, "open test(integration)_sp") == 0)
@@ -3680,7 +3815,7 @@ static void mp_p2p_td_retry_after_ra_fail(int p2p_td)
 	ILI_DBG("i = %d, p2p_noise_ret = %d, p2p_noise_run = %d\n",
 		i, tItems[i].item_result, tItems[i].run);
 
-	if (tItems[i].item_result == MP_DATA_PASS && tItems[i].run == 1)
+	if (tItems[i].item_result == MP_DATA_PASS && tItems[i].run)
 		tItems[p2p_td].do_test(p2p_td);
 }
 
@@ -3773,8 +3908,12 @@ static void mp_test_run(int index)
 			tItems[i].bch_mrk_multi = true;
 			for (j = 1; j < 11; j++) {
 				char tmp[8] = {0};
-				/* format complete string from the name of section "_Benchmark_Data". */
-				snprintf(str, sizeof(str), "%s%s%s%d", tItems[index].desp, "_", BENCHMARK_KEY_NAME, j);
+				/*
+				 * format complete string from the name of section
+				 * "_Benchmark_Data".
+				 */
+				snprintf(str, sizeof(str), "%s%s%s%d", tItems[index].desp, "_",
+					BENCHMARK_KEY_NAME, j);
 				if (parser_get_int_data(str, str, tmp, sizeof(tmp)) <= 0)
 					break;
 
@@ -3828,42 +3967,40 @@ static void mp_test_free(void)
 		tItems[i].item_result = MP_DATA_PASS;
 
 		if (tItems[i].catalog == TX_RX_DELTA) {
-				ipio_kfree((void **)&core_mp.rx_delta_buf);
-				ipio_kfree((void **)&core_mp.tx_delta_buf);
-				ipio_kfree((void **)&core_mp.tx_max_buf);
-				ipio_kfree((void **)&core_mp.tx_min_buf);
-				ipio_kfree((void **)&core_mp.rx_max_buf);
-				ipio_kfree((void **)&core_mp.rx_min_buf);
-		} else {
-			if (tItems[i].spec_option == BENCHMARK) {
-				ipio_kfree((void **)&tItems[i].bench_mark_max);
-				ipio_kfree((void **)&tItems[i].bench_mark_min);
-				if (tItems[i].bch_mrk_max != NULL) {
-					for (j = 0; j < tItems[i].bch_mrk_frm_num; j++)
-						if (tItems[i].bch_mrk_max[j] != NULL) {
-							kfree(tItems[i].bch_mrk_max[j]);
-							tItems[i].bch_mrk_max[j] = NULL;
-						}
-					kfree(tItems[i].bch_mrk_max);
-					tItems[i].bch_mrk_max = NULL;
-				}
-				if (tItems[i].bch_mrk_min != NULL) {
-					for (j = 0; j < tItems[i].bch_mrk_frm_num; j++)
-						if (tItems[i].bch_mrk_min[j] != NULL) {
-							kfree(tItems[i].bch_mrk_min[j]);
-							tItems[i].bch_mrk_min[j] = NULL;
-						}
-					kfree(tItems[i].bch_mrk_min);
-					tItems[i].bch_mrk_min = NULL;
-				}
-			}
-			ipio_kfree((void **)&tItems[i].node_type);
-			ipio_kfree((void **)&tItems[i].result);
-			ipio_kfree((void **)&tItems[i].result_buf);
-			ipio_kfree((void **)&tItems[i].max_buf);
-			ipio_kfree((void **)&tItems[i].min_buf);
-			ipio_vfree((void **)&tItems[i].buf);
+			ipio_kfree((void **)&core_mp.rx_delta_buf);
+			ipio_kfree((void **)&core_mp.tx_delta_buf);
+			ipio_kfree((void **)&core_mp.tx_max_buf);
+			ipio_kfree((void **)&core_mp.tx_min_buf);
+			ipio_kfree((void **)&core_mp.rx_max_buf);
+			ipio_kfree((void **)&core_mp.rx_min_buf);
+			continue;
 		}
+		if (tItems[i].spec_option == BENCHMARK) {
+			ipio_kfree((void **)&tItems[i].bench_mark_max);
+			ipio_kfree((void **)&tItems[i].bench_mark_min);
+			if (tItems[i].bch_mrk_max != NULL || tItems[i].bch_mrk_min !=
+				NULL) {
+				for (j = 0; j < tItems[i].bch_mrk_frm_num; j++) {
+					if ((tItems[i].bch_mrk_max[j] != NULL) ||
+						(tItems[i].bch_mrk_min[j] != NULL)) {
+						kfree(tItems[i].bch_mrk_max[j]);
+						tItems[i].bch_mrk_max[j] = NULL;
+						kfree(tItems[i].bch_mrk_min[j]);
+						tItems[i].bch_mrk_min[j] = NULL;
+					}
+				}
+				kfree(tItems[i].bch_mrk_max);
+				kfree(tItems[i].bch_mrk_min);
+				tItems[i].bch_mrk_min = NULL;
+				tItems[i].bch_mrk_max = NULL;
+			}
+		}
+		ipio_kfree((void **)&tItems[i].node_type);
+		ipio_kfree((void **)&tItems[i].result);
+		ipio_kfree((void **)&tItems[i].result_buf);
+		ipio_kfree((void **)&tItems[i].max_buf);
+		ipio_kfree((void **)&tItems[i].min_buf);
+		ipio_vfree((void **)&tItems[i].buf);
 	}
 
 	ipio_kfree((void **)&frame1_cbk700);
@@ -3892,15 +4029,15 @@ static void mp_copy_ret_to_apk(char *buf)
 		return;
 	}
 
-	len += snprintf(buf + len, PAGE_SIZE - len, "CSV path: %s\n\n", csv_name);
+	len += scnprintf(buf + len, 4096 - len, "CSV path: %s\n\n", csv_name);
 	for (seq = 0; seq < ri.count; seq++) {
 		i = ri.index[seq];
 		if (tItems[i].item_result == MP_DATA_FAIL) {
 			ILI_ERR("[%s] = FAIL\n", tItems[i].desp);
-			len += snprintf(buf + len, PAGE_SIZE - len, "[%s] = FAIL\n", tItems[i].desp);
+			len += scnprintf(buf + len, 4096 - len, "[%s] = FAIL\n", tItems[i].desp);
 		} else {
 			ILI_INFO("[%s] = PASS\n", tItems[i].desp);
-			len += snprintf(buf + len, PAGE_SIZE - len, "[%s] = PASS\n", tItems[i].desp);
+			len += scnprintf(buf + len, 4096 - len, "[%s] = PASS\n", tItems[i].desp);
 		}
 	}
 	ilits->mp_ret_len = len;
@@ -3921,13 +4058,13 @@ static int mp_sort_item(bool lcm_on)
 
 			parser_get_int_data(tItems[j].desp, "enable", str, sizeof(str));
 			tItems[j].run = ili_katoi(str);
-			if (tItems[j].run != 1 || tItems[j].lcm != lcm_on)
+			if (!(tItems[j].run) || tItems[j].lcm != lcm_on)
 				continue;
 
-			if (ri.count > MP_TEST_ITEM) {
-				ILI_ERR("Test item(%d) is invaild, abort\n", ri.count);
-				return -EINVAL;
-			}
+	if (ri.count > MP_TEST_ITEM) {
+		ILI_ERR("Test item(%d) is invalid, abort\n", ri.count);
+		return -EINVAL;
+	}
 
 			ri.index[ri.count] = j;
 			ri.count++;
@@ -3948,7 +4085,7 @@ int ili_mp_test_main(char *apk, bool lcm_on)
 	}
 
 	if (ini_info == NULL) {
-		ini_info = (struct ini_file_data *)vmalloc(sizeof(struct ini_file_data) * PARSER_MAX_KEY_NUM);
+		ini_info = vmalloc(sizeof(struct ini_file_data) * PARSER_MAX_KEY_NUM);
 		if (ERR_ALLOC_MEM(ini_info)) {
 			ILI_ERR("Failed to malloc ini_info\n");
 			ret = -EMP_NOMEM;
@@ -3971,7 +4108,7 @@ int ili_mp_test_main(char *apk, bool lcm_on)
 	parser_get_ini_key_value("pv5_4 command", "protocol", str);
 	snprintf(ver, sizeof(ver), "0x%s", str);
 	if ((ili_str2hex(ver)) != (core_mp.protocol_ver >> 8)) {
-		ILI_ERR("ERROR! MP Protocol version is invaild, 0x%x\n", ili_str2hex(ver));
+		ILI_ERR("ERROR! MP Protocol version is invalid, 0x%x\n", ili_str2hex(ver));
 		ret = -EMP_PROTOCOL;
 		goto out;
 	}

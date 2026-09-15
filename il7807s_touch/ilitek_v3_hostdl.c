@@ -143,7 +143,7 @@ static int calc_hw_dma_crc(u32 start_addr, u32 block_size)
 
 	/* Polling BIT0 */
 	while (count > 0) {
-		mdelay(1);
+		usleep_range(1000, 2000);
 		if (ili_ice_mode_read(0x048006, &busy, sizeof(u8)) < 0)
 			ILI_ERR("Read busy error\n");
 		ILI_DBG("busy = %x\n", busy);
@@ -209,9 +209,6 @@ static int ilitek_tddi_fw_iram_read(u8 *buf, u32 start, int len)
 
 int ili_fw_dump_iram_data(u32 start, u32 end, bool save, bool mcu)
 {
-	struct file *f = NULL;
-	mm_segment_t old_fs;
-	loff_t pos = 0;
 	int i, ret = 0;
 	int len, tmp = debug_en;
 	bool ice = atomic_read(&ilits->ice_stat);
@@ -242,22 +239,14 @@ int ili_fw_dump_iram_data(u32 start, u32 end, bool save, bool mcu)
 	}
 
 	if (save) {
-		f = filp_open(DUMP_IRAM_PATH, O_WRONLY | O_CREAT | O_TRUNC, 644);
-		if (ERR_ALLOC_MEM(f)) {
-			ILI_ERR("Failed to open the file at %ld.\n", PTR_ERR(f));
-			ret = -ENOMEM;
+		ret = ilitek_write_file(DUMP_IRAM_PATH, ilits->update_buf, len);
+		if (ret < 0) {
+			ILI_ERR("Failed to write iram data to file, ret = %d\n", ret);
 			goto out;
 		}
-
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		pos = 0;
-		vfs_write(f, ilits->update_buf, len, &pos);
-		set_fs(old_fs);
-		filp_close(f, NULL);
 		ILI_INFO("Save iram data to %s\n", DUMP_IRAM_PATH);
 	} else {
-		debug_en = DEBUG_ALL;
+		debug_en = true;
 		ili_dump_data(ilits->update_buf, 8, len, 0, "IRAM");
 		debug_en = tmp;
 	}
@@ -300,21 +289,28 @@ static int ilitek_tddi_fw_iram_program(u32 start, u8 *w_buf, u32 w_len, u32 spli
 
 			if (fix_4_alignment) {
 				ILI_INFO("org split_len = 0x%X\n", split_len);
-				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 4, ilits->update_buf[5 + split_len - 4]);
-				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 3, ilits->update_buf[5 + split_len - 3]);
-				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 2, ilits->update_buf[5 + split_len - 2]);
-				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 1, ilits->update_buf[5 + split_len - 1]);
+				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 4,
+					ilits->update_buf[5 + split_len - 4]);
+				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 3,
+					ilits->update_buf[5 + split_len - 3]);
+				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 2,
+					ilits->update_buf[5 + split_len - 2]);
+				ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", split_len - 1,
+					ilits->update_buf[5 + split_len - 1]);
 				for (j = 0; j < (4 - (split_len % 4)); j++) {
 					ilits->update_buf[5 + j + split_len] = 0xFF;
-					ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", j + split_len, ilits->update_buf[5 + j + split_len]);
+					ILI_INFO("idev->update_buf[5 + 0x%X] = 0x%X\n", j +
+						split_len, ilits->update_buf[5 + j + split_len]);
 				}
 
 				ILI_INFO("split_len %% 4 = %d\n", split_len % 4);
 				split_len = split_len + (4 - (split_len % 4));
 				ILI_INFO("fix split_len = 0x%X\n", split_len);
 			}
-			if (ilits->spi_write_then_read(ilits->spi, ilits->update_buf, split_len + 5, NULL, 0)) {
-				ILI_ERR("Failed to write data via SPI in host download (%x)\n", split_len + 5);
+			if (ilits->spi_write_then_read(ilits->spi, ilits->update_buf,
+				split_len + 5, NULL, 0)) {
+				ILI_ERR("Failed to write data via SPI in host download (%x)\n",
+					split_len + 5);
 				return -EIO;
 			}
 			ilits->fw_update_stat = (i * 100) / w_len;
@@ -335,8 +331,12 @@ static int ilitek_tddi_fw_iram_program(u32 start, u8 *w_buf, u32 w_len, u32 spli
 			w_len = w_len + (4 - (w_len % 4));
 			ILI_INFO("w_len = %d w_len %% 4 = %d\n", w_len, w_len % 4);
 		}
-		/* It must be supported by platforms that have the ability to transfer all data at once. */
-		if (ilits->spi_write_then_read(ilits->spi, ilits->update_buf, w_len + 5, NULL, 0) < 0) {
+		/*
+		 * It must be supported by platforms that have the ability to transfer
+		 * all data at once.
+		 */
+		if (ilits->spi_write_then_read(ilits->spi, ilits->update_buf, w_len + 5,
+			NULL, 0) < 0) {
 			ILI_ERR("Failed to write data via SPI in host download (%x)\n", w_len + 5);
 			return -EIO;
 		}
@@ -385,21 +385,26 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw, bool mcu)
 			ILI_DBG("Download %s code from hex 0x%x to IRAM 0x%x, len = 0x%x\n",
 					fbi[i].name, fbi[i].start, fbi[i].mem_start, fbi[i].len);
 
-			if (ilitek_tddi_fw_iram_program(fbi[i].mem_start, (fw_ptr + fbi[i].start), fbi[i].len, SPI_UPGRADE_LEN) < 0)
+			if (ilitek_tddi_fw_iram_program(fbi[i].mem_start, (fw_ptr + fbi[i].start),
+				fbi[i].len, SPI_UPGRADE_LEN) < 0)
 				ILI_ERR("IRAM program failed\n");
 
 			crc = CalculateCRC32(fbi[i].start, fbi[i].len - crc_len, fw_ptr);
 			dma = calc_hw_dma_crc(fbi[i].mem_start, fbi[i].len - crc_len);
 
 			if (mode != GESTURE) {
-				ilitek_tddi_fw_iram_read(crc_temp, (fbi[i].mem_start + fbi[i].len - crc_len), sizeof(crc_temp));
-				iram_crc = crc_temp[0] << 24 | crc_temp[1] << 16 | crc_temp[2] << 8 | crc_temp[3];
+				ilitek_tddi_fw_iram_read(crc_temp, (fbi[i].mem_start +
+					fbi[i].len - crc_len), sizeof(crc_temp));
+				iram_crc = crc_temp[0] << 24 | crc_temp[1] << 16 | crc_temp[2] << 8
+					| crc_temp[3];
 				if (iram_crc != dma)
 					iram_crc_err = true;
 			}
 
-			ILI_INFO("%s CRC is %s hex(%x) : dma(%x) : iram(%x), calculation len is 0x%x\n",
-				fbi[i].name, ((crc != dma) || (iram_crc_err)) ? "Invalid !" : "Correct !", crc, dma, iram_crc, fbi[i].len - crc_len);
+			ILI_INFO("%s CRC is %s hex(%x) : dma(%x) : iram(%x), calculation len
+				is 0x%x\n", fbi[i].name, ((crc != dma) || (iram_crc_err)) ?
+				"Invalid !" : "Correct !", crc, dma, iram_crc, fbi[i].len -
+				crc_len);
 
 			if ((crc != dma) || iram_crc_err) {
 				ILI_ERR("CRC Error! print iram data with first 16 bytes\n");
@@ -426,7 +431,7 @@ static int ilitek_tddi_fw_iram_upgrade(u8 *pfw, bool mcu)
 		ret = -EFW_ICE_MODE;
 	}
 
-	mdelay(20);
+	msleep(20);
 
 	return ret;
 }
@@ -441,7 +446,8 @@ static int ilitek_fw_calc_file_crc(u8 *pfw)
 			continue;
 		ex_addr = fbi[i].end;
 		data_crc = CalculateCRC32(fbi[i].start, fbi[i].len - 4, pfw);
-		file_crc = pfw[ex_addr - 3] << 24 | pfw[ex_addr - 2] << 16 | pfw[ex_addr - 1] << 8 | pfw[ex_addr];
+		file_crc = pfw[ex_addr - 3] << 24 | pfw[ex_addr - 2] << 16 | pfw[ex_addr - 1] << 8
+			 | pfw[ex_addr];
 		ILI_DBG("data crc = %x, file crc = %x\n", data_crc, file_crc);
 		if (data_crc != file_crc) {
 			ILI_ERR("Content of fw file is broken. (%d, %x, %x)\n",
@@ -466,25 +472,34 @@ static int ilitek_tddi_fw_update_block_info(u8 *pfw)
 	}
 
 	fbi[AP].mem_start = (fbi[AP].fix_mem_start != INT_MAX) ? fbi[AP].fix_mem_start : 0;
-	fbi[DATA].mem_start = (fbi[DATA].fix_mem_start != INT_MAX) ? fbi[DATA].fix_mem_start : DLM_START_ADDRESS;
-	fbi[TUNING].mem_start = (fbi[TUNING].fix_mem_start != INT_MAX) ? fbi[TUNING].fix_mem_start :  fbi[DATA].mem_start + fbi[DATA].len;
+	fbi[DATA].mem_start = (fbi[DATA].fix_mem_start != INT_MAX) ? fbi[DATA].fix_mem_start :
+		DLM_START_ADDRESS;
+	fbi[TUNING].mem_start = (fbi[TUNING].fix_mem_start != INT_MAX) ?
+		fbi[TUNING].fix_mem_start : fbi[DATA].mem_start + fbi[DATA].len;
 	fbi[MP].mem_start = (fbi[MP].fix_mem_start != INT_MAX) ? fbi[MP].fix_mem_start : 0;
-	fbi[GESTURE].mem_start = (fbi[GESTURE].fix_mem_start != INT_MAX) ? fbi[GESTURE].fix_mem_start :	0;
+	fbi[GESTURE].mem_start = (fbi[GESTURE].fix_mem_start != INT_MAX) ?
+		fbi[GESTURE].fix_mem_start :	0;
 	fbi[TAG].mem_start = (fbi[TAG].fix_mem_start != INT_MAX) ? fbi[TAG].fix_mem_start : 0;
-	fbi[PARA_BACKUP].mem_start = (fbi[PARA_BACKUP].fix_mem_start != INT_MAX) ? fbi[PARA_BACKUP].fix_mem_start : 0;
+	fbi[PARA_BACKUP].mem_start = (fbi[PARA_BACKUP].fix_mem_start != INT_MAX) ?
+		fbi[PARA_BACKUP].fix_mem_start : 0;
 	fbi[DDI].mem_start = (fbi[DDI].fix_mem_start != INT_MAX) ? fbi[DDI].fix_mem_start : 0;
 
 	/* Parsing gesture info form AP code */
 	ges_info_addr = (fbi[AP].end + 1 - 60);
-	ges_area_section = (pfw[ges_info_addr + 3] << 24) + (pfw[ges_info_addr + 2] << 16) + (pfw[ges_info_addr + 1] << 8) + pfw[ges_info_addr];
-	fbi[GESTURE].mem_start = (pfw[ges_info_addr + 7] << 24) + (pfw[ges_info_addr + 6] << 16) + (pfw[ges_info_addr + 5] << 8) + pfw[ges_info_addr + 4];
-	ap_end = (pfw[ges_info_addr + 11] << 24) + (pfw[ges_info_addr + 10] << 16) + (pfw[ges_info_addr + 9] << 8) + pfw[ges_info_addr + 8];
+	ges_area_section = (pfw[ges_info_addr + 3] << 24) + (pfw[ges_info_addr + 2] << 16) +
+		(pfw[ges_info_addr + 1] << 8) + pfw[ges_info_addr];
+	fbi[GESTURE].mem_start = (pfw[ges_info_addr + 7] << 24) + (pfw[ges_info_addr + 6] << 16)
+		+ (pfw[ges_info_addr + 5] << 8) + pfw[ges_info_addr + 4];
+	ap_end = (pfw[ges_info_addr + 11] << 24) + (pfw[ges_info_addr + 10] << 16) +
+		(pfw[ges_info_addr + 9] << 8) + pfw[ges_info_addr + 8];
 
 	if (ap_end != fbi[GESTURE].mem_start)
 		ap_len = ap_end - fbi[GESTURE].mem_start + 1;
 
-	ges_fw_start = (pfw[ges_info_addr + 15] << 24) + (pfw[ges_info_addr + 14] << 16) + (pfw[ges_info_addr + 13] << 8) + pfw[ges_info_addr + 12];
-	ges_fw_end = (pfw[ges_info_addr + 19] << 24) + (pfw[ges_info_addr + 18] << 16) + (pfw[ges_info_addr + 17] << 8) + pfw[ges_info_addr + 16];
+	ges_fw_start = (pfw[ges_info_addr + 15] << 24) + (pfw[ges_info_addr + 14] << 16) +
+		(pfw[ges_info_addr + 13] << 8) + pfw[ges_info_addr + 12];
+	ges_fw_end = (pfw[ges_info_addr + 19] << 24) + (pfw[ges_info_addr + 18] << 16) +
+		(pfw[ges_info_addr + 17] << 8) + pfw[ges_info_addr + 16];
 
 	if (ges_fw_end != ges_fw_start)
 		fbi[GESTURE].len = ges_fw_end - ges_fw_start;
@@ -493,8 +508,10 @@ static int ilitek_tddi_fw_update_block_info(u8 *pfw)
 	fbi[GESTURE].start = ges_fw_start;
 
 	ILI_INFO("==== Gesture loader info ====\n");
-	ILI_INFO("gesture move to ap addr => start = 0x%x, ap_end = 0x%x, ap_len = 0x%x\n", fbi[GESTURE].mem_start, ap_end, ap_len);
-	ILI_INFO("gesture hex addr => start = 0x%x, gesture_end = 0x%x, gesture_len = 0x%x\n", ges_fw_start, ges_fw_end, fbi[GESTURE].len);
+	ILI_INFO("gesture move to ap addr => start = 0x%x, ap_end = 0x%x, ap_len = 0x%x\n",
+		fbi[GESTURE].mem_start, ap_end, ap_len);
+	ILI_INFO("gesture hex addr => start = 0x%x, gesture_end = 0x%x, gesture_len = 0x%x\n",
+		ges_fw_start, ges_fw_end, fbi[GESTURE].len);
 	ILI_INFO("=============================\n");
 
 	fbi[AP].name = "AP";
@@ -517,12 +534,14 @@ static int ilitek_tddi_fw_update_block_info(u8 *pfw)
 	/* Copy fw info  */
 	fw_info_addr = fbi[AP].end - INFO_HEX_ST_ADDR;
 	ILI_INFO("Parsing hex info start addr = 0x%x\n", fw_info_addr);
-	ipio_memcpy(ilits->fw_info, (pfw + fw_info_addr), sizeof(ilits->fw_info), sizeof(ilits->fw_info));
+	ipio_memcpy(ilits->fw_info, (pfw + fw_info_addr), sizeof(ilits->fw_info),
+		sizeof(ilits->fw_info));
 
 	/* copy fw mp ver */
 	fw_mp_ver_addr = fbi[MP].end - INFO_MP_HEX_ADDR;
 	ILI_INFO("Parsing hex mp ver addr = 0x%x\n", fw_mp_ver_addr);
-	ipio_memcpy(ilits->fw_mp_ver, pfw + fw_mp_ver_addr, sizeof(ilits->fw_mp_ver), sizeof(ilits->fw_mp_ver));
+	ipio_memcpy(ilits->fw_mp_ver, pfw + fw_mp_ver_addr, sizeof(ilits->fw_mp_ver),
+		sizeof(ilits->fw_mp_ver));
 
 	/* copy fw core ver */
 	ilits->chip->core_ver = (ilits->fw_info[68] << 24) | (ilits->fw_info[69] << 16) |
@@ -535,16 +554,22 @@ static int ilitek_tddi_fw_update_block_info(u8 *pfw)
 
 	/* Get hex report info block*/
 	ipio_memcpy(&ilits->rib, ilits->fw_info, sizeof(ilits->rib), sizeof(ilits->rib));
-	ilits->rib.nReportResolutionMode = (ilits->chip->core_ver >= CORE_VER_1470) ? (ilits->rib.nReportResolutionMode & 0x07) : POSITION_LOW_RESOLUTION;
-	ilits->rib.nCustomerType = (ilits->chip->core_ver >= CORE_VER_1470) ? ilits->rib.nCustomerType : POSITION_CUSTOMER_TYPE_OFF;
-	ILI_INFO("report_info_block : nReportByPixel = %d, nIsHostDownload = %d, nIsSPIICE = %d, nIsSPISLAVE = %d\n",
-		ilits->rib.nReportByPixel, ilits->rib.nIsHostDownload, ilits->rib.nIsSPIICE, ilits->rib.nIsSPISLAVE);
-	ILI_INFO("report_info_block : nIsI2C = %d, nReserved00 = %d, nCustomerType = %d, nReportResolutionMode = %d, nReserved02 = %x,  nReserved03 = %x\n",
-		ilits->rib.nIsI2C, ilits->rib.nReserved00, ilits->rib.nCustomerType, ilits->rib.nReportResolutionMode, ilits->rib.nReserved02, ilits->rib.nReserved03);
+	ilits->rib.nReportResolutionMode = (ilits->chip->core_ver >= CORE_VER_1470) ?
+		(ilits->rib.nReportResolutionMode & 0x07) : POSITION_LOW_RESOLUTION;
+	ilits->rib.nCustomerType = (ilits->chip->core_ver >= CORE_VER_1470) ?
+		ilits->rib.nCustomerType : POSITION_CUSTOMER_TYPE_OFF;
+	ILI_INFO("report_info_block : nReportByPixel = %d, nIsHostDownload = %d, nIsSPIICE = %d,
+		nIsSPISLAVE = %d\n", ilits->rib.nReportByPixel, ilits->rib.nIsHostDownload,
+		ilits->rib.nIsSPIICE, ilits->rib.nIsSPISLAVE);
+	ILI_INFO("report_info_block : nIsI2C = %d, nReserved00 = %d, nCustomerType = %d,
+		nReportResolutionMode = %d, nReserved02 = %x,  nReserved03 = %x\n",
+		ilits->rib.nIsI2C, ilits->rib.nReserved00, ilits->rib.nCustomerType,
+		ilits->rib.nReportResolutionMode, ilits->rib.nReserved02, ilits->rib.nReserved03);
 
 	/* Calculate update address */
 	ILI_INFO("New FW ver = 0x%x\n", tfd.new_fw_cb);
-	ILI_INFO("star_addr = 0x%06X, end_addr = 0x%06X, Block Num = %d\n", tfd.start_addr, tfd.end_addr, tfd.block_number);
+	ILI_INFO("star_addr = 0x%06X, end_addr = 0x%06X, Block Num = %d\n", tfd.start_addr,
+		tfd.end_addr, tfd.block_number);
 
 	return 0;
 }
@@ -568,7 +593,7 @@ static int ilitek_tddi_fw_ili_convert(u8 *pfw)
 	/* Check if it's old version of ILI format. */
 	if (CTPM_FW[22] == 0xFF && CTPM_FW[23] == 0xFF &&
 		CTPM_FW[24] == 0xFF && CTPM_FW[25] == 0xFF) {
-		ILI_ERR("Invaild ILI format, abort!\n");
+		ILI_ERR("Invalid ILI format, abort!\n");
 		return -EINVAL;
 	}
 
@@ -590,7 +615,8 @@ static int ilitek_tddi_fw_ili_convert(u8 *pfw)
 	/* Parsing block info */
 	for (i = 0; i < FW_BLOCK_INFO_NUM; i++) {
 		/* B0 tag */
-		b0_addr = (CTPM_FW[4 + i * 4] << 16) | (CTPM_FW[5 + i * 4] << 8) | (CTPM_FW[6 + i * 4]);
+		b0_addr = (CTPM_FW[4 + i * 4] << 16) | (CTPM_FW[5 + i * 4] << 8) |
+			(CTPM_FW[6 + i * 4]);
 		b0_num = CTPM_FW[7 + i * 4];
 		if ((b0_num != 0) && (b0_addr != 0x000000))
 			fbi[b0_num].fix_mem_start = b0_addr;
@@ -600,15 +626,17 @@ static int ilitek_tddi_fw_ili_convert(u8 *pfw)
 		if (num >= FW_BLOCK_INFO_NUM)
 			break;
 		if (((blk_map >> i) & 0x01) == 0x01) {
-			fbi[num].start = (CTPM_FW[132 + i * 6] << 16) | (CTPM_FW[133 + i * 6] << 8) | CTPM_FW[134 + i * 6];
-			fbi[num].end = (CTPM_FW[135 + i * 6] << 16) | (CTPM_FW[136 + i * 6] << 8) |  CTPM_FW[137 + i * 6];
+			fbi[num].start = (CTPM_FW[132 + i * 6] << 16) | (CTPM_FW[133 + i * 6] << 8)
+				 | CTPM_FW[134 + i * 6];
+			fbi[num].end = (CTPM_FW[135 + i * 6] << 16) | (CTPM_FW[136 + i * 6] << 8)
+				 | CTPM_FW[137 + i * 6];
 
 			if (fbi[num].fix_mem_start == 0)
 				fbi[num].fix_mem_start = INT_MAX;
 
 			fbi[num].len = fbi[num].end - fbi[num].start + 1;
-			ILI_DBG("Block[%d]: start_addr = %x, end = %x, fix_mem_start = 0x%x\n", num, fbi[num].start,
-								fbi[num].end, fbi[num].fix_mem_start);
+			ILI_DBG("Block[%d]: start_addr = %x, end = %x, fix_mem_start = 0x%x\n",
+				num, fbi[num].start, fbi[num].end, fbi[num].fix_mem_start);
 			if (num == GESTURE)
 				ilits->gesture_load_code = true;
 		}
@@ -663,7 +691,8 @@ static int ilitek_tddi_fw_hex_convert(u8 *phex, int size, u8 *pfw)
 			fbi[num].end = HexToDec(&phex[i + 9 + 6], 6);
 			fbi[num].fix_mem_start = INT_MAX;
 			fbi[num].len = fbi[num].end - fbi[num].start + 1;
-			ILI_DBG("Block[%d]: start_addr = %x, end = %x", num, fbi[num].start, fbi[num].end);
+			ILI_DBG("Block[%d]: start_addr = %x, end = %x", num, fbi[num].start,
+				fbi[num].end);
 
 			if (num == GESTURE)
 				ilits->gesture_load_code = true;
@@ -679,7 +708,8 @@ static int ilitek_tddi_fw_hex_convert(u8 *phex, int size, u8 *pfw)
 			}
 
 			fbi[num].fix_mem_start = HexToDec(&phex[i + 9], 6);
-			ILI_DBG("Tag 0xB0: change Block[%d] to addr = 0x%x\n", num, fbi[num].fix_mem_start);
+			ILI_DBG("Tag 0xB0: change Block[%d] to addr = 0x%x\n", num,
+				fbi[num].fix_mem_start);
 		}
 
 		addr = addr + (ex_addr << 16);
@@ -718,12 +748,9 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 {
 	int ret = 0, fsize = 0;
 	const struct firmware *fw = NULL;
-	struct file *f = NULL;
-	mm_segment_t old_fs;
-	loff_t pos = 0;
 
 	ILI_INFO("Open file method = %s, path = %s\n",
-		op ? "FILP_OPEN" : "REQUEST_FIRMWARE",
+		"REQUEST_FIRMWARE",
 		op ? ilits->md_fw_filp_path : ilits->md_fw_rq_path);
 
 	switch (op) {
@@ -740,7 +767,7 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 		fsize = fw->size;
 		ILI_INFO("fsize = %d\n", fsize);
 		if (fsize <= 0) {
-			ILI_ERR("The size of file is invaild\n");
+			ILI_ERR("The size of file is invalid\n");
 			release_firmware(fw);
 			ret = -1;
 			goto out;
@@ -764,53 +791,13 @@ static int ilitek_tdd_fw_hex_open(u8 op, u8 *pfw)
 		ilits->tp_fw.size = fsize;
 		release_firmware(fw);
 		break;
-	case FILP_OPEN:
-		f = filp_open(ilits->md_fw_filp_path, O_RDONLY, 0644);
-		if (ERR_ALLOC_MEM(f)) {
-			ILI_ERR("Failed to open the file, %ld\n", PTR_ERR(f));
-			ret = -1;
-			goto out;
-		}
-
-		fsize = f->f_inode->i_size;
-		ILI_INFO("fsize = %d\n", fsize);
-		if (fsize <= 0) {
-			ILI_ERR("The size of file is invaild\n");
-			filp_close(f, NULL);
-			ret = -1;
-			goto out;
-		}
-
-		ipio_vfree((void **)&(ilits->tp_fw.data));
-		ilits->tp_fw.size = 0;
-		ilits->tp_fw.data = vmalloc(fsize);
-		if (ERR_ALLOC_MEM(ilits->tp_fw.data)) {
-			ILI_ERR("Failed to allocate tp_fw by vmalloc, try again\n");
-			ilits->tp_fw.data = vmalloc(fsize);
-			if (ERR_ALLOC_MEM(ilits->tp_fw.data)) {
-				ILI_ERR("Failed to allocate tp_fw after retry\n");
-				filp_close(f, NULL);
-				ret = -ENOMEM;
-				goto out;
-			}
-		}
-
-		/* ready to map user's memory to obtain data by reading files */
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-		pos = 0;
-		vfs_read(f, (u8 *)ilits->tp_fw.data, fsize, &pos);
-		set_fs(old_fs);
-		filp_close(f, NULL);
-		ilits->tp_fw.size = fsize;
-		break;
 	default:
 		ILI_ERR("Unknown open file method, %d\n", op);
 		break;
 	}
 
 	if (ERR_ALLOC_MEM(ilits->tp_fw.data) || ilits->tp_fw.size <= 0) {
-		ILI_ERR("fw data/size is invaild\n");
+		ILI_ERR("fw data/size is invalid\n");
 		ret = -1;
 		goto out;
 	}
@@ -900,7 +887,7 @@ int ili_fw_upgrade(int op)
 		if (ret != UPDATE_PASS) {
 			ILI_ERR("Failed to upgrade fw %d times, erasing iram\n", retry);
 			if (ili_reset_ctrl(ilits->reset) < 0)
-					ILI_ERR("TP reset failed while erasing data\n");
+				ILI_ERR("TP reset failed while erasing data\n");
 			ilits->xch_num = 0;
 			ilits->ych_num = 0;
 			return ret;
@@ -908,7 +895,7 @@ int ili_fw_upgrade(int op)
 	} else {
 		ILI_ERR("eng_flow do reset!\n");
 		ili_reset_ctrl(ilits->reset);
-		mdelay(50);
+		msleep(50);
 	}
 #else
 	do {
@@ -922,7 +909,7 @@ int ili_fw_upgrade(int op)
 	if (ret != UPDATE_PASS) {
 		ILI_ERR("Failed to upgrade fw %d times, erasing iram\n", retry);
 		if (ili_reset_ctrl(ilits->reset) < 0)
-				ILI_ERR("TP reset failed while erasing data\n");
+			ILI_ERR("TP reset failed while erasing data\n");
 		ilits->xch_num = 0;
 		ilits->ych_num = 0;
 		return ret;

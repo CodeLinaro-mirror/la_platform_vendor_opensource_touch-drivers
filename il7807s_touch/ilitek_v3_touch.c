@@ -31,7 +31,7 @@
 struct ili_demo_debug_info_id0 {
 	u32 id			: 8;
 	u32 sys_powr_state_e	: 3;
-	u32 sys_state_e 	: 3;
+	u32 sys_state_e		: 3;
 	u32 tp_state_e		: 2;
 
 	u32 touch_palm_state	: 2;
@@ -40,10 +40,10 @@ struct ili_demo_debug_info_id0 {
 	u32 g_b_wrong_bg	: 1;
 	u32 reserved0		: 1;
 
-	u32 normal_mode 	: 1;
+	u32 normal_mode		: 1;
 	u32 charger_mode	: 1;
 	u32 glove_mode		: 1;
-	u32 stylus_mode 	: 1;
+	u32 stylus_mode		: 1;
 	u32 multi_mode		: 1;
 	u32 noise_mode		: 1;
 	u32 palm_plus_mode	: 1;
@@ -61,10 +61,10 @@ struct ili_demo_debug_info_id0 {
 	u32 algo_pt_status9	: 3;
 	u32 reserved2		: 2;
 
-	u32 hopping_flg 	: 1;
+	u32 hopping_flg		: 1;
 	u32 hopping_index	: 5;
-	u32 frequency_h 	: 2;
-	u32 frequency_l 	: 8;
+	u32 frequency_h		: 2;
+	u32 frequency_l		: 8;
 	u32 reserved3		: 8;
 	u32 reserved4		: 8;
 
@@ -88,9 +88,9 @@ void ili_dump_data(void *data, int type, int len, int row_len, const char *name)
 		return;
 	}
 
-	pr_cont("\n\n");
-	pr_cont("ILITEK: Dump %s data\n", name);
-	pr_cont("ILITEK: ");
+	pr_info("\n\n");
+	pr_info("ILITEK: Dump %s data\n", name);
+	pr_info("ILITEK:\n");
 
 	if (type == 8)
 		p8 = (u8 *) data;
@@ -101,27 +101,29 @@ void ili_dump_data(void *data, int type, int len, int row_len, const char *name)
 
 	for (i = 0; i < len; i++) {
 		if (type == 8)
-			pr_cont(" %4x ", p8[i]);
+			pr_info(" %4x\n", p8[i]);
 		else if (type == 32)
-			pr_cont(" %4x ", p32[i]);
+			pr_info(" %4x\n", p32[i]);
 		else if (type == 10)
-			pr_cont(" %4d ", p32[i]);
+			pr_info(" %4d\n", p32[i]);
 		else if (type == 16)
-			pr_cont(" %4d ", p16[i]);
+			pr_info(" %4d\n", p16[i]);
 
 		if ((i % row) == row - 1) {
-			pr_cont("\n");
-			pr_cont("ILITEK: ");
+			pr_info("\n");
+			pr_info("ILITEK:\n");
 		}
 	}
-	pr_cont("\n\n");
+	pr_info("\n\n");
 }
 
 static void dma_clear_reg_setting(void)
 {
 	/* 1. interrupt t0/t1 enable flag */
-	if (ili_ice_mode_bit_mask_write(INTR32_ADDR, INTR32_reg_t0_int_en | INTR32_reg_t1_int_en, (0 << 24)) < 0)
-		ILI_ERR("Write %lu at %x failed\n", INTR32_reg_t0_int_en | INTR32_reg_t1_int_en, INTR32_ADDR);
+	if (ili_ice_mode_bit_mask_write(INTR32_ADDR, INTR32_reg_t0_int_en | INTR32_reg_t1_int_en,
+		(0 << 24)) < 0)
+		ILI_ERR("Write %lu at %x failed\n", INTR32_reg_t0_int_en | INTR32_reg_t1_int_en,
+			INTR32_ADDR);
 
 	/* 2. clear tdi_err_int_flag */
 	if (ili_ice_mode_bit_mask_write(INTR2_ADDR, INTR2_tdi_err_int_flag_clear, (1 << 18)) < 0)
@@ -132,8 +134,10 @@ static void dma_clear_reg_setting(void)
 		ILI_ERR("Write 0x00000000 at %x failed\n", DMA49_reg_dma_ch0_src1_addr);
 	if (ili_ice_mode_write(DMA50_reg_dma_ch0_src1_step_inc, 0x00, 1) < 0)
 		ILI_ERR("Write 0x0 at %x failed\n", DMA50_reg_dma_ch0_src1_step_inc);
-	if (ili_ice_mode_bit_mask_write(DMA50_ADDR, DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, BIT(31)) < 0)
-		ILI_ERR("Write %lu at %x failed\n", DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, DMA50_ADDR);
+	if (ili_ice_mode_bit_mask_write(DMA50_ADDR,
+		DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, BIT(31)) < 0)
+		ILI_ERR("Write %lu at %x failed\n",
+			DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, DMA50_ADDR);
 
 	/* 4. clear dma channel 0 trigger select */
 	if (ili_ice_mode_bit_mask_write(DMA48_ADDR, DMA48_reg_dma_ch0_trigger_sel, (0 << 16)) < 0)
@@ -159,8 +163,10 @@ static void dma_trigger_reg_setting(u32 reg_dest_addr, u32 flash_start_addr, u32
 		ILI_ERR("Write 0x00041010 at %x failed\n", DMA49_reg_dma_ch0_src1_addr);
 	if (ili_ice_mode_write(DMA50_reg_dma_ch0_src1_step_inc, 0x00, 1) < 0)
 		ILI_ERR("Write 0x00 at %x failed\n", DMA50_reg_dma_ch0_src1_step_inc);
-	if (ili_ice_mode_bit_mask_write(DMA50_ADDR, DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, BIT(31)) < 0)
-		ILI_ERR("Write %lu at %x failed\n", DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, DMA50_ADDR);
+	if (ili_ice_mode_bit_mask_write(DMA50_ADDR,
+		DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, BIT(31)) < 0)
+		ILI_ERR("Write %lu at %x failed\n",
+			DMA50_reg_dma_ch0_src1_format | DMA50_reg_dma_ch0_src1_en, DMA50_ADDR);
 
 	/* 3. set dma channel 0 src2 info */
 	if (ili_ice_mode_bit_mask_write(DMA52_ADDR, DMA52_reg_dma_ch0_src2_en, (0 << 31)) < 0)
@@ -172,8 +178,10 @@ static void dma_trigger_reg_setting(u32 reg_dest_addr, u32 flash_start_addr, u32
 	if (ili_ice_mode_write(DMA54_reg_dma_ch0_dest_step_inc, 0x01, 1) < 0)
 		ILI_ERR("Write 0x01 at %x failed\n", DMA54_reg_dma_ch0_dest_step_inc);
 
-	if (ili_ice_mode_write(DMA54_ADDR, DMA54_reg_dma_ch0_dest_format | DMA54_reg_dma_ch0_dest_en, BIT(31)) < 0)
-		ILI_ERR("Write %lu at %x failed\n", DMA54_reg_dma_ch0_dest_format | DMA54_reg_dma_ch0_dest_en, DMA54_ADDR);
+	if (ili_ice_mode_write(DMA54_ADDR,
+		DMA54_reg_dma_ch0_dest_format | DMA54_reg_dma_ch0_dest_en, BIT(31)) < 0)
+		ILI_ERR("Write %lu at %x failed\n",
+			DMA54_reg_dma_ch0_dest_format | DMA54_reg_dma_ch0_dest_en, DMA54_ADDR);
 
 	/* 5. set dma channel 0 trafer info */
 	if (ili_ice_mode_write(DMA55_reg_dma_ch0_trafer_counts, copy_size, 4) < 0)
@@ -193,8 +201,10 @@ static void dma_trigger_reg_setting(u32 reg_dest_addr, u32 flash_start_addr, u32
 	ili_flash_dma_write(flash_start_addr, (flash_start_addr+copy_size), copy_size);
 
 	/* 9. clear flash and dma ch0 int flag */
-	if (ili_ice_mode_bit_mask_write(INTR1_ADDR, INTR1_reg_dma_ch1_int_flag | INTR1_reg_flash_int_flag, BIT(16) | BIT(25)) < 0)
-		ILI_ERR("Write %lu at %x failed\n", INTR1_reg_dma_ch1_int_flag | INTR1_reg_flash_int_flag, INTR1_ADDR);
+	if (ili_ice_mode_bit_mask_write(INTR1_ADDR,
+		INTR1_reg_dma_ch1_int_flag | INTR1_reg_flash_int_flag, BIT(16) | BIT(25)) < 0)
+		ILI_ERR("Write %lu at %x failed\n",
+			INTR1_reg_dma_ch1_int_flag | INTR1_reg_flash_int_flag, INTR1_ADDR);
 	if (ili_ice_mode_bit_mask_write(0x041013, BIT(0), 1) < 0) //patch
 		ILI_ERR("Write %lu at %x failed\n", BIT(0), 0x041013);
 
@@ -216,18 +226,18 @@ static void dma_trigger_reg_setting(u32 reg_dest_addr, u32 flash_start_addr, u32
 			break;
 
 		retry--;
-		usleep_range(1000, 1000);
+		usleep_range(1000, 2000);
 	}
 
 	if (retry <= 0)
-		ILI_ERR("DMA fail: Regsiter = 0x%x Flash = 0x%x, Size = %d\n",
+		ILI_ERR("DMA fail: Register = 0x%x Flash = 0x%x, Size = %d\n",
 			reg_dest_addr, flash_start_addr, copy_size);
 
 	/* CS High */
 	if (ili_ice_mode_write(FLASH0_reg_flash_csb, 0x1, 1) < 0)
 		ILI_ERR("Pull CS High failed\n");
 	/* waiting for CS status done */
-	mdelay(10);
+	usleep_range(10000, 11000);
 }
 
 int ili_move_mp_code_flash(void)
@@ -235,7 +245,7 @@ int ili_move_mp_code_flash(void)
 	int ret = 0;
 	u32 mp_text_size = 0, mp_andes_init_size = 0;
 	u32 mp_flash_addr, mp_size, overlay_start_addr, overlay_end_addr;
-	bool dma_trigger_enable = 0;
+	bool dma_trigger_enable;
 	u8 cmd[2] = {0};
 	u8 data[16] = {0};
 
@@ -247,20 +257,20 @@ int ili_move_mp_code_flash(void)
 		goto out;
 	}
 
-	dma_trigger_enable = 0;
-
 	mp_flash_addr = data[3] + (data[2] << 8) + (data[1] << 16);
 	mp_size = data[6] + (data[5] << 8) + (data[4] << 16);
 	overlay_start_addr = data[9] + (data[8] << 8) + (data[7] << 16);
 	overlay_end_addr = data[12] + (data[11] << 8) + (data[10] << 16);
 
 	if (overlay_start_addr != 0x0 && overlay_end_addr != 0x0
-		&& data[0] == P5_X_MP_TEST_MODE_INFO)
-		dma_trigger_enable = 1;
+		&& data[0] == P5_X_MP_TEST_MODE_INFO) {
+		dma_trigger_enable = true;
+	} else {
+		dma_trigger_enable = false;
+	}
 
-	ILI_INFO("MP info Overlay: Enable = %d, addr = 0x%x ~ 0x%x, flash addr = 0x%x, mp size = 0x%x\n",
-		dma_trigger_enable, overlay_start_addr,
-		overlay_end_addr, mp_flash_addr, mp_size);
+	ILI_INFO("MP info: Enable = %d, addr = 0x%x ~ 0x%x, flash addr = 0x%x, mp size = 0x%x\n",
+		dma_trigger_enable, overlay_start_addr, overlay_end_addr, mp_flash_addr, mp_size);
 
 	cmd[0] = P5_X_MODE_CONTROL;
 	cmd[1] = P5_X_FW_TEST_MODE;
@@ -281,17 +291,20 @@ int ili_move_mp_code_flash(void)
 	if (dma_trigger_enable) {
 		mp_andes_init_size = overlay_start_addr;
 		mp_text_size = (mp_size - overlay_end_addr) + 1;
-		ILI_INFO("MP andes init size = %d , MP text size = %d\n", mp_andes_init_size, mp_text_size);
+		ILI_INFO("MP andes init size = %d , MP text size = %d\n",
+			mp_andes_init_size, mp_text_size);
 
 		dma_clear_reg_setting();
 
 		ILI_INFO("[Move ANDES.INIT to DRAM]\n");
-		dma_trigger_reg_setting(0, mp_flash_addr, mp_andes_init_size);	 /* DMA ANDES.INIT */
+		dma_trigger_reg_setting(0, mp_flash_addr, mp_andes_init_size);
+		/* DMA ANDES.INIT */
 
 		dma_clear_reg_setting();
 
 		ILI_INFO("[Move MP.TEXT to DRAM]\n");
-		dma_trigger_reg_setting(overlay_end_addr, (mp_flash_addr + overlay_start_addr), mp_text_size);
+		dma_trigger_reg_setting(overlay_end_addr, (mp_flash_addr + overlay_start_addr),
+			mp_text_size);
 
 		dma_clear_reg_setting();
 	} else {
@@ -299,13 +312,13 @@ int ili_move_mp_code_flash(void)
 		if (ili_ice_mode_write(FLASH4_reg_rcv_data, 0xFF, 1) < 0)
 			ILI_ERR("Trigger DMA failed\n");
 		/* waiting for fw reload code completed. */
-		mdelay(30);
+		msleep(30);
 
 		/* CS High */
 		if (ili_ice_mode_write(FLASH0_reg_flash_csb, 0x1, 1) < 0)
 			ILI_ERR("Pull CS High failed\n");
 		/* waiting for CS status done */
-		mdelay(10);
+		usleep_range(10000, 11000);
 	}
 
 	if (ili_reset_ctrl(TP_IC_WHOLE_RST_WITHOUT_FLASH) < 0)
@@ -528,7 +541,7 @@ int ili_move_gesture_code_iram(int mode)
 			ILI_INFO("Ready to load gesture code\n");
 			break;
 		}
-		mdelay(2);
+		usleep_range(2000, 3000);
 	}
 	ili_irq_disable();
 
@@ -597,7 +610,7 @@ int ili_touch_esd_gesture_flash(void)
 		goto out;
 	}
 
-	/* HW reset gives effect to FW receives password successed */
+	/* HW reset gives effect to FW receives password succeeded */
 	ilits->actual_tp_mode = P5_X_FW_AP_MODE;
 	ret = ili_reset_ctrl(ilits->reset);
 	if (ret < 0) {
@@ -622,7 +635,7 @@ int ili_touch_esd_gesture_flash(void)
 		if (answer != ges_run)
 			ILI_INFO("ret = 0x%X, answer = 0x%X\n", answer, ges_run);
 
-		mdelay(2);
+		usleep_range(2000, 3000);
 	} while (answer != ges_run && --retry > 0);
 
 	if (retry <= 0) {
@@ -634,9 +647,8 @@ int ili_touch_esd_gesture_flash(void)
 	ILI_INFO("0x%X Enter gesture successfully\n", answer);
 
 out:
-	if (ili_ice_mode_ctrl(DISABLE, ON) < 0) {
+	if (ili_ice_mode_ctrl(DISABLE, ON) < 0)
 		ILI_ERR("Disable ice mode failed during gesture recovery\n");
-	}
 
 	if (ret >= 0) {
 		ilits->actual_tp_mode = P5_X_FW_GESTURE_MODE;
@@ -655,9 +667,8 @@ int ili_touch_esd_gesture_iram(void)
 	int ges_run = SPI_ESD_GESTURE_CORE146_RUN;
 	int pwd_len = 2;
 
-	if (!ilits->gesture_load_code) {
+	if (!ilits->gesture_load_code)
 		ges_run = I2C_ESD_GESTURE_CORE146_RUN;
-	}
 
 	if (ilits->chip->core_ver < CORE_VER_1460) {
 		if (ilits->chip->core_ver >= CORE_VER_1420)
@@ -685,7 +696,7 @@ int ili_touch_esd_gesture_iram(void)
 		goto fail;
 	}
 
-	/* Host download gives effect to FW receives password successed */
+	/* Host download gives effect to FW receives password succeeded */
 	ilits->actual_tp_mode = P5_X_FW_AP_MODE;
 	ret = ili_fw_upgrade_handler(NULL);
 	if (ret < 0) {
@@ -715,7 +726,7 @@ int ili_touch_esd_gesture_iram(void)
 		if (answer != ges_run)
 			ILI_INFO("ret = 0x%X, answer = 0x%X\n", answer, ges_run);
 
-		mdelay(2);
+		usleep_range(2000, 3000);
 	} while (answer != ges_run && --retry > 0);
 
 	if (retry <= 0) {
@@ -818,22 +829,20 @@ void ili_demo_debug_info_mode(u8 *buf, size_t len)
 	u8 info_id, info_len;
 
 	ili_report_ap_mode(buf, len);
-	if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+	if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION)
 		info_ptr = buf + P5_X_DEMO_MODE_PACKET_LEN;
-	} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+	else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION)
 		info_ptr = buf + P5_X_DEMO_MODE_PACKET_LEN_HIGH_RESOLUTION;
-	} else {
+	else
 		info_ptr = buf + P5_X_DEMO_MODE_PACKET_LEN;
-	}
 	info_len = info_ptr[0];
 	info_id = info_ptr[1];
 
 	ILI_INFO("info len = %d ,id = %d\n", info_len, info_id);
-	if (info_id == 0) {
+	if (info_id == 0)
 		ilits->demo_debug_info[info_id](&info_ptr[1], info_len);
-	} else {
+	else
 		ILI_INFO("Not support this id %d\n", info_id);
-	}
 }
 
 static void ilitek_tddi_touch_send_debug_data(u8 *buf, int len)
@@ -884,83 +893,120 @@ static void ilitek_tddi_touch_customer_data_parsing(u8 *buf)
 	struct ilitek_axis_info axis_info[MAX_TOUCH_NUM];
 	bool palmflag = false;
 	ilits->finger = 0;
-	if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_ON && ilits->tp_data_format == DATA_FORMAT_DEMO) {
+	if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_ON && ilits->tp_data_format ==
+		DATA_FORMAT_DEMO) {
 		if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
 			index = P5_X_5B_LOW_RESOLUTION_LENGTH - others - P5_X_INFO_CHECKSUM_LENGTH;
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
-				if ((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
+				if ((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+					(buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)
+					&& (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] ==
+					0xFF))
 					continue;
-				}
 				axis_info[ilits->finger].degree = buf[(5 * i) + index];
-				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index]) << 8) | (buf[(5 * i) + 2 + index]));
-				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index]) << 8) | (buf[(5 * i) + 4 + index]));
-				ILI_DBG("finger = %d, degree = %d, width_major = %d, width_minor = %d\n", ilits->finger, axis_info[ilits->finger].degree, axis_info[ilits->finger].width_major, axis_info[ilits->finger].width_minor);
+				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index])
+					 << 8) | (buf[(5 * i) + 2 + index]));
+				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index])
+					 << 8) | (buf[(5 * i) + 4 + index]));
+				ILI_DBG("finger = %d, degree = %d, wid_maj = %d, wid_min = %d\n",
+					ilits->finger,
+					axis_info[ilits->finger].degree,
+					axis_info[ilits->finger].width_major,
+					axis_info[ilits->finger].width_minor);
 				ilits->finger++;
 			}
 			palmflag = ((buf[index + P5_X_CUSTOMER_LENGTH + 2] & 0x08) >> 3);
 			ILI_DBG("palmflag = %d\n", palmflag);
 
-			for (i = 0; i < others; i++) {
-				ILI_DBG("Other Information byte[%d]:%02x\n", i, buf[index + P5_X_CUSTOMER_LENGTH + i]);
-			}
+			for (i = 0; i < others; i++)
+				ILI_DBG("Other Information byte[%d]:%02x\n", i,
+					buf[index + P5_X_CUSTOMER_LENGTH + i]);
 		} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
-			index = P5_X_DEMO_MODE_PACKET_LEN_HIGH_RESOLUTION - others - P5_X_INFO_CHECKSUM_LENGTH;
+			index = P5_X_DEMO_MODE_PACKET_LEN_HIGH_RESOLUTION - others -
+				P5_X_INFO_CHECKSUM_LENGTH;
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
-				if ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
-				    (buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
-				continue;
+				if ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				    (buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				    (buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				    (buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
+					continue;
 			}
 				axis_info[ilits->finger].degree = buf[(5 * i) + index];
-				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index]) << 8) | (buf[(5 * i) + 2 + index]));
-				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index]) << 8) | (buf[(5 * i) + 4 + index]));
-				ILI_DBG("finger = %d, degree = %d, width_major = %d, width_minor = %d\n", ilits->finger, axis_info[ilits->finger].degree, axis_info[ilits->finger].width_major, axis_info[ilits->finger].width_minor);
+				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index])
+					<< 8) | (buf[(5 * i) + 2 + index]));
+				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index])
+					<< 8) | (buf[(5 * i) + 4 + index]));
+				ILI_DBG("finger = %d, degree = %d, wid_maj = %d, wid_min = %d\n",
+					ilits->finger,
+					axis_info[ilits->finger].degree,
+					axis_info[ilits->finger].width_major,
+					axis_info[ilits->finger].width_minor);
 				ilits->finger++;
 			}
 			palmflag = ((buf[index + P5_X_CUSTOMER_LENGTH + 2] & 0x08) >> 3);
 			ILI_DBG("palmflag = %d\n", palmflag);
 
-			for (i = 0; i < others; i++) {
-				ILI_DBG("Other Information byte[%d]:%02x\n", i, buf[index + P5_X_CUSTOMER_LENGTH + i]);
-			}
+			for (i = 0; i < others; i++)
+				ILI_DBG("Other Information byte[%d]:%02x\n", i,
+					buf[index + P5_X_CUSTOMER_LENGTH + i]);
 		}
-	} else if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_ON && ilits->tp_data_format == DATA_FORMAT_DEBUG) {
+	} else if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_ON &&
+			ilits->tp_data_format == DATA_FORMAT_DEBUG) {
 		if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
-			index = P5_X_DEBUG_LOW_RESOLUTION_FINGER_DATA_LENGTH + (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2) + (2 * 2);
+			index = P5_X_DEBUG_LOW_RESOLUTION_FINGER_DATA_LENGTH + (2 * ilits->xch_num
+				* ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2) + (2 * 2);
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
-				if ((buf[(3 * i) + 1 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(3 * i) + 2 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(3 * i) + 3 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF)) {
+				if ((buf[(3 * i) + 1 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF)
+					&& (buf[(3 * i) + 2 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] ==
+					0xFF) && (buf[(3 * i) + 3 +
+					 P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF))
 					continue;
-				}
 				axis_info[ilits->finger].degree = buf[(5 * i) + index];
-				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index]) << 8) | (buf[(5 * i) + 2 + index]));
-				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index]) << 8) | (buf[(5 * i) + 4 + index]));
-				ILI_DBG("finger = %d, degree = %d, width_major = %d, width_minor = %d\n", ilits->finger, axis_info[ilits->finger].degree, axis_info[ilits->finger].width_major, axis_info[ilits->finger].width_minor);
+				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index])
+					<< 8) | (buf[(5 * i) + 2 + index]));
+				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index])
+					<< 8) | (buf[(5 * i) + 4 + index]));
+				ILI_DBG("finger = %d, degree = %d, wid_maj = %d, wid_min = %d\n",
+					ilits->finger,
+					axis_info[ilits->finger].degree,
+					axis_info[ilits->finger].width_major,
+					axis_info[ilits->finger].width_minor);
 				ilits->finger++;
 			}
 			palmflag = ((buf[index + P5_X_CUSTOMER_LENGTH + 2] & 0x08) >> 3);
 			ILI_DBG("palmflag = %d\n", palmflag);
 
-			for (i = 0; i < others; i++) {
-				ILI_DBG("Other Information byte[%d]:%02x\n", i, buf[index + P5_X_CUSTOMER_LENGTH + i]);
-			}
+			for (i = 0; i < others; i++)
+				ILI_DBG("Other Information byte[%d]:%02x\n", i,
+					buf[index + P5_X_CUSTOMER_LENGTH + i]);
 		} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
-			index = P5_X_DEBUG_HIGH_RESOLUTION_FINGER_DATA_LENGTH + (2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) + (ilits->srx * 2) + (2 * 2);
+			index = P5_X_DEBUG_HIGH_RESOLUTION_FINGER_DATA_LENGTH +
+				(2 * ilits->xch_num * ilits->ych_num) + (ilits->stx * 2) +
+				(ilits->srx * 2) + (2 * 2);
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
-				if ((buf[(4 * i) + 1 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(4 * i) + 2 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF) &&
-				    (buf[(4 * i) + 3 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(4 * i) + 4 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF)) {
-				continue;
-			}
+				if ((buf[(4 * i) + 1 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF)
+				    && (buf[(4 * i) + 2 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF)
+				    && (buf[(4 * i) + 3 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF)
+				    && (buf[(4 * i) + 4 + P5_X_DEBUG_MODE_PACKET_INFO_LEN] == 0xFF))
+					continue;
 				axis_info[ilits->finger].degree = buf[(5 * i) + index];
-				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index]) << 8) | (buf[(5 * i) + 2 + index]));
-				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index]) << 8) | (buf[(5 * i) + 4 + index]));
-				ILI_DBG("finger = %d, degree = %d, width_major = %d, width_minor = %d\n", ilits->finger, axis_info[ilits->finger].degree, axis_info[ilits->finger].width_major, axis_info[ilits->finger].width_minor);
+				axis_info[ilits->finger].width_major = (((buf[(5 * i) + 1 + index])
+					<< 8) | (buf[(5 * i) + 2 + index]));
+				axis_info[ilits->finger].width_minor = (((buf[(5 * i) + 3 + index])
+					<< 8) | (buf[(5 * i) + 4 + index]));
+				ILI_DBG("finger = %d, degree = %d, wid_maj = %d, wid_min = %d\n",
+					ilits->finger,
+					axis_info[ilits->finger].degree,
+					axis_info[ilits->finger].width_major,
+					axis_info[ilits->finger].width_minor);
 				ilits->finger++;
 			}
 			palmflag = ((buf[index + P5_X_CUSTOMER_LENGTH + 2] & 0x08) >> 3);
 			ILI_DBG("palmflag = %d\n", palmflag);
 
-			for (i = 0; i < others; i++) {
-				ILI_DBG("Other Information byte[%d]:%02x\n", i, buf[index + P5_X_CUSTOMER_LENGTH + i]);
-			}
+			for (i = 0; i < others; i++)
+				ILI_DBG("Other Information byte[%d]:%02x\n", i,
+					buf[index + P5_X_CUSTOMER_LENGTH + i]);
 		}
 	}
 
@@ -1040,31 +1086,42 @@ void ili_report_ap_mode(u8 *buf, int len)
 
 	for (i = 0; i < MAX_TOUCH_NUM; i++) {
 
-		if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_OFF && ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
-			if ((buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF) && (buf[(4 * i) + 3] == 0xFF)) {
+		if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_OFF
+			&& ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+			if ((buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF)
+				&& (buf[(4 * i) + 3] == 0xFF)) {
 				if (MT_B_TYPE)
 					ilits->curt_touch[i] = 0;
 				continue;
 			}
 			xop = (((buf[(4 * i) + 1] & 0xF0) << 4) | (buf[(4 * i) + 2]));
 			yop = (((buf[(4 * i) + 1] & 0x0F) << 8) | (buf[(4 * i) + 3]));
-		} else if (ilits->rib.nCustomerType != POSITION_CUSTOMER_TYPE_OFF && ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
-			if ((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
+		} else if (ilits->rib.nCustomerType != POSITION_CUSTOMER_TYPE_OFF &&
+			ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+			if ((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				(buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				(buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
 				if (MT_B_TYPE)
 					ilits->curt_touch[i] = 0;
 				continue;
 			}
-			xop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0xF0) << 4) | (buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
-			yop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0x0F) << 8) | (buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+			xop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0xF0) << 4) |
+				(buf[(4 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+			yop = (((buf[(4 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] & 0x0F) << 8) |
+				(buf[(4 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
 		} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
-			if ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
-			    (buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) && (buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
+			if ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				(buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				(buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF) &&
+				(buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN] == 0xFF)) {
 				if (MT_B_TYPE)
 					ilits->curt_touch[i] = 0;
 				continue;
 			}
-			xop = ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] << 8) | (buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
-			yop = ((buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] << 8) | (buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+			xop = ((buf[(5 * i) + 1 + P5_X_DEMO_MODE_PACKET_INFO_LEN] << 8) |
+				(buf[(5 * i) + 2 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
+			yop = ((buf[(5 * i) + 3 + P5_X_DEMO_MODE_PACKET_INFO_LEN] << 8) |
+				(buf[(5 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN]));
 		}
 
 		if (ilits->trans_xy) {
@@ -1083,13 +1140,16 @@ void ili_report_ap_mode(u8 *buf, int len)
 		touch_info[ilits->finger].id = i;
 
 		if (MT_PRESSURE) {
-			if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_OFF && ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+			if (ilits->rib.nCustomerType == POSITION_CUSTOMER_TYPE_OFF &&
+				ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION)
 				touch_info[ilits->finger].pressure = buf[(4 * i) + 4];
-			} else if (ilits->rib.nCustomerType != POSITION_CUSTOMER_TYPE_OFF && ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
-				touch_info[ilits->finger].pressure = buf[(4 * i) + 4 + P5_X_DEMO_MODE_PACKET_INFO_LEN];
-			} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
-				touch_info[ilits->finger].pressure = buf[(5 * i) + 5 + P5_X_DEMO_MODE_PACKET_INFO_LEN];
-			}
+			else if (ilits->rib.nCustomerType != POSITION_CUSTOMER_TYPE_OFF &&
+				ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION)
+				touch_info[ilits->finger].pressure = buf[(4 * i) + 4 +
+				P5_X_DEMO_MODE_PACKET_INFO_LEN];
+			else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION)
+				touch_info[ilits->finger].pressure = buf[(5 * i) + 5 +
+				P5_X_DEMO_MODE_PACKET_INFO_LEN];
 		} else {
 			touch_info[ilits->finger].pressure = 1;
 		}
@@ -1109,7 +1169,8 @@ void ili_report_ap_mode(u8 *buf, int len)
 		if (MT_B_TYPE) {
 			for (i = 0; i < ilits->finger; i++) {
 				input_report_key(ilits->input, BTN_TOUCH, 1);
-				ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				ili_touch_press(touch_info[i].x, touch_info[i].y,
+					touch_info[i].pressure, touch_info[i].id);
 				input_report_key(ilits->input, BTN_TOOL_FINGER, 1);
 			}
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
@@ -1119,7 +1180,8 @@ void ili_report_ap_mode(u8 *buf, int len)
 			}
 		} else {
 			for (i = 0; i < ilits->finger; i++)
-				ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				ili_touch_press(touch_info[i].x, touch_info[i].y,
+					touch_info[i].pressure, touch_info[i].id);
 		}
 		input_sync(ilits->input);
 		ilits->last_touch = ilits->finger;
@@ -1156,7 +1218,8 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 
 	for (i = 0; i < MAX_TOUCH_NUM; i++) {
 		if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
-			if ((buf[(3 * i)] == 0xFF) && (buf[(3 * i) + 1] == 0xFF) && (buf[(3 * i) + 2] == 0xFF)) {
+			if ((buf[(3 * i)] == 0xFF) && (buf[(3 * i) + 1] == 0xFF) &&
+				(buf[(3 * i) + 2] == 0xFF)) {
 				if (MT_B_TYPE)
 					ilits->curt_touch[i] = 0;
 				continue;
@@ -1164,7 +1227,8 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 			xop = (((buf[(3 * i)] & 0xF0) << 4) | (buf[(3 * i) + 1]));
 			yop = (((buf[(3 * i)] & 0x0F) << 8) | (buf[(3 * i) + 2]));
 		} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
-			if ((buf[(4 * i)] == 0xFF) && (buf[(4 * i) + 1] == 0xFF) && (buf[(4 * i) + 2] == 0xFF) && (buf[(4 * i) + 3] == 0xFF)) {
+			if ((buf[(4 * i)] == 0xFF) && (buf[(4 * i) + 1] == 0xFF) &&
+				(buf[(4 * i) + 2] == 0xFF) && (buf[(4 * i) + 3] == 0xFF)) {
 				if (MT_B_TYPE)
 					ilits->curt_touch[i] = 0;
 				continue;
@@ -1190,9 +1254,9 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 
 		if (MT_PRESSURE) {
 			/*
-			* Since there's no pressure data in debug mode, we make fake values
-			* for android system if pressure needs to be reported.
-			*/
+			 * Since there's no pressure data in debug mode, we make fake values
+			 * for android system if pressure needs to be reported.
+			 */
 			if (p[ilits->finger] == 1)
 				touch_info[ilits->finger].pressure = p[ilits->finger] = 2;
 			else
@@ -1213,7 +1277,8 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 		if (MT_B_TYPE) {
 			for (i = 0; i < ilits->finger; i++) {
 				input_report_key(ilits->input, BTN_TOUCH, 1);
-				ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				ili_touch_press(touch_info[i].x, touch_info[i].y,
+					touch_info[i].pressure, touch_info[i].id);
 				input_report_key(ilits->input, BTN_TOOL_FINGER, 1);
 			}
 			for (i = 0; i < MAX_TOUCH_NUM; i++) {
@@ -1223,7 +1288,8 @@ void ili_debug_mode_report_point(u8 *buf, int len)
 			}
 		} else {
 			for (i = 0; i < ilits->finger; i++)
-				ili_touch_press(touch_info[i].x, touch_info[i].y, touch_info[i].pressure, touch_info[i].id);
+				ili_touch_press(touch_info[i].x, touch_info[i].y,
+					touch_info[i].pressure, touch_info[i].id);
 		}
 		input_sync(ilits->input);
 		ilits->last_touch = ilits->finger;
@@ -1266,7 +1332,6 @@ void ili_report_debug_lite_mode(u8 *buf, int len)
 void ili_report_proximity_mode(u8 *buf, int len)
 {
 	struct input_dev *input = ilits->input;
-	ilits->proxmity_face = 0;
 
 	if (!ilits->prox_face_mode) {
 		ILI_ERR("proximity face mode Error\n");
@@ -1279,12 +1344,14 @@ void ili_report_proximity_mode(u8 *buf, int len)
 	ILI_DBG("TP mode (0x%x)\n", ilits->actual_tp_mode);
 	ILI_DBG("proximity %s, cmd : %X\n", ilits->proxmity_face ? "Near" : "Far", buf[1]);
 	ILI_DBG("power_status %s\n", ilits->power_status ? "true" : "false");
-	if ((ilits->actual_tp_mode == P5_X_FW_AP_MODE) && (ilits->proxmity_face == true) && (ilits->power_status == true)) {
+	if ((ilits->actual_tp_mode == P5_X_FW_AP_MODE) && (ilits->proxmity_face) &&
+		(ilits->power_status)) {
 		input_report_key(input, KEY_GESTURE_POWER, 1);
 		input_sync(input);
 		input_report_key(input, KEY_GESTURE_POWER, 0);
 		input_sync(input);
-	} else if ((ilits->actual_tp_mode == P5_X_FW_GESTURE_MODE) && (ilits->proxmity_face == false) && (ilits->power_status == false)) {
+	} else if ((ilits->actual_tp_mode == P5_X_FW_GESTURE_MODE) && (!(ilits->proxmity_face))
+		&& (!(ilits->power_status))) {
 		input_report_key(input, KEY_GESTURE_POWER, 1);
 		input_sync(input);
 		input_report_key(input, KEY_GESTURE_POWER, 0);
@@ -1302,11 +1369,10 @@ void ili_report_gesture_mode(u8 *buf, int len)
 	bool transfer = ilits->trans_xy;
 	u8 ges[P5_X_GESTURE_INFO_LENGTH_HIGH_RESOLUTION] = {0};
 
-	if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION) {
+	if (ilits->rib.nReportResolutionMode == POSITION_LOW_RESOLUTION)
 		ipio_memcpy(ges, buf, len, P5_X_GESTURE_INFO_LENGTH);
-	} else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION) {
+	else if (ilits->rib.nReportResolutionMode == POSITION_HIGH_RESOLUTION)
 		ipio_memcpy(ges, buf, len, P5_X_GESTURE_INFO_LENGTH_HIGH_RESOLUTION);
-	}
 
 	memset(gc, 0x0, sizeof(struct gesture_coordinate));
 
@@ -1501,13 +1567,12 @@ void ili_report_i2cuart_mode(u8 *buf, int len)
 
 	need_read_len = buf[1] * buf[2];
 
-	if (type == 0 || type == 1 || type == 6) {
+	if (type == 0 || type == 1 || type == 6)
 		one_data_bytes = 1;
-	} else if (type == 2 || type == 3) {
+	else if (type == 2 || type == 3)
 		one_data_bytes = 2;
-	} else if (type == 4 || type == 5) {
+	else if (type == 4 || type == 5)
 		one_data_bytes = 4;
-	}
 
 	need_read_len =  need_read_len * one_data_bytes + 1;
 	ILI_DBG("need_read_len = %d  one_data_bytes = %d\n", need_read_len, one_data_bytes);
@@ -1562,15 +1627,18 @@ int ili_read_knuckle_roi_data(void)
 		ilits->last_touch,
 		ilits->finger);
 
-	if (ts_dev_data->ts_platform_data->feature_info.roi_info.roi_switch && ts_dev_data->ts_platform_data->feature_info.roi_info.roi_supported) {
-		if (ilits->last_touch != ilits->finger && ilits->finger <= ILITEK_KNUCKLE_ROI_FINGERS) {
+	if (ts_dev_data->ts_platform_data->feature_info.roi_info.roi_switch &&
+		ts_dev_data->ts_platform_data->feature_info.roi_info.roi_supported) {
+		if (ilits->last_touch != ilits->finger && ilits->finger <=
+			ILITEK_KNUCKLE_ROI_FINGERS) {
 			ret = ili_config_knuckle_roi_ctrl(CMD_ROI_DATA);
 			if (ret) {
 				ILI_ERR("write data failed, ret = %d\n", ret);
 				return ret;
 			}
-			mdelay(1);
-			ret = ilits->wrapper(NULL, 0, ilits->knuckle_roi_data, ROI_DATA_READ_LENGTH, OFF, OFF);
+			usleep_range(1000, 2000);
+			ret = ilits->wrapper(NULL, 0, ilits->knuckle_roi_data, ROI_DATA_READ_LENGTH,
+				OFF, OFF);
 			if (ret) {
 				ILI_ERR("read data failed, ret = %d\n", ret);
 				return ret;
@@ -1582,11 +1650,12 @@ int ili_read_knuckle_roi_data(void)
 				ilits->knuckle_roi_data[2],
 				ilits->knuckle_roi_data[3]);
 			if (debug_en) {
-				printk("=================== roi data in bytes ===================\n");
+				pr_info("=================== roi data in bytes =================
+					==\n");
 				for (i = 4; i < ROI_DATA_READ_LENGTH; i++) {
-				printk(KERN_CONT "%3d ", ilits->knuckle_roi_data[i]);
+					pr_info("%3d\n", ilits->knuckle_roi_data[i]);
 					if ((i - 3) % 14 == 0) { /* 14 * 14  rawdata bytes */
-						printk("\n");
+						pr_info("\n");
 					}
 				}
 			}
