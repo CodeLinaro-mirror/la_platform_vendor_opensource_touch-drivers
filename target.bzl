@@ -2,6 +2,87 @@ load(":touch_modules.bzl", "touch_driver_modules")
 load(":touch_modules_build.bzl", "define_target_variant_modules")
 load(":target_variants.bzl", "get_all_variants")
 
+
+def define_shikra(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "qts",
+            "gt9xx-ts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG",
+            "CONFIG_QTS_ENABLE"
+        ],
+)
+
+def define_shikra_tiny_32go(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "qts",
+            "gt9xx-ts",
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG",
+            "CONFIG_QTS_ENABLE"
+        ],
+)
+
+def define_shikra_64go(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "qts",
+            "gt9xx-ts",
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG",
+            "CONFIG_QTS_ENABLE"
+        ],
+)
+
+def define_shikravm(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "qts",
+            "gt9xx-ts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_SHIKRA",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_TOUCHSCREEN_GT9XX",
+            "CONFIG_TOUCHSCREEN_GT9XX_UPDATE",
+            "CONFIG_TOUCHSCREEN_GT9XX_DEBUG",
+            "CONFIG_QTS_ENABLE"
+        ],
+)
+
 def define_vienna(t,v):
     define_target_variant_modules(
         target = t,
@@ -139,6 +220,7 @@ def define_art(t,v):
             "atmel_mxt_ts",
             "dummy_ts",
             "goodix_ts",
+            "goodix_ts2",
             "st_fts",
             "synaptics_tcm2_ts",
             "qts"
@@ -148,6 +230,8 @@ def define_art(t,v):
             "CONFIG_ARCH_ART",
             "CONFIG_MSM_TOUCH",
             "CONFIG_TOUCHSCREEN_GOODIX_BRL",
+            "CONFIG_TOUCHSCREEN_GOODIX_BRL2",
+            "CONFIG_TOUCHSCREEN_GOODIX_BRL_SPI",
             "CONFIG_TOUCHSCREEN_ATMEL_MXT",
             "CONFIG_TOUCHSCREEN_ST",
             "CONFIG_QTS_ENABLE",
@@ -181,13 +265,21 @@ def define_bengal(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
-            "synaptics_tcm_ts"
+            "focaltech_fts",
+            "synaptics_tcm_ts",
+            "nt36xxx-i2c",
+            "qts"
+
+
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
             "CONFIG_MSM_TOUCH",
             "CONFIG_ARCH_BENGAL",
+            "CONFIG_TOUCH_FOCALTECH",
             "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM",
+            "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
+            "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_DUMMY"
         ],
 )
@@ -308,7 +400,8 @@ def define_lahaina(t,v):
         modules = [
             "nt36xxx-i2c",
 	    "qts",
-	    "focaltech_fts"
+	    "focaltech_fts",
+	    "atmel_mxt_ts"
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
@@ -317,6 +410,7 @@ def define_lahaina(t,v):
 	    "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
 	    "CONFIG_TOUCH_FOCALTECH",
+	    "CONFIG_TOUCHSCREEN_ATMEL_MXT"
         ],
 )
 
@@ -391,5 +485,17 @@ def define_touch_target():
             define_artvm(t, v)
         elif t == "art-oemvm":
             define_artvm(t, v)
+        elif t == "art16k":
+            define_art(t, v)
+        elif t == "shikra_tiny_32go":
+            define_shikra_tiny_32go(t, v)
+        elif t == "shikra_64go":
+            define_shikra_64go(t, v)
+        elif t == "shikra":
+            define_shikra(t, v)
+        elif t == "pebble-le":
+            define_art(t, v)
+        elif (t == "shikra-tuivm" or t == "shikra-oemvm"):
+            define_shikravm(t, v)
         else:
             pass

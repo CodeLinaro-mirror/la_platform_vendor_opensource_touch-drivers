@@ -134,6 +134,11 @@ struct product_specific {
 	struct tcm_timings timings;
 };
 
+struct syna_tvm {
+	bool qts_en;
+	struct mutex tui_transition_lock;
+};
+
 /* Abstractions of hardware-specific interface */
 struct syna_hw_interface {
 	/* pointers to the target platform */
@@ -152,11 +157,21 @@ struct syna_hw_interface {
 	/* Product specific data */
 	struct product_specific product;
 
+	/* for trusted touch */
+	struct syna_tvm bdata_tvm;
+
 	/* Implementation of power on/off operation */
 	int (*ops_power_on)(bool on);
 
 	/* Implementation of hardware reset operation */
 	void (*ops_hw_reset)(void);
+
+	/* Set reset GPIO direction for sleep state management:
+	 * true  = input  (sleep/suspend state, reduces leakage current)
+	 * false = output (active state, holds reset line)
+	 * Called only from suspend/resume paths, never from shutdown.
+	 */
+	int (*ops_set_reset_gpio_input)(bool input);
 
 #if defined(CONFIG_TOUCHSCREEN_SYNA_TCM2_DEBUG_MSG)
 	int debug_trace;
