@@ -34,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/version.h>
 #if (KERNEL_VERSION(5, 15, 0) <= LINUX_VERSION_CODE)
@@ -321,6 +322,47 @@ int fts_writeRead(struct fts_ts_info *info, u8 *cmd, int cmdLength, u8 *outBuf, 
 	struct spi_message msg;
 	struct spi_transfer transfer[2] = { { 0 }, { 0 } };
 
+#if (KERNEL_VERSION(6, 18, 0) <= LINUX_VERSION_CODE)
+	/*
+	 * kernel 6.18+ GENI SPI does not keep CS asserted across two
+	 * transfers within one spi_message; the ST touch IC then loses the
+	 * read context and returns 0x00. Use a single full-duplex transfer
+	 * (CS held for the whole clock sequence) with the per-device
+	 * preallocated buffers, so this hot path never allocates. Kernels
+	 * before 6.18 keep the original two-transfer path below unchanged.
+	 */
+	if (getClient(info) != NULL && getClient(info)->bus_type == BUS_SPI) {
+		int total = cmdLength + byteToRead;
+
+		if (total > FTS_IO_BUF_SIZE) {
+			logError(1, "%s %s: transfer %d exceeds FTS_IO_BUF_SIZE\n",
+				 tag, __func__, total);
+			return ERROR_ALLOC;
+		}
+
+		mutex_lock(&info->io_lock);
+		memset(info->io_tx, 0, total);
+		memcpy(info->io_tx, cmd, cmdLength);
+
+		spi_message_init(&msg);
+		transfer[0].len = total;
+		transfer[0].tx_buf = info->io_tx;
+		transfer[0].rx_buf = info->io_rx;
+		spi_message_add_tail(&transfer[0], &msg);
+
+		ret = spi_sync(toSPIClient(info), &msg);
+		if (ret >= 0)
+			memcpy(outBuf, info->io_rx + cmdLength, byteToRead);
+		mutex_unlock(&info->io_lock);
+
+		if (ret < 0) {
+			logError(1, "%s %s: ERROR %08X\n", tag, __func__,
+				 ERROR_BUS_WR);
+			return ERROR_BUS_WR;
+		}
+		return OK;
+	}
+#endif
 
 	tx_buf = kzalloc(cmdLength, GFP_KERNEL);
 	rx_buf = kzalloc(byteToRead, GFP_KERNEL);
