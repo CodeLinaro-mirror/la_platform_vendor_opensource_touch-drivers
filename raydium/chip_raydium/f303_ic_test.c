@@ -3,6 +3,7 @@
  * Raydium TouchScreen driver.
  *
  * Copyright (c) 2021  Raydium tech Ltd.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1271,7 +1272,7 @@ STATUS baseline_update_control_3x(bool b_enable_baseline_update)
 	return SUCCESS;
 }
 
-STATUS wait_fw_init_ready_3x(void)
+static STATUS wait_fw_init_ready_3x(void)
 {
 	unsigned short u16_time_out;
 	unsigned char u8_r_buf[2];

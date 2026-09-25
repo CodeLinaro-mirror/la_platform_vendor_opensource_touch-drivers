@@ -4,9 +4,9 @@
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
- * Qualcomm Innovation Center, Inc. chooses to use it under GPLv2
+ * Qualcomm Technologies, Inc. chooses to use it under GPLv2
  * Copyright (c) 2021  Raydium tech Ltd.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ static int self_test_all(void)
 	return ret;
 }
 
-int self_test_save_to_file(char *file_name, char *p_string, short len)
+static int self_test_save_to_file(char *file_name, char *p_string, short len)
 {
 	struct file *filp = NULL;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0))
@@ -221,7 +221,7 @@ static int self_test_init(void)
 	return ret;
 }
 
-int self_test_save_test_raw_data_to_file(int i32_ng_type)
+static int self_test_save_test_raw_data_to_file(int i32_ng_type)
 {
 	/*struct tm *time_infor;*/
 	/*time_t raw_time;*/
@@ -533,7 +533,7 @@ int self_test_save_test_raw_data_to_file(int i32_ng_type)
 	return 1;
 }
 
-int self_test_read_setting_from_file(void)
+static int self_test_read_setting_from_file(void)
 {
 	unsigned short u16_offset = 0;
 

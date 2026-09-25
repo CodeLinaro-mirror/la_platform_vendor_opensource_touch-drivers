@@ -2311,7 +2311,7 @@ static void raydium_input_set(struct input_dev *input_dev)
 
 }
 
-void touch_notify_glink_channel_state(bool state)
+static void touch_notify_glink_channel_state(bool state)
 {
 	LOGD(LOG_INFO, "%s:[touch] channel state: %d\n", __func__, state);
 	if (g_raydium_ts) {
@@ -2321,7 +2321,7 @@ void touch_notify_glink_channel_state(bool state)
 	}
 }
 
-void glink_touch_rx_msg(void *data, int len)
+static void glink_touch_rx_msg(void *data, int len)
 {
 	int rc = 0;
 
@@ -3023,7 +3023,7 @@ exit_check_functionality_failed:
 }
 #endif
 
-void raydium_ts_shutdown(struct i2c_client *client)
+static void raydium_ts_shutdown(struct i2c_client *client)
 {
 
 	LOGD(LOG_INFO, "[touch] %s: start\n", __func__);
