@@ -4734,6 +4734,8 @@ ProbeErrorExit_5:
 	destroy_workqueue(info->event_wq);
 
 ProbeErrorExit_4:
+	if (info->qts_en)
+		qts_client_unregister();
 	/* destroy_workqueue(info->fwu_workqueue); */
 	wakeup_source_unregister(info->wakesrc);
 #ifndef CONFIG_ARCH_QTI_VM

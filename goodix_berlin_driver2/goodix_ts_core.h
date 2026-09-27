@@ -49,8 +49,8 @@
 #include <linux/fb.h>
 #endif
 
-#define GOODIX_CORE_DRIVER_NAME "goodix_ts"
-#define GOODIX_PEN_DRIVER_NAME "goodix_ts,pen"
+#define GOODIX_CORE_DRIVER_NAME "goodix_ts_atb"
+#define GOODIX_PEN_DRIVER_NAME "goodix_ts_atb,pen"
 #define GOODIX_DRIVER_VERSION "v1.4.17"
 /* set this value to 0, if you do not want to enable dev dump function */
 #define GOODIX_ENABLE_DUMP_DEV 0
