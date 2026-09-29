@@ -1434,7 +1434,7 @@ static int gtp_request_irq(struct goodix_ts_data *ts)
 			 ts->client->irq, ts->pdata->irq_flags);
 		ret = request_threaded_irq(ts->client->irq, NULL,
 				gtp_irq_handler,
-				ts->pdata->irq_flags | IRQF_ONESHOT,
+				ts->pdata->irq_flags | IRQF_ONESHOT | IRQF_NO_AUTOEN,
 				ts->client->name,
 				ts);
 		if (ret < 0) {
@@ -2081,6 +2081,9 @@ static int gtp_ts_post_la_tui_enable(void *data)
 
 static int gtp_ts_post_le_tui_enable(void *data)
 {
+	struct goodix_ts_data *core_data = data;
+
+	gtp_work_control_enable(core_data, true);
 	return 0;
 }
 
@@ -2088,6 +2091,7 @@ static int gtp_ts_post_le_tui_disable(void *data)
 {
 	struct goodix_ts_data *core_data = data;
 
+	gtp_work_control_enable(core_data, false);
 	gtp_release_all_touches(core_data);
 	return 0;
 }
@@ -2149,6 +2153,7 @@ static void gtp_ts_fill_qts_vendor_data(struct qts_vendor_data *qts_vendor_data,
 	}
 
 	qts_vendor_data->vendor_data = core_data;
+	qts_vendor_data->irq_gpio_flags = core_data->pdata->irq_flags;
 	qts_vendor_data->schedule_suspend = false;
 	qts_vendor_data->schedule_resume = false;
 	qts_vendor_data->qts_vendor_ops.suspend = gtp_ts_suspend_helper;
@@ -2342,6 +2347,7 @@ static int gtp_probe(struct i2c_client *client)
 	ts->init_done = true;
 #ifndef CONFIG_ARCH_QTI_VM
 	gtp_work_control_enable(ts, true);
+	gtp_irq_enable(ts);
 #endif
 
 	return 0;
