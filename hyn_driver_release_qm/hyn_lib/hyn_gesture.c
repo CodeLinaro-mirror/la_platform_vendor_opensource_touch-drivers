@@ -49,8 +49,10 @@ static  ssize_t hyn_gesture_show(struct device *dev, struct device_attribute *at
     int count;
 	HYN_ENTER();
     mutex_lock(&gesture_data->mutex_fs);
-    count = sprintf(buf, "Gesture Mode: %s\n", gesture_data->gesture_is_enable ? "On" : "Off");
-    count += sprintf(buf + count, "Reg = %d\n", gesture_data->gesture_id);
+	count = sysfs_emit(buf, "Gesture Mode: %s\n",
+			    gesture_data->gesture_is_enable ? "On" : "Off");
+	count += sysfs_emit_at(buf, count, "Reg = %d\n",
+				gesture_data->gesture_id);
     mutex_unlock(&gesture_data->mutex_fs);
     return count;
 }
@@ -120,9 +122,3 @@ void hyn_gesture_exit(struct hyn_ts_data *ts_data)
 {
     sysfs_remove_group(&ts_data->dev->kobj, &hyn_gesture_group);
 }
-
-
-
-
-
-

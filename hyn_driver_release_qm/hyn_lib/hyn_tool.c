@@ -180,7 +180,8 @@ static ssize_t hyn_proc_tool_write(struct file *file, const char __user *buffer,
 			break;
 		case UPDATA_FW: // apk download bin
 			HYN_INFO("updata file_name =%s",&cmd[1]);
-			strcpy(hyn_tool_data->fw_file_name,&cmd[1]);
+			strscpy(hyn_tool_data->fw_file_name, &cmd[1],
+				sizeof(hyn_tool_data->fw_file_name));
 			hyn_tool_data->fw_updata_process = 0;
 			hyn_tool_fun->tp_updata_fw(hyn_tool_data->fw_updata_addr,hyn_tool_data->fw_updata_len);
 			// if(0==queue_work(hyn_tool_data->hyn_workqueue,&hyn_tool_data->work_updata_fw)){
@@ -272,4 +273,3 @@ void hyn_tool_fs_exit(void)
 }
 
 #endif
-
