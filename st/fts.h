@@ -36,6 +36,7 @@
 #define _LINUX_FTS_I2C_H_
 
 #include <linux/device.h>
+#include <linux/version.h>
 #include "fts_lib/ftsSoftware.h"
 #include "fts_lib/ftsHardware.h"
 
@@ -545,6 +546,11 @@ struct fts_ts_info {
 #if IS_ENABLED(CONFIG_GUNYAH_CRASH_CLEANER)
 	struct notifier_block crash_cleaner_nb;	/* /< crash cleaner notifier */
 	bool crash_cleaner_registered;	/* /< notifier registration state */
+#endif
+#if (KERNEL_VERSION(6, 18, 0) <= LINUX_VERSION_CODE)
+	u8 *io_tx;	/* /< preallocated tx buf for single full-duplex register IO */
+	u8 *io_rx;	/* /< preallocated rx buf for single full-duplex register IO */
+	struct mutex io_lock;	/* /< serializes io_tx/io_rx use */
 #endif
 };
 

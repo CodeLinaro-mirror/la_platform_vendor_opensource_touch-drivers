@@ -3,7 +3,7 @@
  * Copyright (C) 2016-2019, STMicroelectronics Limited.
  * Authors: AMG(Analog Mems Group) <marco.cali@st.com>
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  */
 
 /*
@@ -76,6 +76,10 @@
 #define SPI_CLOCK_FREQ			7000000	/* /< clock frequency in Hz of
 						 * the SPI bus */
 
+/* preallocated register-IO buffer size (READ_CHUNK + header/dummy margin);
+ * covers every single fts_writeRead transfer without per-call allocation
+ */
+#define FTS_IO_BUF_SIZE		(READ_CHUNK + 64)
 
 #define IER_ENABLE			0x41	/* /< value to write in IER_ADDR
 						 * to enable the interrupts */
