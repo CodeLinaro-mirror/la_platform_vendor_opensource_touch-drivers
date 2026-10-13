@@ -265,6 +265,7 @@ def define_bengal(t,v):
         variant = v,
         registry = touch_driver_modules,
         modules = [
+            "focaltech_fts",
             "synaptics_tcm_ts",
             "nt36xxx-i2c",
             "qts"
@@ -275,6 +276,7 @@ def define_bengal(t,v):
             "TOUCH_DLKM_ENABLE",
             "CONFIG_MSM_TOUCH",
             "CONFIG_ARCH_BENGAL",
+            "CONFIG_TOUCH_FOCALTECH",
             "CONFIG_TOUCHSCREEN_SYNAPTICS_TCM",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
             "CONFIG_QTS_ENABLE",
@@ -411,6 +413,24 @@ def define_lahaina(t,v):
 	    "CONFIG_TOUCHSCREEN_ATMEL_MXT"
         ],
 )
+def define_waipio(t,v):
+    define_target_variant_modules(
+        target = t,
+        variant = v,
+        registry = touch_driver_modules,
+        modules = [
+            "qts",
+            "focaltech_fts"
+        ],
+        config_options = [
+            "TOUCH_DLKM_ENABLE",
+            "CONFIG_ARCH_WAIPIO",
+            "CONFIG_MSM_TOUCH",
+            "CONFIG_QTS_ENABLE",
+            "CONFIG_TOUCH_FOCALTECH",
+        ],
+)
+
 
 def define_monaco(t,v):
     define_target_variant_modules(
@@ -475,6 +495,8 @@ def define_touch_target():
             define_malabarvm(t, v)
         elif t == "sun":
             define_sun(t, v)
+        elif t == "waipio":
+            define_waipio(t, v)
         elif t == "vienna":
             define_vienna(t, v)
         elif t == "art":
