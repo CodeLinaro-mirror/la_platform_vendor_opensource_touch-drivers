@@ -1960,6 +1960,7 @@ void qts_client_unregister(void)
 		}
 	}
 	kfree(qts_data_entries);
+	qts_data_entries = NULL;
 }
 EXPORT_SYMBOL_GPL(qts_client_unregister);
 
