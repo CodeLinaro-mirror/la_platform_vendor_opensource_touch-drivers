@@ -266,16 +266,16 @@ static int write93xx_mem_page(uint16_t addr, uint8_t *buf, uint16_t len)
     int ok = FALSE,t,i;
     uint8_t sram_buf[8+2] = {0};
 
-    memcpy(sram_buf,(u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}, 6);
-    ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //addr
+	memcpy(sram_buf, ((u8[]){0xA0, 0x14, addr, addr>>8, 0x00, 0x50}), 6);
+	ok = hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //addr
 
-    if (addr == 0) {
-        memcpy(sram_buf,(u8[]){0xA0, 0x0C, len, len>>8, 0x00, 0x00}, 6);
-        ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
-    
-        memcpy(sram_buf,(u8[]){0xA0,0x0E,0x00, 0x00,0x00,0x00},6);
-        ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
-    }
+	if (addr == 0) {
+		memcpy(sram_buf, ((u8[]){0xA0, 0x0C, len, len>>8, 0x00, 0x00}), 6);
+		ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //ctl
+
+		memcpy(sram_buf, ((u8[]){0xA0, 0x0E, 0x00, 0x00, 0x00, 0x00}), 6);
+		ok |= hyn_write_data(hyn_92xxdata, sram_buf, RW_REG_LEN, 6); //cfg
+	}
     
 	for (i = 0; i < len; i+=8) {
 		uint16_t sram_addr = 0xA018 + i;
@@ -549,9 +549,9 @@ static int cst923xx_updata_tpinfo(void)
         ret |= hyn_wr_reg(hyn_92xxdata,0xD228,2,buf+20,4); 
         // chipid
         ret |= hyn_wr_reg(hyn_92xxdata,0xD224,2,buf+24,4);
-        if(ret == 0 && buf[11]==buf[25] && buf[26]==0xCA && buf[27]==0xCA){
-            break;
-        }
+		/* chipid check (buf[25..27]) disabled, only match chip type */
+		if (ret == 0 && buf[11] == 0x92)
+			break;
         ret = -1;
     }
     if(ret){
