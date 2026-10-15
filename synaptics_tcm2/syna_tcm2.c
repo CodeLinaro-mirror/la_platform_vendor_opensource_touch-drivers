@@ -77,6 +77,8 @@ static unsigned char custom_touch_format[] = {
 #define RESET_ON_RESUME_DELAY_MS (100)
 #endif
 
+#define DEV_PROBE_DELAY_US (200)
+
 /* The delayed time when doing power mode switching */
 #define DEV_POWER_SWITCHING_DELAY_MS (100)
 
@@ -2516,13 +2518,14 @@ static int syna_dev_probe(struct platform_device *pdev)
 
 	tcm = syna_pal_mem_alloc(1, sizeof(struct syna_tcm));
 	if (!tcm) {
-		if (++tcm_alloc_retry >= 3) {
+		if (++tcm_alloc_retry >= 5) {
 			LOGE("Fail to create the handle of syna_tcm, already retried %d times\n",
 				tcm_alloc_retry);
 			return -ENOMEM;
 		}
-		LOGW("Fail to create the handle of syna_tcm, try it later (%d/3)\n",
+		LOGW("Fail to create the handle of syna_tcm, try it later (%d/5)\n",
 			tcm_alloc_retry);
+		syna_pal_sleep_us(DEV_PROBE_DELAY_US);
 		return -EPROBE_DEFER;
 	}
 	tcm_alloc_retry = 0;
