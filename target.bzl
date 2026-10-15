@@ -420,15 +420,15 @@ def define_waipio(t,v):
         registry = touch_driver_modules,
         modules = [
             "qts",
-	    "nt36xxx-i2c",
+            "nt36xxx-i2c",
             "focaltech_fts"
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
-	    "CONFIG_ARCH_WAIPIO",
+            "CONFIG_ARCH_WAIPIO",
             "CONFIG_MSM_TOUCH",
             "CONFIG_QTS_ENABLE",
-	    "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
+            "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
             "CONFIG_TOUCH_FOCALTECH",
         ],
 )
