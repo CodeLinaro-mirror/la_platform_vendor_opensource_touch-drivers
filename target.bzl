@@ -401,7 +401,8 @@ def define_lahaina(t,v):
             "nt36xxx-i2c",
 	    "qts",
 	    "focaltech_fts",
-	    "atmel_mxt_ts"
+	    "atmel_mxt_ts",
+	    "ilitek"
         ],
         config_options = [
             "TOUCH_DLKM_ENABLE",
@@ -410,7 +411,8 @@ def define_lahaina(t,v):
 	    "CONFIG_QTS_ENABLE",
             "CONFIG_TOUCHSCREEN_NT36XXX_I2C",
 	    "CONFIG_TOUCH_FOCALTECH",
-	    "CONFIG_TOUCHSCREEN_ATMEL_MXT"
+	    "CONFIG_TOUCHSCREEN_ATMEL_MXT",
+	    "CONFIG_TOUCHSCREEN_ILITEK_V3",
         ],
 )
 def define_waipio(t,v):
