@@ -3,7 +3,7 @@
  * Raydium TouchScreen driver.
  *
  * Copyright (c) 2021  Raydium tech Ltd.
- * Copyright (c) 2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -197,7 +197,7 @@ int raydium_id_init(unsigned char u8_type)
 	return i32_ret;
 }
 #endif
-unsigned int bits_reverse(unsigned int u32_num, unsigned int bit_num)
+static unsigned int bits_reverse(unsigned int u32_num, unsigned int bit_num)
 {
 	unsigned int reverse = 0, u32_i;
 
@@ -208,7 +208,7 @@ unsigned int bits_reverse(unsigned int u32_num, unsigned int bit_num)
 	return reverse;
 }
 
-unsigned int rc_crc32(const char *buf, unsigned int u32_len,
+static unsigned int rc_crc32(const char *buf, unsigned int u32_len,
 		      unsigned int u32_crc)
 {
 	unsigned int u32_i;
@@ -280,7 +280,7 @@ int wait_irq_state(struct i2c_client *client, unsigned int retry_time,
 	return i32_ret;
 }
 
-int raydium_do_software_reset(struct i2c_client *client)
+static int raydium_do_software_reset(struct i2c_client *client)
 {
 	int i32_ret = SUCCESS;
 
@@ -304,7 +304,7 @@ exit:
 	return i32_ret;
 }
 
-int set_skip_load(struct i2c_client *client)
+static int set_skip_load(struct i2c_client *client)
 {
 	int i32_ret = SUCCESS;
 	unsigned int u32_retry_time = 1000;
@@ -480,7 +480,7 @@ exit_upgrate:
 	return SUCCESS;
 }
 
-unsigned char raydium_stop_mcu_3x(unsigned char u8_is_tp_reset)
+static unsigned char raydium_stop_mcu_3x(unsigned char u8_is_tp_reset)
 {
 	unsigned short u16_time_out = 100;
 	unsigned int u32_read_data = 0;
@@ -1063,7 +1063,7 @@ exit_upgrade:
 	return i32_ret;
 }
 
-int raydium_check_fw_ready(struct i2c_client *client)
+static __maybe_unused int raydium_check_fw_ready(struct i2c_client *client)
 {
 	int i32_ret = SUCCESS;
 	unsigned int u32_retry = 400;
@@ -1091,7 +1091,7 @@ exit:
 	return i32_ret;
 }
 /* upgrade firmware with image file */
-int raydium_fw_upgrade_with_image(struct i2c_client *client,
+static __maybe_unused int raydium_fw_upgrade_with_image(struct i2c_client *client,
 				  unsigned int u32_fw_addr,
 				  unsigned char u8_type)
 {
