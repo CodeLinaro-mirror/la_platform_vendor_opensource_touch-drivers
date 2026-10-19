@@ -499,6 +499,8 @@ def define_touch_target():
             define_sun(t, v)
         elif t == "waipio":
             define_waipio(t, v)
+        elif t == "waipio-tuivm":
+            define_waipio(t, v)
         elif t == "vienna":
             define_vienna(t, v)
         elif t == "art":
