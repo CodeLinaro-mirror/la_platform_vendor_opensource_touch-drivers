@@ -124,8 +124,17 @@ ddk_headers(
 )
 
 ddk_headers(
+    name = "ilitek_headers",
+    hdrs = glob([
+            "il7807s_touch/*.h",
+            "il7807s_touch/firmware/*.h"
+        ]
+    )
+)
+
+ddk_headers(
     name = "touch_drivers_headers",
-    hdrs = [":st_ts_headers", ":qts_headers", ":goodix_ts_headers", ":goodix_ts2_headers", ":nt36xxx_headers", ":focaltech_headers", ":synaptics_tcm_headers", ":synaptics_tcm2_headers", ":pt_headers", ":raydium_headers", ":config_headers", ":glink_interface_ts_headers", ":gt9xx_headers", ":uapi_headers"]
+    hdrs = [":st_ts_headers", ":qts_headers", ":goodix_ts_headers", ":goodix_ts2_headers", ":nt36xxx_headers", ":focaltech_headers", ":synaptics_tcm_headers", ":synaptics_tcm2_headers", ":pt_headers", ":raydium_headers", ":config_headers", ":glink_interface_ts_headers", ":gt9xx_headers", ":uapi_headers", ":ilitek_headers"]
 )
 
 load(":target.bzl", "define_touch_target")

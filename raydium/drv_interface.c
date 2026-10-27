@@ -4,8 +4,9 @@
  *
  * This file is provided under a dual BSD/GPLv2 license.  When using or
  * redistributing this file, you may do so under either license.
- * Qualcomm Innovation Center, Inc. chooses to use it under GPLv2
+ * Qualcomm Technologies, Inc. chooses to use it under GPLv2
  * Copyright (c) 2021  Raydium tech Ltd.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -59,6 +60,7 @@
 #include "raydium_selftest.h"
 #include "raydium_driver.h"
 #include "chip_raydium/f303_ic_control.h"
+#include "chip_raydium/f303_ic_test.h"
 
 unsigned char g_u8_m_buf[2][128];
 unsigned char g_u8_ini_flash[0x400];
@@ -66,20 +68,24 @@ struct raydium_ts_data *ts;
 unsigned char g_u8_mute_i2c_err_log;
 
 
-STATUS i2c_burst_read_pda2(unsigned char u8_addr, unsigned short u16ReadLen, unsigned char *p_u8_output_buf)
+static __maybe_unused STATUS i2c_burst_read_pda2(unsigned char u8_addr,
+		unsigned short u16ReadLen, unsigned char *p_u8_output_buf)
 {
 	return ERROR;
 }
-STATUS i2c_burst_write_pda2(unsigned char u8_addr, unsigned char bWriteLen, unsigned char *bValue)
+static __maybe_unused STATUS i2c_burst_write_pda2(unsigned char u8_addr,
+		unsigned char bWriteLen, unsigned char *bValue)
 {
 	return ERROR;
 }
 
-unsigned char spi_write_pda(unsigned int u32_addr, unsigned char u8_write_len, unsigned char *bValue, unsigned char u8_trans_mode)
+static unsigned char spi_write_pda(unsigned int u32_addr, unsigned char u8_write_len,
+		unsigned char *bValue, unsigned char u8_trans_mode)
 {
 	return ERROR;
 }
-unsigned char spi_read_pda(unsigned int u32_addr, unsigned char u8_read_len, unsigned char *p_u8_output_buf)
+static unsigned char spi_read_pda(unsigned int u32_addr, unsigned char u8_read_len,
+		unsigned char *p_u8_output_buf)
 {
 	return ERROR;
 }
@@ -454,7 +460,7 @@ unsigned char handle_ic_write(
  ** Returned value:ERROR,SUCCESS
  **
  ******************************************************************************/
-unsigned char handle_display_write(
+static __maybe_unused unsigned char handle_display_write(
 	unsigned char *p_u8_data,
 	unsigned short u16DataLength)
 {
