@@ -38,6 +38,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/version.h>
 #include <linux/input.h>
 #include <linux/input/mt.h>
 #include <linux/interrupt.h>
@@ -4863,9 +4864,29 @@ static int st_fts_spi_probe(struct spi_device *spi)
 	info->bus_type = BUS_SPI;
 	spi_set_drvdata(spi, info);
 
+#if (KERNEL_VERSION(6, 18, 0) <= LINUX_VERSION_CODE)
+	/* preallocate register-IO buffers once; fts_writeRead is a hot
+	 * path and must not kmalloc/kfree on every transfer
+	 */
+	info->io_tx = kzalloc(FTS_IO_BUF_SIZE, GFP_KERNEL);
+	info->io_rx = kzalloc(FTS_IO_BUF_SIZE, GFP_KERNEL);
+	if (!info->io_tx || !info->io_rx) {
+		kfree(info->io_tx);
+		kfree(info->io_rx);
+		kfree(info);
+		return -ENOMEM;
+	}
+	mutex_init(&info->io_lock);
+#endif
+
 	ret = st_fts_probe_entry(info);
 	if (ret) {
 		logError(1, "%s %s: ST Touch Screen(SPI BUS) driver probe fail\n", tag, __func__);
+#if (KERNEL_VERSION(6, 18, 0) <= LINUX_VERSION_CODE)
+		mutex_destroy(&info->io_lock);
+		kfree(info->io_tx);
+		kfree(info->io_rx);
+#endif
 		kfree(info);
 		return ret;
 	}
@@ -4912,6 +4933,11 @@ static void st_fts_remove_entry(struct fts_ts_info *info)
 	fts_get_reg(info, false);
 
 	/* free all */
+#if (KERNEL_VERSION(6, 18, 0) <= LINUX_VERSION_CODE)
+	mutex_destroy(&info->io_lock);
+	kfree(info->io_tx);
+	kfree(info->io_rx);
+#endif
 	kfree(info);
 }
 

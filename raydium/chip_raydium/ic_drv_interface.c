@@ -3,6 +3,7 @@
  * Raydium TouchScreen driver.
  *
  * Copyright (c) 2021  Raydium tech Ltd.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -65,7 +66,7 @@ STATUS wearable_ic_test_read_info(void)
 	return SUCCESS;
 }
 
-STATUS wearable_ic_test_info_init(void)
+static STATUS wearable_ic_test_info_init(void)
 {
 #if SELFTEST
 	g_u16_test_items_host_cmd = IC_TEST_ITEMS_SYSTEM | IC_TEST_ITEMS_OPEN | IC_TEST_ITEMS_SHORT |  IC_TEST_ITEMS_UC | IC_TEST_ITEMS_UB | IC_TEST_ITEMS_BURN_CC;
